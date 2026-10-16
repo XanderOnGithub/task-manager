@@ -400,6 +400,8 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
+        // Keep the plugin available for manual control through Settings.
+        .plugin(tauri_plugin_macos_fps::init())
         .setup(|app| {
             let settings_file = app.path().app_config_dir()?.join("settings.json");
             let settings = load_settings(&settings_file);

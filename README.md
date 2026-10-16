@@ -48,3 +48,7 @@ cargo run --release -p task-core --example bench         # loading benchmark
 ```
 
 Loading 10,000 tasks (plus 1,000 notes with 20 KB bodies) takes about 70 ms, because only the frontmatter of each file is read.
+
+On macOS, Settings includes an opt-in native refresh-rate switch for ProMotion
+displays. It uses `tauri-plugin-macos-fps` to unlock rendering above 60fps; the
+switch remains off by default to avoid unnecessary battery use.

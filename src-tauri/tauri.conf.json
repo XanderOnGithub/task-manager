@@ -33,6 +33,11 @@
       "csp": "default-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: asset:; connect-src ipc: http://ipc.localhost"
     }
   },
+  "plugins": {
+    "macos-fps": {
+      "enabled": false
+    }
+  },
   "bundle": {
     "active": true,
     "targets": "all",
