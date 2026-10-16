@@ -33,11 +33,11 @@ Built with [Tauri](https://tauri.app) (Rust) and React.
 
 ## Development
 
-Requirements: Rust (stable), Node 22, and on macOS the Xcode command line tools.
+Requirements: Rust (stable), Node 22, pnpm 10, and on macOS the Xcode command line tools.
 
 ```sh
-npm install
-npm run tauri dev
+pnpm install
+pnpm tauri dev
 ```
 
 The first dev run opens a copy of `sample-data/`, so there's something to look at.

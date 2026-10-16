@@ -28,11 +28,11 @@ sample-data/    the renovation example from the mockups; dev builds open a copy 
 
 ## Commands
 
-- `npm run tauri dev`: run the app (dev builds open a copy of sample-data/ if no folder is set)
+- `pnpm tauri dev`: run the app (dev builds open a copy of sample-data/ if no folder is set)
 - `cargo test -p task-core`: core tests
 - `cargo run --release -p task-core --example bench`: loading benchmark
 - `cargo clippy --workspace --all-targets` and `cargo fmt --all`: lint and format Rust
-- `npm run lint` and `npm run build`: lint and type-check the front end
+- `pnpm lint` and `pnpm build`: lint and type-check the front end
 
 ## Rules for the code
 
