@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import { spring } from '../lib/motion'
 import { ToastContext, type ToastInput } from '../lib/toast'
+import { play } from '../lib/sounds'
 
 /** How long a toast stays up. Longer when there's an Undo to reach for. */
 const DURATION_MS = 4000
@@ -24,6 +25,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   const undo = useCallback(async () => {
     const action = toast?.undo
     setToast(null)
+    if (action) play('undo')
     await action?.()
   }, [toast])
 

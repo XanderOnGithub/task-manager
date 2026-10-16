@@ -145,7 +145,7 @@ export function NoteTree({
       onDragOver={updateTarget}
       onDragEnd={onDragEnd}
       onDragCancel={() => {
-        drag.end()
+        drag.end(false)
         setTarget(null)
       }}
     >

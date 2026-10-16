@@ -9,6 +9,7 @@ import { useTheme, type Theme } from '../lib/theme'
 import { useToast } from '../lib/toast'
 import { Modal, Segmented, Switch } from './controls'
 import { Panel } from './ui'
+import { play, setSoundSettings, soundSettings, type SoundSettings } from '../lib/sounds'
 
 export function QuickCapture({ onCapture, onClose }: { onCapture: (text: string) => Promise<unknown>; onClose: () => void }) {
   const [text, setText] = useState('')
@@ -93,6 +94,8 @@ export function Settings({
           </p>
         </div>
 
+        <SoundSetting />
+
         <HighRefreshSetting />
 
         <div className="flex flex-col gap-2">
@@ -150,6 +153,49 @@ export function ChooseFolder({ onChosen }: { onChosen: () => Promise<void> }) {
  * Experimental: draw at 120fps on ProMotion displays (macOS). The live readout
  * shows what the window is actually doing, so you can tell whether it worked.
  */
+function SoundSetting() {
+  const [value, setValue] = useState<SoundSettings>(soundSettings)
+  const update = (next: SoundSettings) => {
+    setValue(next)
+    setSoundSettings(next)
+  }
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="flex items-center gap-3">
+        <div className="flex flex-1 flex-col gap-0.5">
+          <span className="text-meta text-fg-2">Sounds</span>
+          <span className="text-meta font-normal text-fg-3">Quiet sounds when you drag, finish, capture or delete.</span>
+        </div>
+        <Switch
+          label="Sounds"
+          checked={value.on}
+          onChange={(on) => {
+            update({ ...value, on })
+            if (on) play('complete', { force: true })
+          }}
+        />
+      </div>
+      <label className={`flex items-center gap-3 transition-opacity duration-150 ${value.on ? '' : 'opacity-40'}`}>
+        <span className="w-[52px] text-meta font-normal text-fg-3">Volume</span>
+        <input
+          type="range"
+          min={0}
+          max={1}
+          step={0.05}
+          value={value.volume}
+          disabled={!value.on}
+          onChange={(e) => update({ ...value, volume: Number(e.currentTarget.value) })}
+          // Play a sample when you let go, so you hear the new level.
+          onPointerUp={() => play('complete')}
+          onKeyUp={() => play('complete')}
+          aria-label="Sound volume"
+          className="flex-1 accent-accent"
+        />
+      </label>
+    </div>
+  )
+}
+
 function HighRefreshSetting() {
   const [state, setState] = useState<HighRefresh | null>(null)
   const [busy, setBusy] = useState(false)

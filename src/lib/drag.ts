@@ -23,6 +23,7 @@ import {
   type DropAnimation,
 } from '@dnd-kit/core'
 import { sortableKeyboardCoordinates } from '@dnd-kit/sortable'
+import { play } from './sounds'
 
 /**
  * Mouse drags start after moving 4px, so plain clicks still click. Keyboard:
@@ -91,13 +92,18 @@ export function useDragState() {
   return useMemo(
     () => ({
       active,
-      start: (event: DragStartEvent) =>
+      start: (event: DragStartEvent) => {
+        play('pickUp')
         setActive({
           id: String(event.active.id),
           grab: grabPoint(event),
           width: event.active.rect.current.initial?.width ?? 300,
-        }),
-      end: () => {
+        })
+      },
+      /** `landed`: false when the drag was cancelled (no drop sound), or when
+       * the drop makes its own sound (a board card changing status). */
+      end: (landed = true) => {
+        if (landed) play('drop')
         setActive(null)
         swallowNextClick()
       },

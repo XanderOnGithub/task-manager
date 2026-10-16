@@ -59,7 +59,7 @@ brand/          the Moss mark (icon.svg), README wordmarks, icon-1024.png (sourc
 - `src/components/controls.tsx`: InlineAdd, EditableTitle, Menu, Segmented, Modal, BodyEditor, DateField. `ui.tsx`: Panel, chips, status icon, due date, progress.
 - Tasks pages: `ScopeView.tsx` shows an area, project or milestone (breadcrumb, List/Board). List: `AreaList.tsx` (projects with their open tasks) or `ProjectList.tsx` (a project's milestones/tasks, or a milestone's tasks). Board: `Board.tsx` for any of the three. `tasksUnder()` in `lib/items.ts` collects the tasks inside anything.
 - Text: `MarkdownEditor.tsx` (Milkdown) for note pages and every description. Rich text on screen, plain markdown on disk ("-" bullets, no `<br />`), saved only after a real edit. Styles in `styles/editor.css`. Loaded lazily.
-- Toasts: `useToast()`; ⌘Z runs the visible toast's Undo. ⌘N opens Quick capture. ⌘\\ hides the sidebar (remembered via `lib/prefs.ts`).
+- Toasts: `useToast()`; ⌘Z runs the visible toast's Undo. ⌘N opens Quick capture. ⌘\ hides the sidebar (remembered via `lib/prefs.ts`).
 - Docs tree: `NoteTree.tsx`. Drop zones on a page: top quarter = above, middle = subpage, bottom quarter = below.
 
 ## Motion
@@ -71,7 +71,7 @@ The app should feel smooth and considered, never gamified. Library: Motion (`mot
 - Building blocks: `Collapse` (open/close by height, staggered rows), `ListRow` (rows entering and leaving a list), `StatusIcon` (ring, half fill, pop, check draws), `TaskTitle` (strikethrough sweep), `layoutId` for shared highlights (segmented thumb, sidebar selection) and board cards moving between columns.
 - Reduce motion is respected through `<MotionConfig reducedMotion="user">` in main.tsx and a rule in motion.css.
 - Drag and drop: dnd-kit. Shared pieces in `src/lib/drag.ts` (sensors, collision, drop settle, click swallowing) and `src/lib/useTwoLevelDrag.ts` (groups holding items: milestones/tasks in `ProjectList.tsx`, areas/projects in `AreaTree.tsx`). We draw the held item ourselves in `<DragOverlay>` with `Lifted`: velocity tilt up to ~6° (less for wide rows), spring swing back, 2% lift. The overlay face must match the row's padding so nothing jumps on pickup. Dragging a group folds all groups; a folded area opens while it holds the dragged project. Board cards change status by column and fly with `layoutId`. Every move goes through `actions.move` (toast + Undo when the parent changes). Keyboard: focus a row, Space, arrows, Space.
-- Later: tiny optional sounds on committed actions only (capture, complete, file, drop, delete, undo), preloaded with Web Audio, with an on/off and volume setting.
+- Sounds: `src/lib/sounds.ts` (ZzFX recipes, rendered once, low-passed so they stay muted). Seven: pickUp, drop, complete, status, capture, delete, undo. Never on hover, clicks, navigation or typing. On/off and volume in Settings (stored with `lib/prefs.ts`). Tune them on the sound test page (https://claude.ai/artifact/Cnzk2o44TdfL9tYS4z3YHP) and paste the arrays into `SOUNDS`.
 - 120fps: WebKit caps pages at 60fps (the plugin notes that macOS 26 may no longer apply the cap; check with the fps readout). `src-tauri/src/high_refresh.rs` uses `tauri-plugin-macos-fps` to flip WebKit's private "prefer 60fps" flag behind an experimental Settings switch with a live fps readout. Animations must look right at both 60 and 120.
 
 ## Vocabulary (fixed, never use synonyms in UI or code)
@@ -127,12 +127,12 @@ data/
 
 M1 file format + Rust core + 10k-file benchmark → M2 app shell + tokens → M3 Unsorted (start using the app here) → M4 hierarchy lists → M5 drag and drop + Board → M6 notes editor (plain text + preview first). v1 is only Unsorted, the hierarchy and notes. Budget: a few weekends.
 
-Status: M1–M6 are built (core, shell, Unsorted flow, create / edit / delete with Undo, Settings, motion pass, drag and drop, rich text editor), plus area and milestone pages with List/Board and a release workflow. Branding done (Moss). Sidebar hides with ⌘\\; trash older than 30 days is emptied on open; Docs pages drag (above / into / below). Next: sounds.
+Status: M1–M6 are built (core, shell, Unsorted flow, create / edit / delete with Undo, Settings, motion pass, drag and drop, rich text editor), plus area and milestone pages with List/Board and a release workflow. Branding done (Moss). Sidebar hides with ⌘\; trash older than 30 days is emptied on open; Docs pages drag (above / into / below). Sounds in (seven, tunable). Next: search (⌘K), to discuss.
 
 ## Backlog (after v1)
 
 - Timeline view (maybe).
-- Sounds.
+- Search (⌘K).
 - Code signing for releases (Apple Developer ID + notarization, a Windows certificate).
 - Drag and drop on the area page.
 

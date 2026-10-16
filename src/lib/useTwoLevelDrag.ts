@@ -100,7 +100,7 @@ export function useTwoLevelDrag({ base, rootKey, rootParent, groupType, itemType
     }
 
     const onDragCancel = () => {
-      drag.end()
+      drag.end(false)
       setDraft(null)
     }
 
