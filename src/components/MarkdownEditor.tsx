@@ -7,8 +7,13 @@
 //
 // Saving: only after you actually change something (opening a page never
 // rewrites it), on blur, and after a short pause while typing.
+//
+// On top of that: select text for a small format toolbar, or type "/" for a
+// menu of blocks (headings, lists, checklists, dividers, tables, subpages).
+// The menus live in editor/EditorMenus.tsx; the block list in editor/blocks.ts.
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { AnimatePresence } from 'motion/react'
 import {
   defaultValueCtx,
   Editor,
@@ -23,10 +28,23 @@ import { cursor } from '@milkdown/kit/plugin/cursor'
 import { history } from '@milkdown/kit/plugin/history'
 import { listener, listenerCtx } from '@milkdown/kit/plugin/listener'
 import { trailing } from '@milkdown/kit/plugin/trailing'
-import { commonmark, remarkPreserveEmptyLinePlugin } from '@milkdown/kit/preset/commonmark'
-import { gfm } from '@milkdown/kit/preset/gfm'
-import { replaceAll } from '@milkdown/kit/utils'
+import {
+  commonmark,
+  remarkPreserveEmptyLinePlugin,
+  toggleEmphasisCommand,
+  toggleInlineCodeCommand,
+  toggleLinkCommand,
+  toggleStrongCommand,
+} from '@milkdown/kit/preset/commonmark'
+import { gfm, toggleStrikethroughCommand } from '@milkdown/kit/preset/gfm'
+import { TextSelection } from '@milkdown/kit/prose/state'
+import type { EditorView } from '@milkdown/kit/prose/view'
+import { callCommand, replaceAll } from '@milkdown/kit/utils'
 import { openUrl } from '@tauri-apps/plugin-opener'
+import { play } from '../lib/sounds'
+import { matchBlocks, type Block } from './editor/blocks'
+import { SelectionToolbar, SlashMenu, type MarkAction, type SlashState, type ToolbarState } from './editor/EditorMenus'
+import { menuPlugin } from './editor/menuPlugin'
 
 // Milkdown keeps empty paragraphs by writing `<br />` into the file. We'd
 // rather keep files clean, so that one piece of the preset is left out.
@@ -63,6 +81,8 @@ export function MarkdownEditor({
   placeholder,
   label,
   className = '',
+  onCreatePage,
+  onOpenPage,
 }: {
   /** The saved markdown. Mount with `key={item.id}` so each item gets its own editor. */
   value: string
@@ -70,6 +90,10 @@ export function MarkdownEditor({
   placeholder: string
   label: string
   className?: string
+  /** Makes "/page" available: creates a subpage and returns the link to it (or null). */
+  onCreatePage?: (title: string) => Promise<string | null>
+  /** Opens a page link (a relative "Name.md" link written by /page). */
+  onOpenPage?: (href: string) => void
 }) {
   const root = useRef<HTMLDivElement>(null)
   const editor = useRef<Editor | null>(null)
@@ -80,6 +104,18 @@ export function MarkdownEditor({
   const save = useRef(onSave)
   save.current = onSave
 
+  // Menus. The editor reports changes through `bridge`; React draws the menus.
+  const [toolbar, setToolbar] = useState<ToolbarState | null>(null)
+  const [slash, setSlash] = useState<SlashState | null>(null)
+  const [slashIndex, setSlashIndex] = useState(0)
+  const [naming, setNaming] = useState(false)
+  // Where Escape closed the "/" menu, so it stays closed for that "/".
+  const dismissed = useRef<number | null>(null)
+  const blocks = slash ? matchBlocks(slash.query, !!onCreatePage) : []
+  // The key handler runs inside ProseMirror, so it reads the latest values here.
+  const live = useRef({ slash, blocks, slashIndex, naming })
+  live.current = { slash, blocks, slashIndex, naming }
+
   const flush = () => {
     window.clearTimeout(timer.current)
     const text = pending.current
@@ -87,6 +123,152 @@ export function MarkdownEditor({
     if (text === null || text === saved.current) return
     saved.current = text
     void save.current(text)
+  }
+
+  const bridge = useRef({
+    update: (view: EditorView) => {
+      const { state } = view
+      const sel = state.selection
+      const focused = view.hasFocus()
+
+      // Format toolbar: shows while text is selected (not inside code blocks).
+      if (focused && !sel.empty && sel instanceof TextSelection && !sel.$from.parent.type.spec.code) {
+        const start = view.coordsAtPos(sel.from)
+        const end = view.coordsAtPos(sel.to)
+        const has = (mark: string) => {
+          const type = state.schema.marks[mark]
+          return !!type && state.doc.rangeHasMark(sel.from, sel.to, type)
+        }
+        setToolbar({
+          x: Math.abs(start.top - end.top) < 4 ? (start.left + end.left) / 2 : start.left + 40,
+          y: Math.min(start.top, end.top),
+          active: { strong: has('strong'), em: has('emphasis'), strike: has('strike_through'), code: has('inlineCode'), link: has('link') },
+        })
+      } else {
+        setToolbar(null)
+      }
+
+      // "/" menu: a slash at the start of a line or after a space, followed by
+      // what you've typed so far.
+      if (live.current.naming) return // asking for a page name: keep the menu
+      const $from = sel.$from
+      if (focused && sel.empty && !$from.parent.type.spec.code) {
+        const before = $from.parent.textBetween(0, $from.parentOffset, undefined, '\ufffc')
+        const match = /(?:^|\s)\/([^\s/]{0,24})$/.exec(before)
+        if (match) {
+          const from = $from.pos - match[1].length - 1
+          if (dismissed.current !== from) {
+            const caret = view.coordsAtPos($from.pos)
+            setSlash((prev) => {
+              if (prev?.query !== match[1]) setSlashIndex(0)
+              return { from, to: $from.pos, query: match[1], x: caret.left, top: caret.top, bottom: caret.bottom }
+            })
+            return
+          }
+        } else {
+          dismissed.current = null
+        }
+      }
+      setSlash(null)
+    },
+    keyDown: (_view: EditorView, event: KeyboardEvent) => {
+      const { slash, blocks, slashIndex, naming } = live.current
+      if (!slash || naming) return false
+      if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+        if (blocks.length === 0) return false
+        const step = event.key === 'ArrowDown' ? 1 : -1
+        setSlashIndex((i) => (i + step + blocks.length) % blocks.length)
+        return true
+      }
+      if ((event.key === 'Enter' || event.key === 'Tab') && blocks[slashIndex]) {
+        pick.current(blocks[slashIndex])
+        return true
+      }
+      if (event.key === 'Escape') {
+        dismissed.current = slash.from
+        setSlash(null)
+        return true
+      }
+      return false
+    },
+  }).current
+
+  /** Runs `fn` with the editor view, if the editor is ready. */
+  const withView = (fn: (view: EditorView, ctx: Parameters<Parameters<Editor['action']>[0]>[0]) => void) =>
+    editor.current?.action((ctx) => fn(ctx.get(editorViewCtx), ctx))
+
+  /** A soft highlight on the block that just changed, so you see what happened. */
+  const flash = (view: EditorView) => {
+    const { node } = view.domAtPos(view.state.selection.from)
+    const el = (node instanceof Element ? node : node.parentElement)?.closest('p, h1, h2, h3, h4, li, blockquote, pre, table, hr')
+    const target = el ?? view.dom.querySelector('hr:last-of-type')
+    if (!(target instanceof HTMLElement)) return
+    target.classList.remove('md-pop')
+    void target.offsetWidth // restart the animation
+    target.classList.add('md-pop')
+    target.addEventListener('animationend', () => target.classList.remove('md-pop'), { once: true })
+  }
+
+  const pick = useRef<(block: Block) => void>(() => {})
+  pick.current = (block: Block) => {
+    const current = live.current.slash
+    if (!current) return
+    if (block.id === 'page') {
+      setNaming(true)
+      return
+    }
+    withView((view, ctx) => {
+      view.dispatch(view.state.tr.delete(current.from, current.to))
+      block.run?.(ctx)
+      view.focus()
+      requestAnimationFrame(() => flash(view))
+    })
+    play('status', { pitch: 1.1 })
+    setSlash(null)
+  }
+
+  /** "/page": make the subpage, then put a link to it where the "/" was. */
+  const createPage = async (title: string) => {
+    const current = live.current.slash
+    setNaming(false)
+    setSlash(null)
+    if (!current || !onCreatePage) return
+    const href = await onCreatePage(title)
+    withView((view) => {
+      const { schema } = view.state
+      let tr = view.state.tr.delete(current.from, current.to)
+      if (href) {
+        const link = schema.marks.link.create({ href })
+        tr = tr.insertText(title, current.from).addMark(current.from, current.from + title.length, link)
+        tr = tr.insertText(' ', current.from + title.length).removeStoredMark(schema.marks.link)
+      }
+      view.dispatch(tr)
+      view.focus()
+      requestAnimationFrame(() => flash(view))
+    })
+  }
+
+  const toggleMark = (mark: MarkAction) => {
+    const command = {
+      strong: toggleStrongCommand,
+      em: toggleEmphasisCommand,
+      strike: toggleStrikethroughCommand,
+      code: toggleInlineCodeCommand,
+    }[mark]
+    editor.current?.action(callCommand(command.key))
+    play('status', { pitch: 1.2 })
+  }
+
+  const setLink = (href: string | null) => {
+    withView((view, ctx) => {
+      if (href === null) {
+        const { from, to } = view.state.selection
+        view.dispatch(view.state.tr.removeMark(from, to, view.state.schema.marks.link))
+      } else {
+        callCommand(toggleLinkCommand.key, { href })(ctx)
+      }
+      view.focus()
+    })
   }
 
   // Create the editor once. `value` is only the starting text; later outside
@@ -118,6 +300,7 @@ export function MarkdownEditor({
       .use(clipboard)
       .use(cursor)
       .use(trailing)
+      .use(menuPlugin(bridge))
     void made.create().then((e) => {
       if (destroyed) void e.destroy()
       else editor.current = e
@@ -147,29 +330,62 @@ export function MarkdownEditor({
     const li = (e.target as HTMLElement).closest('li[data-item-type="task"]')
     if (!li || e.clientX >= li.getBoundingClientRect().left) return
     e.preventDefault()
-    editor.current?.action((ctx) => {
-      const view = ctx.get(editorViewCtx)
+    withView((view) => {
       const pos = view.posAtDOM(li, 0) - 1
       const node = view.state.doc.nodeAt(pos)
       if (!node || node.attrs.checked == null) return
       view.dispatch(view.state.tr.setNodeMarkup(pos, undefined, { ...node.attrs, checked: !node.attrs.checked }))
+      play('check', { pitch: node.attrs.checked ? 0.9 : 1 })
     })
   }
 
   return (
-    <div
-      ref={root}
-      onMouseDown={toggleCheckbox}
-      onBlur={flush}
-      // Links open in the browser with ⌘-click; a plain click just places the cursor.
-      onClickCapture={(e) => {
-        const link = (e.target as HTMLElement).closest('a')
-        if (!link) return
-        e.preventDefault()
-        const href = link.getAttribute('href')
-        if (href && (e.metaKey || e.ctrlKey) && /^(https?:|mailto:)/.test(href)) void openUrl(href)
-      }}
-      className={`md-editor ${className}`}
-    />
+    <>
+      <div
+        ref={root}
+        onMouseDown={toggleCheckbox}
+        onBlur={(e) => {
+          // Moving into one of our own menus isn't leaving the editor.
+          if (e.relatedTarget instanceof Element && e.relatedTarget.closest('[role="toolbar"], [role="listbox"], form')) return
+          flush()
+          setToolbar(null)
+          if (!live.current.naming) setSlash(null)
+        }}
+        // Page links (to subpages) open with a click. Web links open in the
+        // browser with ⌘-click; a plain click just places the cursor.
+        onClickCapture={(e) => {
+          const link = (e.target as HTMLElement).closest('a')
+          if (!link) return
+          e.preventDefault()
+          const href = link.getAttribute('href') ?? ''
+          if (/^(https?:|mailto:)/.test(href)) {
+            if (e.metaKey || e.ctrlKey) void openUrl(href)
+          } else if (href.endsWith('.md') && onOpenPage) {
+            onOpenPage(href)
+          }
+        }}
+        className={`md-editor ${className}`}
+      />
+      <AnimatePresence>
+        {toolbar && !slash && <SelectionToolbar key="toolbar" state={toolbar} onMark={toggleMark} onLink={setLink} />}
+        {slash && (
+          <SlashMenu
+            key="slash"
+            state={slash}
+            blocks={blocks}
+            index={slashIndex}
+            onHover={setSlashIndex}
+            onPick={(block) => pick.current(block)}
+            naming={naming}
+            onName={(title) => void createPage(title)}
+            onCancelName={() => {
+              setNaming(false)
+              setSlash(null)
+              withView((view) => view.focus())
+            }}
+          />
+        )}
+      </AnimatePresence>
+    </>
   )
 }

@@ -84,6 +84,7 @@ export function Board({ items, scope, selectedId, onSelect, onCycleStatus, actio
       sensors={sensors}
       collisionDetection={columnCollision}
       onDragStart={drag.start}
+      onDragOver={drag.over}
       onDragEnd={(e) => void onDragEnd(e)}
       onDragCancel={() => drag.end(false)}
     >

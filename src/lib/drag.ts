@@ -9,7 +9,7 @@
 //   little sway when you stop.
 // - Dropping glides it into its slot; the neighbours have already made room.
 
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import {
   closestCenter,
   defaultDropAnimationSideEffects,
@@ -19,6 +19,7 @@ import {
   useSensor,
   useSensors,
   type CollisionDetection,
+  type DragOverEvent,
   type DragStartEvent,
   type DropAnimation,
 } from '@dnd-kit/core'
@@ -89,11 +90,23 @@ function swallowNextClick() {
 /** Hook for the overlay state shared by every drag surface. */
 export function useDragState() {
   const [active, setActive] = useState<{ id: string; grab: { x: number; y: number }; width: number } | null>(null)
+  // The last thing the dragged item was over, for the slot tick.
+  const lastOver = useRef<{ id: string; top: number } | null>(null)
   return useMemo(
     () => ({
       active,
+      /** Call from onDragOver: a tiny tick each time the item reaches a new
+       * spot, a touch higher moving up and lower moving down. */
+      over: ({ active: dragged, over }: DragOverEvent) => {
+        if (!over || over.id === dragged.id) return
+        const previous = lastOver.current
+        lastOver.current = { id: String(over.id), top: over.rect.top }
+        if (!previous || previous.id === over.id) return
+        play('slot', { pitch: over.rect.top < previous.top ? 1.08 : 0.94 })
+      },
       start: (event: DragStartEvent) => {
         play('pickUp')
+        lastOver.current = null
         setActive({
           id: String(event.active.id),
           grab: grabPoint(event),

@@ -2,13 +2,12 @@
 // Pages are edited as rich text and saved as markdown (MarkdownEditor.tsx).
 
 import { useState } from 'react'
-import { FileText } from 'lucide-react'
 import { NoteTree } from './NoteTree'
 import { childrenOf, type Item } from '../lib/api'
 import type { Actions } from '../lib/useActions'
 import { BodyEditor, EditableTitle, InlineAdd, Menu } from './controls'
 import { itemMenu } from './itemMenu'
-import { Panel, PanelHeader, SectionLabel } from './ui'
+import { Panel, PanelHeader } from './ui'
 
 export function DocsView({
   items,
@@ -86,33 +85,35 @@ export function DocsView({
               <BodyEditor
                 item={note}
                 onSave={(body) => actions.writeBody(note, body)}
-                placeholder="Start writing"
+                placeholder="Start writing, or type / for blocks"
                 tone="normal"
                 className="min-h-[200px] text-[14px]"
+                // "/page": a subpage of this page, linked by its file name
+                // (a relative link, so it also works in other markdown apps).
+                onCreatePage={async (title) => {
+                  const id = await actions.create('note', note.id, title)
+                  return id ? encodeURI(`${title}.md`) : null
+                }}
+                onOpenPage={(href) => {
+                  const title = decodeURI(href.split('/').pop() ?? '').replace(/\.md$/, '')
+                  // A subpage of this page first, then any page with that name.
+                  const page =
+                    items.find((i) => i.kind === 'note' && i.parent === note.id && i.title === title) ??
+                    items.find((i) => i.kind === 'note' && i.title === title)
+                  if (page) onOpen(page.id)
+                }}
               />
-              {(note.isFolder || addingSub) && (
-                <div className="flex flex-col gap-1 border-t border-border pt-4">
-                  <SectionLabel className="pb-1">Subpages</SectionLabel>
-                  {childrenOf(items, note.id, true).map((sub) => (
-                    <button
-                      key={sub.id}
-                      onClick={() => onOpen(sub.id)}
-                      className="flex h-8 items-center gap-2 rounded-control px-2 text-left transition-colors duration-100 hover:bg-hover"
-                    >
-                      <FileText size={15} strokeWidth={1.75} className="text-fg-2" aria-hidden="true" />
-                      {sub.title}
-                    </button>
-                  ))}
-                  <InlineAdd
-                    autoFocus={addingSub}
-                    label="Add a subpage"
-                    onAdd={async (title) => {
-                      await actions.create('note', note.id, title)
-                      setAddingSub(false)
-                    }}
-                    onDone={() => setAddingSub(false)}
-                  />
-                </div>
+              {addingSub && (
+                <InlineAdd
+                  autoFocus
+                  label="Subpage name"
+                  onAdd={async (title) => {
+                    const id = await actions.create('note', note.id, title)
+                    setAddingSub(false)
+                    if (id) onOpen(id)
+                  }}
+                  onDone={() => setAddingSub(false)}
+                />
               )}
             </div>
           </div>

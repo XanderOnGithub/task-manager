@@ -142,7 +142,10 @@ export function NoteTree({
       collisionDetection={underOrNearest}
       onDragStart={drag.start}
       onDragMove={updateTarget}
-      onDragOver={updateTarget}
+      onDragOver={(event) => {
+        drag.over(event)
+        updateTarget(event)
+      }}
       onDragEnd={onDragEnd}
       onDragCancel={() => {
         drag.end(false)

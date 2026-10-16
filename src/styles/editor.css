@@ -183,3 +183,54 @@
 .md-editor ::selection {
   background: color-mix(in srgb, var(--color-accent) 28%, transparent);
 }
+
+/* A block that was just changed from the "/" menu gets a soft glow that fades,
+   so you see what happened without anything jumping. */
+.md-editor .md-pop {
+  animation: md-pop 600ms var(--ease-snappy);
+  border-radius: 6px;
+}
+@keyframes md-pop {
+  0% { background-color: color-mix(in srgb, var(--color-accent) 22%, transparent); transform: translateY(2px); }
+  35% { transform: translateY(0); }
+  100% { background-color: transparent; }
+}
+
+/* Ticking a checkbox: the box pops a little, the check lands with it. */
+.md-editor li[data-item-type="task"][data-checked="true"]::before {
+  animation: md-check 260ms var(--ease-pop);
+}
+@keyframes md-check {
+  0% { transform: scale(0.7); }
+  60% { transform: scale(1.12); }
+  100% { transform: scale(1); }
+}
+.md-editor li[data-item-type="task"] > p {
+  transition: color 150ms var(--ease-snappy);
+}
+
+/* Links to other pages (written by "/page") read as page links, not web links. */
+.md-editor a[href$=".md"] {
+  text-decoration: none;
+  font-weight: 500;
+  border-bottom: 1px solid color-mix(in srgb, var(--color-accent) 35%, transparent);
+  cursor: pointer;
+}
+.md-editor a[href$=".md"]::before {
+  content: "";
+  display: inline-block;
+  width: 13px;
+  height: 13px;
+  margin-right: 4px;
+  vertical-align: -1px;
+  background-color: currentColor;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z'/%3E%3Cpath d='M14 2v4a2 2 0 0 0 2 2h4'/%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z'/%3E%3Cpath d='M14 2v4a2 2 0 0 0 2 2h4'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .md-editor .md-pop,
+  .md-editor li[data-item-type="task"][data-checked="true"]::before {
+    animation: none;
+  }
+}

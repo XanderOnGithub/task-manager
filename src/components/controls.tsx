@@ -315,6 +315,8 @@ export function BodyEditor({
   placeholder,
   tone = 'muted',
   className = '',
+  onCreatePage,
+  onOpenPage,
 }: {
   item: Item
   onSave: (body: string) => Promise<unknown>
@@ -322,6 +324,9 @@ export function BodyEditor({
   /** 'muted' for descriptions under a title, 'normal' for a page's main text. */
   tone?: 'muted' | 'normal'
   className?: string
+  /** Note pages only: "/page" makes a subpage (see MarkdownEditor). */
+  onCreatePage?: (title: string) => Promise<string | null>
+  onOpenPage?: (href: string) => void
 }) {
   const body = useBody(item.id, item)
   // Nothing until the text has loaded, so the editor never starts empty and
@@ -337,6 +342,8 @@ export function BodyEditor({
       placeholder={placeholder}
       label={tone === 'muted' ? 'Description' : 'Page text'}
         className={`${tone === 'muted' ? 'text-fg-2' : 'text-fg'} ${className}`}
+        onCreatePage={onCreatePage}
+        onOpenPage={onOpenPage}
       />
     </Suspense>
   )

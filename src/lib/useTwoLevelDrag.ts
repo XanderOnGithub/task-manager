@@ -56,7 +56,9 @@ export function useTwoLevelDrag({ base, rootKey, rootParent, groupType, itemType
 
     // Items crossing into another group move in the draft right away, so the
     // group they're entering opens a gap for them.
-    const onDragOver = ({ active, over }: DragOverEvent) => {
+    const onDragOver = (event: DragOverEvent) => {
+      drag.over(event)
+      const { active, over } = event
       if (!over || !draft || active.data.current?.type !== itemType) return
       const id = String(active.id)
       const overId = String(over.id)
