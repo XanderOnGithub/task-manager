@@ -93,6 +93,13 @@ export const moveItem = (id: string, parent: string | null, before: string | nul
 export const setField = (id: string, field: 'status' | 'due' | 'color', value: string | null) =>
   invoke<void>('set_field', { id, field, value })
 export const readBody = (id: string) => invoke<string>('read_body', { id })
+
+/** A search match inside an item's text (titles are matched in the UI). */
+export interface TextHit {
+  id: string
+  snippet: string
+}
+export const searchText = (query: string) => invoke<TextHit[]>('search_text', { query })
 export const writeBody = (id: string, body: string) => invoke<void>('write_body', { id, body })
 export const trashItem = (id: string) => invoke<Trashed>('trash_item', { id })
 export const restoreItem = (t: Trashed) => invoke<void>('restore_item', { ...t })

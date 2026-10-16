@@ -647,3 +647,16 @@ fn old_trash_is_emptied_and_recent_trash_kept() {
     let (_empty, other) = sample();
     assert_eq!(ops::empty_old_trash(&other, today, 30).unwrap(), 0);
 }
+
+#[test]
+fn search_finds_text_inside_items() {
+    let (_dir, root) = sample();
+    let lib = load(&root);
+    let hits = task_core::search::search_text(&lib, "SINK CUTOUT", 10);
+    assert_eq!(hits.len(), 1);
+    assert_eq!(hits[0].id, by_title(&lib, "Kitchen measurements").id);
+    assert!(hits[0].snippet.contains("Sink cutout"));
+    assert!(task_core::search::search_text(&lib, "   ", 10).is_empty());
+    // The limit caps the number of hits.
+    assert!(task_core::search::search_text(&lib, "e", 2).len() <= 2);
+}

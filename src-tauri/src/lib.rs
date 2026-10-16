@@ -22,7 +22,7 @@ use tauri::{AppHandle, Emitter, Manager, State};
 
 use task_core::unsorted::{self, Entry};
 use task_core::watch::{self, Watcher};
-use task_core::{fix, fsutil, ops, Issue, Item, Kind, Library};
+use task_core::{fix, fsutil, ops, search, Issue, Item, Kind, Library};
 
 /// Name of the event sent to the UI when files change outside the app.
 const DATA_CHANGED: &str = "data-changed";
@@ -184,6 +184,12 @@ async fn set_field(
 #[tauri::command]
 async fn read_body(state: State<'_, AppState>, id: String) -> CmdResult<String> {
     read(&state, |lib| ops::read_body(lib, &id))
+}
+
+/// Finds items whose text contains `query`. Titles are matched in the UI.
+#[tauri::command]
+async fn search_text(state: State<'_, AppState>, query: String) -> CmdResult<Vec<search::Hit>> {
+    read(&state, |lib| Ok(search::search_text(lib, &query, 20)))
 }
 
 #[tauri::command]
@@ -481,6 +487,7 @@ pub fn run() {
             move_item,
             set_field,
             read_body,
+            search_text,
             write_body,
             trash_item,
             restore_item,

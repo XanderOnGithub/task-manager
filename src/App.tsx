@@ -8,7 +8,23 @@ import { childrenOf, type Item, type TaskStatus } from './lib/api'
 import { trailOf } from './lib/items'
 import { isMac } from './lib/platform'
 import { readPref, writePref } from './lib/prefs'
-import { PanelLeft } from 'lucide-react'
+import {
+  BookOpen,
+  FilePlus,
+  Layers,
+  ListChecks,
+  Monitor,
+  Moon,
+  PanelLeft,
+  Plus,
+  Settings as SettingsIcon,
+  Sun,
+  Volume2,
+  VolumeX,
+} from 'lucide-react'
+import { play, setSoundSettings, soundSettings } from './lib/sounds'
+import { saveTheme } from './lib/theme'
+import { CommandPalette, type PaletteAction } from './components/CommandPalette'
 import { useActions } from './lib/useActions'
 import { useLibrary } from './lib/useLibrary'
 import { Sidebar, type Section } from './components/Sidebar'
@@ -37,7 +53,7 @@ export default function App() {
   const [layout, setLayout] = useState<Layout>('list')
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
   const [shownArea, setShownArea] = useState<string | undefined>()
-  const [dialog, setDialog] = useState<'capture' | 'settings' | null>(null)
+  const [dialog, setDialog] = useState<'capture' | 'settings' | 'search' | null>(null)
   const [sidebarOpen, setSidebarOpen] = useState(() => readPref('sidebarOpen', true))
   const toggleSidebar = () =>
     setSidebarOpen((open) => {
@@ -51,6 +67,14 @@ export default function App() {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'n') {
         e.preventDefault()
         setDialog('capture')
+      }
+      // ⌘K opens search (or closes it).
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault()
+        setDialog((d) => {
+          if (d !== 'search') play('open')
+          return d === 'search' ? null : 'search'
+        })
       }
       // ⌘\ hides or shows the sidebar.
       if ((e.metaKey || e.ctrlKey) && e.key === '\\') {
@@ -102,6 +126,87 @@ export default function App() {
     setSection('tasks')
     setChosenScope(id)
     setSelectedId(null)
+  }
+
+  // Opening something from search: pages open in Docs; tasks open their
+  // milestone or project with the task selected.
+  const openItem = (item: Item) => {
+    if (item.kind === 'note') {
+      setSection('docs')
+      setNoteId(item.id)
+    } else if (item.kind === 'task') {
+      if (item.parent) openScope(item.parent)
+      setSelectedId(item.id)
+    } else {
+      openScope(item.id)
+    }
+  }
+
+  const paletteActions: PaletteAction[] = [
+    { id: 'capture', label: 'Quick capture', Icon: Plus, keywords: 'add new unsorted', shortcut: '⌘N', run: () => setDialog('capture') },
+    { id: 'unsorted', label: 'Go to Unsorted', Icon: Layers, keywords: 'inbox', run: () => setSection('unsorted') },
+    { id: 'tasks', label: 'Go to Tasks', Icon: ListChecks, keywords: 'projects', run: () => setSection('tasks') },
+    { id: 'docs', label: 'Go to Docs', Icon: BookOpen, keywords: 'notes pages', run: () => setSection('docs') },
+    {
+      id: 'sidebar',
+      label: sidebarOpen ? 'Hide sidebar' : 'Show sidebar',
+      Icon: PanelLeft,
+      keywords: 'toggle',
+      shortcut: '⌘\\',
+      run: toggleSidebar,
+    },
+    {
+      id: 'sounds',
+      label: soundSettings().on ? 'Turn sounds off' : 'Turn sounds on',
+      Icon: soundSettings().on ? VolumeX : Volume2,
+      keywords: 'mute audio',
+      run: () => {
+        const on = !soundSettings().on
+        setSoundSettings({ ...soundSettings(), on })
+        if (on) play('complete')
+      },
+    },
+    { id: 'light', label: 'Light appearance', Icon: Sun, keywords: 'theme mode', run: () => saveTheme('light') },
+    { id: 'dark', label: 'Dark appearance', Icon: Moon, keywords: 'theme mode', run: () => saveTheme('dark') },
+    { id: 'system', label: 'Match system appearance', Icon: Monitor, keywords: 'theme mode auto', run: () => saveTheme('system') },
+    { id: 'settings', label: 'Settings', Icon: SettingsIcon, keywords: 'preferences folder', run: () => setDialog('settings') },
+  ]
+
+  // Actions made from what you typed.
+  const typedActions = (text: string): PaletteAction[] => {
+    if (!text) return []
+    const out: PaletteAction[] = [
+      { id: 'capture-text', label: `Add “${text}” to Unsorted`, Icon: Layers, run: () => void actions.capture(text) },
+    ]
+    // A new task goes where "+ Task" would put it: the open milestone, or the
+    // open project's first open milestone, or the project itself.
+    const home =
+      scope?.kind === 'milestone'
+        ? scope
+        : scope?.kind === 'project'
+          ? (childrenOf(items, scope.id).find((c) => c.kind === 'milestone' && c.status !== 'done') ??
+            (childrenOf(items, scope.id).some((c) => c.kind === 'milestone') ? undefined : scope))
+          : undefined
+    if (home) {
+      out.push({
+        id: 'task-text',
+        label: `New task “${text}” in ${home.title}`,
+        Icon: Plus,
+        run: () => void actions.create('task', home.id, text).then(() => openScope(home.id)),
+      })
+    }
+    out.push({
+      id: 'page-text',
+      label: `New page “${text}”`,
+      Icon: FilePlus,
+      run: () =>
+        void actions.create('note', null, text).then((id) => {
+          if (!id) return
+          setSection('docs')
+          setNoteId(id)
+        }),
+    })
+    return out
   }
 
   const cycleStatus = (task: Item) =>
@@ -250,6 +355,18 @@ export default function App() {
         </motion.div>
       </main>
 
+      <AnimatePresence>
+        {dialog === 'search' && (
+          <CommandPalette
+            key="search"
+            items={items}
+            actions={paletteActions}
+            makeActions={typedActions}
+            onOpenItem={openItem}
+            onClose={() => setDialog(null)}
+          />
+        )}
+      </AnimatePresence>
       {dialog === 'capture' && <QuickCapture onCapture={actions.capture} onClose={() => setDialog(null)} />}
       {dialog === 'settings' && (
         <Settings dataFolder={snapshot?.dataFolder ?? null} onClose={() => setDialog(null)} onFolderChanged={reload} />

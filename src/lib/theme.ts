@@ -34,3 +34,13 @@ export function useTheme(): [Theme, (theme: Theme) => void] {
   }, [theme])
   return [theme, setTheme]
 }
+
+/** Applies and remembers a theme from outside React state (the ⌘K menu). */
+export function saveTheme(theme: Theme) {
+  applyTheme(theme)
+  try {
+    localStorage.setItem(KEY, theme)
+  } catch {
+    // As above: still applies until restart.
+  }
+}
