@@ -818,3 +818,23 @@ fn tasks_can_be_later_or_waiting() {
     let sink = by_title(&lib, "Replace the sink").id.clone();
     assert!(ops::set_field(&lib, &sink, "status", Some("waiting")).is_err());
 }
+
+#[test]
+fn the_example_only_goes_into_an_empty_folder() {
+    let source = Path::new(env!("CARGO_MANIFEST_DIR")).join("../sample-data");
+    let dir = tempfile::tempdir().unwrap();
+
+    // A new folder (or one with only hidden files) gets the example.
+    let fresh = dir.path().join("Moss");
+    assert!(task_core::example::add_example(&source, &fresh).unwrap());
+    let lib = load(&fresh);
+    assert!(lib.issues.is_empty(), "{:#?}", lib.issues);
+    assert!(lib.items.iter().any(|i| i.title == "Renovate the house"));
+
+    // A folder with anything in it is left alone.
+    let used = dir.path().join("Mine");
+    fs::create_dir(&used).unwrap();
+    fs::write(used.join("notes.txt"), "mine").unwrap();
+    assert!(!task_core::example::add_example(&source, &used).unwrap());
+    assert!(!used.join("areas").exists());
+}

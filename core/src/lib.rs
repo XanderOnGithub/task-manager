@@ -7,6 +7,7 @@
 //!
 //! - `library`     loads the data folder into memory (frontmatter only) → `Library`
 //! - `migrate`     moves an older data folder (tasks/ + notes/) to the current layout
+//! - `example`     the example folder offered on first launch (only into an empty folder)
 //! - `issues`      problems found while loading, shown instead of crashing
 //! - `fix`         writes ids for files that are missing one
 //! - `search`      find text inside items (titles are searched by the app)
@@ -33,6 +34,7 @@
 //! ```
 
 pub mod error;
+pub mod example;
 pub mod fix;
 pub mod frontmatter;
 pub mod fsutil;

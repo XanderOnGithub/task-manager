@@ -22,7 +22,7 @@ use tauri::{AppHandle, Emitter, Manager, State};
 
 use task_core::unsorted::{self, Entry};
 use task_core::watch::{self, Watcher};
-use task_core::{fix, fsutil, migrate, ops, search, Issue, Item, Kind, Library};
+use task_core::{example, fix, fsutil, migrate, ops, search, Issue, Item, Kind, Library};
 
 /// Name of the event sent to the UI when files change outside the app.
 const DATA_CHANGED: &str = "data-changed";
@@ -91,6 +91,69 @@ type CmdResult<T> = Result<T, String>;
 fn get_data_folder(state: State<'_, AppState>) -> CmdResult<Option<String>> {
     let data = lock(&state)?;
     Ok(data.root.as_ref().map(|p| p.display().to_string()))
+}
+
+/// Where Moss suggests keeping your files on first launch: a "Moss" folder in
+/// Documents. `display` is the same path with your home folder written as "~".
+#[derive(Serialize)]
+struct SuggestedFolder {
+    path: String,
+    display: String,
+}
+
+#[tauri::command]
+fn suggested_data_folder(app: AppHandle) -> CmdResult<SuggestedFolder> {
+    let paths = app.path();
+    // Some Linux desktops don't name a Documents folder; use ~/Documents there.
+    let docs = paths
+        .document_dir()
+        .or_else(|_| paths.home_dir().map(|home| home.join("Documents")))
+        .map_err(|e| e.to_string())?;
+    let path = docs.join("Moss");
+    let display = match paths
+        .home_dir()
+        .ok()
+        .and_then(|home| path.strip_prefix(home).ok())
+    {
+        Some(rest) => format!("~/{}", rest.display()),
+        None => path.display().to_string(),
+    };
+    Ok(SuggestedFolder {
+        path: path.display().to_string(),
+        display,
+    })
+}
+
+/// First launch: makes the folder if needed, adds the example to it if you
+/// asked (only into an empty folder, see core/src/example.rs), then opens it.
+/// Returns whether the example was added.
+#[tauri::command]
+fn start_data_folder(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    path: String,
+    example: bool,
+) -> CmdResult<bool> {
+    let root = PathBuf::from(&path);
+    fs::create_dir_all(&root).map_err(|e| format!("Couldn't make {path}: {e}"))?;
+    let added = if example {
+        let source = example_source(&app).ok_or("The example isn't available in this build")?;
+        example::add_example(&source, &root).map_err(|e| e.to_string())?
+    } else {
+        false
+    };
+    set_data_folder(app, state, path)?;
+    Ok(added)
+}
+
+/// Where the app's copy of the example is: bundled with the app (see
+/// "resources" in tauri.conf.json), or the repo's sample-data/ in development.
+fn example_source(app: &AppHandle) -> Option<PathBuf> {
+    if cfg!(debug_assertions) {
+        return Some(Path::new(env!("CARGO_MANIFEST_DIR")).join("../sample-data"));
+    }
+    let bundled = app.path().resource_dir().ok()?.join("example");
+    bundled.is_dir().then_some(bundled)
 }
 
 /// Switches to another data folder and remembers it for next time.
@@ -386,26 +449,16 @@ fn dev_sample_folder(app: &AppHandle) -> Option<PathBuf> {
     if !cfg!(debug_assertions) {
         return None;
     }
+    // Set MOSS_ONBOARDING=1 to see the first-launch screens in development.
+    if std::env::var_os("MOSS_ONBOARDING").is_some() {
+        return None;
+    }
     let source = Path::new(env!("CARGO_MANIFEST_DIR")).join("../sample-data");
     let target = app.path().app_data_dir().ok()?.join("sample-data");
     if !target.exists() {
-        copy_dir(&source, &target).ok()?;
+        example::add_example(&source, &target).ok()?;
     }
     Some(target)
-}
-
-fn copy_dir(from: &Path, to: &Path) -> std::io::Result<()> {
-    fs::create_dir_all(to)?;
-    for entry in fs::read_dir(from)? {
-        let entry = entry?;
-        let target = to.join(entry.file_name());
-        if entry.file_type()?.is_dir() {
-            copy_dir(&entry.path(), &target)?;
-        } else {
-            fs::copy(entry.path(), target)?;
-        }
-    }
-    Ok(())
 }
 
 // ---------------------------------------------------------------------------
@@ -490,6 +543,8 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             get_data_folder,
             set_data_folder,
+            suggested_data_folder,
+            start_data_folder,
             load_library,
             create_item,
             rename_item,
