@@ -22,9 +22,11 @@ interface Props {
   onCycleStatus: (task: Item) => void
   onOpen: (id: string) => void
   actions: Actions
+  /** The "Add a project" row at the end. Off in the Tasks overview. */
+  showAdd?: boolean
 }
 
-export function AreaList({ items, area, selectedId, onSelect, onCycleStatus, onOpen, actions }: Props) {
+export function AreaList({ items, area, selectedId, onSelect, onCycleStatus, onOpen, actions, showAdd = true }: Props) {
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
   const projects = childrenOf(items, area.id)
 
@@ -115,11 +117,14 @@ export function AreaList({ items, area, selectedId, onSelect, onCycleStatus, onO
         )
       })}
 
-      <InlineAdd
-        id={`add-project-${area.id}`}
-        label="Add a project"
-        onAdd={(title) => actions.create('project', area.id, title)}
-      />
+      {showAdd && (
+        <InlineAdd
+          id={`add-project-${area.id}`}
+          label="Add a project"
+          onAdd={(title) => actions.create('project', area.id, title)}
+        />
+      )}
+      {!showAdd && projects.length === 0 && <p className="flex h-row items-center pl-1 text-fg-3">No projects yet</p>}
     </div>
   )
 }

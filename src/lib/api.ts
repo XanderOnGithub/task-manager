@@ -11,7 +11,7 @@ import { listen, type UnlistenFn } from '@tauri-apps/api/event'
 // Types (mirror the Rust structs; field names are camelCase on both sides)
 // ---------------------------------------------------------------------------
 
-export type Kind = 'area' | 'project' | 'milestone' | 'task' | 'note'
+export type Kind = 'area' | 'project' | 'milestone' | 'task' | 'page'
 
 export type TaskStatus = 'todo' | 'doing' | 'done'
 export type MilestoneStatus = 'open' | 'done'
@@ -21,15 +21,15 @@ export type Status = TaskStatus | MilestoneStatus | ProjectStatus
 /** Stored by name; the actual color is `--ms-<name>` in tokens.css. */
 export type MilestoneColor = 'dusty-blue' | 'mauve' | 'rose' | 'teal' | 'lavender' | 'sand'
 
-/** One area, project, milestone, task or note. Bodies aren't included; use `readBody`. */
+/** One area, project, milestone, task or page. Bodies aren't included; use `readBody`. */
 export interface Item {
   id: string
   kind: Kind
   title: string
-  /** Inside the data folder, e.g. "tasks/Home/Renovate the house". Don't show it in the UI. */
+  /** Inside the data folder, e.g. "areas/Home/Renovate the house". Don't show it in the UI. */
   path: string
   isFolder: boolean
-  /** Containing item's id. null for areas and top-level notes. */
+  /** Containing item's id. null only for areas. A page's parent is its area, project or page. */
   parent: string | null
   status: Status | null
   /** Sort key. Sort siblings by this (string comparison), then by title. */
@@ -39,7 +39,7 @@ export interface Item {
   /** YYYY-MM-DD */
   due: string | null
   color: MilestoneColor | null
-  /** Notes only: an emoji shown next to the title. */
+  /** Pages only: an emoji shown next to the title. */
   icon: string | null
 }
 
@@ -122,10 +122,13 @@ export const onDataChanged = (callback: (paths: string[]) => void): Promise<Unli
 // Helpers
 // ---------------------------------------------------------------------------
 
-/** Children of `parent` in display order. `notes` picks the notes tree at the top level. */
-export function childrenOf(items: Item[], parent: string | null, notes = false): Item[] {
+/**
+ * Children of `parent` in display order. An area or project holds two lists,
+ * its projects/milestones/tasks and its pages; `pages` picks which.
+ */
+export function childrenOf(items: Item[], parent: string | null, pages = false): Item[] {
   return items
-    .filter((i) => i.parent === parent && (i.kind === 'note') === notes)
+    .filter((i) => i.parent === parent && (i.kind === 'page') === pages)
     .sort(compareForDisplay)
 }
 

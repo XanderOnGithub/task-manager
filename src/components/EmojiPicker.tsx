@@ -14,7 +14,7 @@ const looksLikeEmoji = (text: string) => {
   return t.length > 0 && [...t].length <= 8 && /\p{Extended_Pictographic}/u.test(t)
 }
 
-export function PageIcon({ note, onChange }: { note: Item; onChange: (icon: string | null) => void }) {
+export function PageIconPicker({ page, onChange }: { page: Item; onChange: (icon: string | null) => void }) {
   const [open, setOpen] = useState(false)
   const box = useRef<HTMLDivElement>(null)
 
@@ -30,15 +30,15 @@ export function PageIcon({ note, onChange }: { note: Item; onChange: (icon: stri
 
   const pick = (icon: string | null) => {
     setOpen(false)
-    if (icon !== note.icon) onChange(icon)
+    if (icon !== page.icon) onChange(icon)
   }
 
   return (
     <div ref={box} className="relative flex">
-      {note.icon ? (
+      {page.icon ? (
         <motion.button
           // A new emoji pops in; changing pages doesn't animate.
-          key={`${note.id}:${note.icon}`}
+          key={`${page.id}:${page.icon}`}
           initial={{ scale: 0.6, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           transition={spring.pop}
@@ -49,7 +49,7 @@ export function PageIcon({ note, onChange }: { note: Item; onChange: (icon: stri
           title="Change icon"
           className="-ml-1 flex size-14 items-center justify-center rounded-card text-[42px] leading-none transition-colors duration-100 hover:bg-hover"
         >
-          {note.icon}
+          {page.icon}
         </motion.button>
       ) : (
         <button
@@ -64,7 +64,7 @@ export function PageIcon({ note, onChange }: { note: Item; onChange: (icon: stri
       )}
 
       <AnimatePresence>
-        {open && <Picker key="picker" current={note.icon} onPick={pick} onClose={() => setOpen(false)} />}
+        {open && <Picker key="picker" current={page.icon} onPick={pick} onClose={() => setOpen(false)} />}
       </AnimatePresence>
     </div>
   )

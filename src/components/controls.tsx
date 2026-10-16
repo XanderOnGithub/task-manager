@@ -214,7 +214,7 @@ export function Menu({
 }
 
 // ---------------------------------------------------------------------------
-// Segmented control (List / Board, Task / Note / Project, statuses).
+// Segmented control (List / Board, Task / Page / Project, statuses).
 // ---------------------------------------------------------------------------
 
 export function Segmented<T extends string>({
@@ -324,7 +324,7 @@ export function BodyEditor({
   /** 'muted' for descriptions under a title, 'normal' for a page's main text. */
   tone?: 'muted' | 'normal'
   className?: string
-  /** Note pages only: "/page" makes a subpage (see MarkdownEditor). */
+  /** Pages only: "/page" makes a subpage (see MarkdownEditor). */
   onCreatePage?: (title: string) => Promise<string | null>
   onOpenPage?: (href: string) => void
 }) {

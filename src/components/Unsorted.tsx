@@ -1,7 +1,7 @@
 // Unsorted: raw capture, and sorting each item into the hierarchy.
 //
 // Flow (see the design canvas, "Sorting an Unsorted item"):
-//   1. click an item → only "Create as" shows (Task / Note / Project)
+//   1. click an item → only "Create as" shows (Task / Page / Project)
 //   2. pick one → a filterable list of where it can go
 //   3. pick a destination (or press Enter) → it's filed, a toast offers Undo,
 //      and the next item opens so you can keep going.
@@ -10,21 +10,22 @@ import { useMemo, useState, type ReactNode } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import { spring } from '../lib/motion'
 import { Collapse } from './motion'
-import { BookOpen, Folder, FileText, Search, Target, Trash2 } from 'lucide-react'
+import { Folder, FileText, Search, Target, Trash2 } from 'lucide-react'
 import { childrenOf, type Item, type Kind, type MilestoneColor, type UnsortedEntry } from '../lib/api'
 import type { Actions } from '../lib/useActions'
 import { InlineAdd, Segmented } from './controls'
 import { MilestoneChip, Panel, PanelHeader, StatusIcon } from './ui'
 import { play } from '../lib/sounds'
 
-type FileAs = 'task' | 'note' | 'project'
+type FileAs = 'task' | 'page' | 'project'
 
 interface Destination {
-  id: string | null
+  id: string
   name: string
   context: string
-  kind: Kind | 'docs'
+  kind: Kind
   color?: MilestoneColor | null
+  icon?: string | null
 }
 
 export function UnsortedView({ entries, items, actions }: { entries: UnsortedEntry[]; items: Item[]; actions: Actions }) {
@@ -108,13 +109,13 @@ export function UnsortedView({ entries, items, actions }: { entries: UnsortedEnt
                             label="Create as"
                             value={fileAs}
                             onChange={(kind) => {
-                              // Task, Note, Project: each a step higher.
-                              play('select', { pitch: { task: 0.92, note: 1, project: 1.1 }[kind] })
+                              // Task, Page, Project: each a step higher.
+                              play('select', { pitch: { task: 0.92, page: 1, project: 1.1 }[kind] })
                               setFileAs(kind)
                             }}
                             options={[
                               { value: 'task', label: 'Task', icon: <StatusIcon status="todo" size={13} /> },
-                              { value: 'note', label: 'Note', icon: <FileText size={13} strokeWidth={2} aria-hidden="true" /> },
+                              { value: 'page', label: 'Page', icon: <FileText size={13} strokeWidth={2} aria-hidden="true" /> },
                               { value: 'project', label: 'Project', icon: <Target size={13} strokeWidth={2} aria-hidden="true" /> },
                             ]}
                           />
@@ -153,7 +154,7 @@ export function UnsortedView({ entries, items, actions }: { entries: UnsortedEnt
 
 const TITLES: Record<FileAs, string> = {
   task: 'Choose a milestone or project',
-  note: 'Choose a page',
+  page: 'Choose an area, project or page',
   project: 'Choose an area',
 }
 
@@ -215,7 +216,7 @@ function DestinationPicker({
         )}
         {shown.map((d, i) => (
           <button
-            key={d.id ?? 'top'}
+            key={d.id}
             role="option"
             aria-selected={i === active}
             onClick={() => onPick(d)}
@@ -235,10 +236,16 @@ function DestinationPicker({
 function DestinationLabel({ destination: d }: { destination: Destination }): ReactNode {
   const iconProps = { size: 14, strokeWidth: 1.75, 'aria-hidden': true, className: 'shrink-0 text-fg-2' } as const
   if (d.kind === 'milestone') return <MilestoneChip title={d.name} color={d.color ?? null} />
-  const Icon = { project: Target, note: FileText, area: Folder, docs: BookOpen, task: Target }[d.kind]
+  const Icon = { project: Target, page: FileText, area: Folder, task: Target }[d.kind]
   return (
     <>
-      <Icon {...iconProps} />
+      {d.kind === 'page' && d.icon ? (
+        <span className="flex w-[14px] shrink-0 justify-center text-[13px] leading-none" aria-hidden="true">
+          {d.icon}
+        </span>
+      ) : (
+        <Icon {...iconProps} />
+      )}
       <span className="truncate text-[12.5px]">{d.name}</span>
     </>
   )
@@ -270,20 +277,29 @@ function destinations(items: Item[], fileAs: FileAs): Destination[] {
     }
     return out
   }
-  // Notes: top level, then every page in tree order.
-  const out: Destination[] = [{ id: null, name: 'Docs', context: 'Top level', kind: 'docs' }]
-  const walk = (parent: Item | null) => {
-    for (const note of childrenOf(items, parent?.id ?? null, true)) {
-      out.push({ id: note.id, name: note.title, context: parent?.title ?? 'Docs', kind: 'note' })
-      walk(note)
+  // Pages: each area, its pages, then each of its projects and their pages,
+  // in sidebar order. A page can go straight into an area or project, or
+  // become a subpage.
+  const out: Destination[] = []
+  const pagesOf = (parent: Item) => {
+    for (const page of childrenOf(items, parent.id, true)) {
+      out.push({ id: page.id, name: page.title, context: parent.title, kind: 'page', icon: page.icon })
+      pagesOf(page)
     }
   }
-  walk(null)
+  for (const area of areas) {
+    out.push({ id: area.id, name: area.title, context: 'Area', kind: 'area' })
+    pagesOf(area)
+    for (const project of childrenOf(items, area.id)) {
+      out.push({ id: project.id, name: project.title, context: area.title, kind: 'project' })
+      pagesOf(project)
+    }
+  }
   return out
 }
 
 function emptyMessage(fileAs: FileAs): string {
-  return fileAs === 'project' ? 'Add an area first' : 'Add a project first'
+  return fileAs === 'task' ? 'Add a project first' : 'Add an area first'
 }
 
 /** "10:42 PM" today, "Yesterday", otherwise "Oct 12". */

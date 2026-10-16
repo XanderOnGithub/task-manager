@@ -44,7 +44,7 @@ function score(text: string, query: string): number | null {
   return i === query.length && query.length > 1 ? 5 : null
 }
 
-const KIND_ORDER: Record<string, number> = { project: 0, area: 1, note: 2, milestone: 3, task: 4 }
+const KIND_ORDER: Record<string, number> = { project: 0, area: 1, page: 2, milestone: 3, task: 4 }
 
 export function CommandPalette({
   items,
