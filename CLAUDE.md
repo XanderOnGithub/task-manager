@@ -1,6 +1,6 @@
 # Moss
 
-Moss is a local-first desktop app for tasks and notes: capture first into Unsorted, then sort into a strict hierarchy. Built with Tauri (thin Rust core) and React + Vite, on macOS. Also a portfolio piece focused on interaction polish.
+Moss is a local-first desktop app for tasks and pages: capture first into Unsorted, then sort into a strict hierarchy. Built with Tauri (thin Rust core) and React + Vite, on macOS. Also a portfolio piece focused on interaction polish.
 
 ## UI reference
 
@@ -57,12 +57,13 @@ brand/          the Moss mark (icon.svg), README wordmarks, icon-1024.png (sourc
 
 - `src/lib/useLibrary.ts` loads the snapshot and reloads on `data-changed`. `src/lib/useActions.ts` holds every change the UI can make (each one calls Rust, shows a toast with Undo where it makes sense, and reloads). Add new actions there, not in components.
 - `src/components/controls.tsx`: InlineAdd, EditableTitle, Menu, Segmented, Modal, BodyEditor, DateField. `ui.tsx`: Panel, chips, status icon, due date, progress.
-- Tasks pages: `ScopeView.tsx` shows an area, project or milestone (breadcrumb, List/Board). List: `AreaList.tsx` (projects with their open tasks) or `ProjectList.tsx` (a project's milestones/tasks, or a milestone's tasks). Board: `Board.tsx` for any of the three. `tasksUnder()` in `lib/items.ts` collects the tasks inside anything.
-- Text: `MarkdownEditor.tsx` (Milkdown) for note pages and every description. Rich text on screen, plain markdown on disk ("-" bullets, no `<br />`), saved only after a real edit. Styles in `styles/editor.css`. Loaded lazily.
+- Navigation: one sidebar tree, areas → projects → pages (`AreaTree.tsx`, one DndContext for all three; page rows in `PageTree.tsx`, page drag logic in `lib/pageDrag.ts`). Above it, three overviews: Unsorted, Tasks (every project, List/Board) and Pages (every area and project with its pages). `App.tsx` keeps what's open as an overview or an item id; opening anything unfolds the sidebar down to it.
+- Task views: `ScopeView.tsx` shows everything (scope null, the Tasks overview), an area, project or milestone (breadcrumb, List/Board). List: `AreaList.tsx` (projects with their open tasks) or `ProjectList.tsx` (a project's milestones/tasks, or a milestone's tasks), then the area's or project's pages (`PageSection`). Board: `Board.tsx` for any of them. `tasksUnder()` in `lib/items.ts` collects the tasks inside anything (null = all).
+- Pages: `Pages.tsx` (PageView, PagesOverview, PageSection). Text: `MarkdownEditor.tsx` (Milkdown) for pages and every description. Rich text on screen, plain markdown on disk ("-" bullets, no `<br />`), saved only after a real edit. Styles in `styles/editor.css`. Loaded lazily.
 - Toasts: `useToast()`; ⌘Z runs the visible toast's Undo. ⌘N opens Quick capture. ⌘\ hides the sidebar (remembered via `lib/prefs.ts`).
-- Search: `CommandPalette.tsx` (⌘K). Items by title (matched in the UI), actions (go to, theme, sounds, sidebar, plus typed: add to Unsorted, new task, new page), and text matches from `core/src/search.rs` via `search_text`.
+- Search: `CommandPalette.tsx` (⌘K). Items by title (matched in the UI), actions (go to, theme, sounds, sidebar, plus typed: add to Unsorted, new task in the open project, new page in the open area or project), and text matches from `core/src/search.rs` via `search_text`.
 - Editor menus: `components/editor/` (selection toolbar, "/" block menu with /page). `/page` creates a subpage and writes a relative link `[Name](Name.md)`; clicking it opens the page.
-- Docs tree: `NoteTree.tsx`. Drop zones on a page: top quarter = above, middle = subpage, bottom quarter = below.
+- Dragging pages in the sidebar: drop zones on a page are top quarter = above, middle = subpage, bottom quarter = below; dropping on an area or project row moves the page there.
 
 ## Motion
 
@@ -73,7 +74,7 @@ The app should feel smooth and considered, never gamified. Library: Motion (`mot
 - Building blocks: `Collapse` (open/close by height, staggered rows), `ListRow` (rows entering and leaving a list), `StatusIcon` (ring, half fill, pop, check draws), `TaskTitle` (strikethrough sweep), `layoutId` for shared highlights (segmented thumb, sidebar selection) and board cards moving between columns.
 - Reduce motion is respected through `<MotionConfig reducedMotion="user">` in main.tsx and a rule in motion.css.
 - Drag and drop: dnd-kit. Shared pieces in `src/lib/drag.ts` (sensors, collision, drop settle, click swallowing) and `src/lib/useTwoLevelDrag.ts` (groups holding items: milestones/tasks in `ProjectList.tsx`, areas/projects in `AreaTree.tsx`). We draw the held item ourselves in `<DragOverlay>` with `Lifted`: velocity tilt up to ~6° (less for wide rows), spring swing back, 2% lift. The overlay face must match the row's padding so nothing jumps on pickup. Dragging a group folds all groups; a folded area opens while it holds the dragged project. Board cards change status by column and fly with `layoutId`. Every move goes through `actions.move` (toast + Undo when the parent changes). Keyboard: focus a row, Space, arrows, Space.
-- Sounds: `src/lib/sounds.ts`. Soft low knocks, not tunes: each is a ZzFX "body" (a low thump whose pitch drops fast) plus, for most, a tiny low-passed click so it reads on laptop speakers. Pitch varies a little on every play (the recipe's randomness); the same sound can't stack within 35ms. Eleven: pickUp, drop, slot (dragging past a new spot; higher moving up), complete, status, select (Create as; pitch per option), capture, delete, undo, check (page checkbox), open (⌘K). Plus optional typing sounds (key, keySpace, keyEnter, keyDelete), off by default, under Settings → Sounds → Fun. Never on hover, plain clicks or navigation. Settings → Sounds: everything on/off, volume, each sound on its own with a play button (stored with `lib/prefs.ts`). Tune them on the sound test page (https://claude.ai/artifact/Cnzk2o44TdfL9tYS4z3YHP) and paste the arrays into `SOUNDS`.
+- Sounds: `src/lib/sounds.ts`. Soft low knocks, not tunes: each is a ZzFX "body" (a low thump whose pitch drops fast) plus, for most, a tiny low-passed click so it reads on laptop speakers. Pitch varies a little on every play (the recipe's randomness); the same sound can't stack within 35ms. Eleven: pickUp, drop, slot (dragging past a new spot; higher moving up), complete, status, select (Create as; pitch per option), capture, delete, undo, check (page checkbox), open (⌘K). Plus optional typing sounds, creamy rather than clicky (key, keyShift for capitals and symbols, keySpace, keyEnter, and a distinct rising keyDelete), off by default, under Settings → Sounds → Fun. Never on hover, plain clicks or navigation. Settings → Sounds: everything on/off, volume, each sound on its own with a play button (stored with `lib/prefs.ts`). Tune them on the sound test page (https://claude.ai/artifact/Cnzk2o44TdfL9tYS4z3YHP) and paste the arrays into `SOUNDS`.
 - 120fps: WebKit caps pages at 60fps (the plugin notes that macOS 26 may no longer apply the cap; check with the fps readout). `src-tauri/src/high_refresh.rs` uses `tauri-plugin-macos-fps` to flip WebKit's private "prefer 60fps" flag behind an experimental Settings switch with a live fps readout. Animations must look right at both 60 and 120.
 
 ## Vocabulary (fixed, never use synonyms in UI or code)
@@ -83,25 +84,27 @@ The app should feel smooth and considered, never gamified. Library: Motion (`mot
 - **Project**: goal with a finish line, inside one Area.
 - **Milestone**: optional checkpoint inside a Project.
 - **Task**: one concrete action, one sitting.
-- **Note**: a documentation page.
+- **Page**: a documentation page. Belongs to an area or a project, and can have subpages.
 
 ## Data on disk (must stay human-readable)
 
 ```
 data/
 ├── unsorted.md                    one item per line: "- 2026-10-15 22:42 text"
-├── tasks/<Area>/_index.md
-│   └── <Project>/_index.md
-│       ├── <Milestone>/_index.md
-│       │   └── <Task>.md
-│       └── <Task>.md              (only if the project has no milestones)
-└── notes/<Page>.md  or  <Page>/_index.md + subpages
+└── areas/<Area>/_index.md
+    ├── Pages/<Page>.md            the area's pages; or <Page>/_index.md + subpages
+    └── <Project>/_index.md
+        ├── Pages/<Page>.md        the project's pages
+        ├── <Milestone>/_index.md
+        │   └── <Task>.md
+        └── <Task>.md              (only if the project has no milestones)
 ```
 
 - Folders are containers, files are leaves. `_index.md` holds a folder's own frontmatter and body.
 - Type comes from location, title is the filename (block `/` and `:`), parent is the containing folder.
-- A project's children are all milestones or all tasks, never mixed.
-- Frontmatter: `id` (10-char random id, never changes), `status`, `order` (fractional index key), `created`, optional `due`, `color` (milestones only, stored by name: `dusty-blue`, `mauve`, `rose`, `teal`, `lavender`, `sand`), `icon` (notes only: one emoji, e.g. `icon: 🌿`).
+- A project's children are all milestones or all tasks, never mixed. Its `Pages` folder doesn't count; it isn't an item, so no project or milestone may be called "Pages".
+- Older folders (`tasks/` + `notes/`) move to this layout when opened (`core/src/migrate.rs`); old notes go to a "Reference" area.
+- Frontmatter: `id` (10-char random id, never changes), `status`, `order` (fractional index key), `created`, optional `due`, `color` (milestones only, stored by name: `dusty-blue`, `mauve`, `rose`, `teal`, `lavender`, `sand`), `icon` (pages only: one emoji, e.g. `icon: 🌿`).
 - Statuses: task `todo|doing|done`, milestone `open|done`, project `active|paused|done|dropped`.
 - Done items stay in place. Startup reads frontmatter only into an in-memory index; a file watcher keeps it current.
 
@@ -129,16 +132,7 @@ data/
 
 M1 file format + Rust core + 10k-file benchmark → M2 app shell + tokens → M3 Unsorted (start using the app here) → M4 hierarchy lists → M5 drag and drop + Board → M6 notes editor (plain text + preview first). v1 is only Unsorted, the hierarchy and notes. Budget: a few weekends.
 
-Status: M1–M6 are built (core, shell, Unsorted flow, create / edit / delete with Undo, Settings, motion pass, drag and drop, rich text editor), plus area and milestone pages with List/Board and a release workflow. Branding done (Moss). Sidebar hides with ⌘\; trash older than 30 days is emptied on open; Docs pages drag (above / into / below). Sounds (ten, tunable), ⌘K search and commands, editor toolbar and "/" blocks are in. Next: use it daily and fix what bugs you.
-
-## Navigation plan (agreed, not built yet)
-
-- One sidebar tree: Areas → Projects → Pages (pages under the project or area they belong to). Click a project = its tasks; click a page = the page.
-- Pages live in places: `areas/<Area>/Pages/…` and `areas/<Area>/<Project>/Pages/…`. Rename `tasks/` and `notes/` to `areas/`; the word is "Page" everywhere (vocabulary: Note → Page).
-- Two overview views, reusing existing views (no new kinds of lists):
-  - Tasks: all projects, as List + Board (project completion at a glance).
-  - Pages: all projects/areas with their pages, as a hierarchy list.
-- Clicking an area still gives its List/Board of milestones/tasks and its page hierarchy. Same view types everywhere.
+Status: M1–M6 are built (core, shell, Unsorted flow, create / edit / delete with Undo, Settings, motion pass, drag and drop, rich text editor), plus area and milestone pages with List/Board and a release workflow. Branding done (Moss). Sidebar hides with ⌘\; trash older than 30 days is emptied on open. Sounds (tunable, plus optional typing sounds), ⌘K search and commands, editor toolbar and "/" blocks are in. Navigation is one tree (areas → projects → pages) with Tasks and Pages overviews. Next: use it daily and fix what bugs you.
 
 ## Backlog (after v1)
 

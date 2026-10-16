@@ -10,18 +10,18 @@ pub enum Kind {
     Project,
     Milestone,
     Task,
-    Note,
+    Page,
 }
 
 impl Kind {
     /// The statuses each kind accepts. The first one is the default.
-    /// Areas and notes have no status.
+    /// Areas and pages have no status.
     pub fn statuses(self) -> &'static [&'static str] {
         match self {
             Kind::Task => &["todo", "doing", "done"],
             Kind::Milestone => &["open", "done"],
             Kind::Project => &["active", "paused", "done", "dropped"],
-            Kind::Area | Kind::Note => &[],
+            Kind::Area | Kind::Page => &[],
         }
     }
 
@@ -37,22 +37,26 @@ impl Kind {
             Kind::Project => "project",
             Kind::Milestone => "milestone",
             Kind::Task => "task",
-            Kind::Note => "note",
+            Kind::Page => "page",
         }
     }
 
-    /// Notes live under `notes/`, everything else under `tasks/`.
-    pub fn is_note(self) -> bool {
-        self == Kind::Note
+    /// Pages sit beside the task hierarchy rather than in it: an area holds
+    /// projects AND pages, and the two are listed separately.
+    pub fn is_page(self) -> bool {
+        self == Kind::Page
     }
 
     /// What a FOLDER inside an item of this kind is.
     /// `None` means folders aren't allowed there.
+    ///
+    /// (A folder named `Pages` inside an area or project is the exception: it
+    /// holds that item's pages. See `PAGES_DIR` in library.rs.)
     pub fn child_folder_kind(self) -> Option<Kind> {
         match self {
             Kind::Area => Some(Kind::Project),
             Kind::Project => Some(Kind::Milestone),
-            Kind::Note => Some(Kind::Note),
+            Kind::Page => Some(Kind::Page),
             Kind::Milestone | Kind::Task => None,
         }
     }
@@ -62,7 +66,7 @@ impl Kind {
     pub fn child_file_kind(self) -> Option<Kind> {
         match self {
             Kind::Project | Kind::Milestone => Some(Kind::Task),
-            Kind::Note => Some(Kind::Note),
+            Kind::Page => Some(Kind::Page),
             Kind::Area | Kind::Task => None,
         }
     }
@@ -72,7 +76,7 @@ impl Kind {
 /// shade can change in tokens.css without touching any files.
 pub const MILESTONE_COLORS: &[&str] = &["dusty-blue", "mauve", "rose", "teal", "lavender", "sand"];
 
-/// One area, project, milestone, task or note, as the app sees it.
+/// One area, project, milestone, task or page, as the app sees it.
 ///
 /// This is built from the file's location and frontmatter. The body (the text
 /// under the frontmatter) is NOT kept here: it's only read when an item is
@@ -87,13 +91,14 @@ pub struct Item {
     /// The file or folder name, without `.md`.
     pub title: String,
     /// Location inside the data folder, always with `/`, e.g.
-    /// `tasks/Home/Renovate the house`. For folder items this is the folder.
+    /// `areas/Home/Renovate the house`. For folder items this is the folder.
     pub path: String,
     /// True for items that are folders (with an `_index.md` inside).
     pub is_folder: bool,
-    /// Id of the containing item. `None` for areas and top-level notes.
+    /// Id of the containing item. `None` only for areas. A page's parent is
+    /// the area, project or page it sits in.
     pub parent: Option<String>,
-    /// `todo`, `doing`, ... `None` only for areas and notes.
+    /// `todo`, `doing`, ... `None` only for areas and pages.
     pub status: Option<String>,
     /// Manual sort key (see `order.rs`). `None` if the file doesn't have one yet.
     pub order: Option<String>,
@@ -103,7 +108,7 @@ pub struct Item {
     pub due: Option<String>,
     /// Milestones only: one of `MILESTONE_COLORS`.
     pub color: Option<String>,
-    /// Notes only: an emoji shown next to the title (`icon: 🌿`).
+    /// Pages only: an emoji shown next to the title (`icon: 🌿`).
     pub icon: Option<String>,
 }
 

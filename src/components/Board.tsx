@@ -1,5 +1,5 @@
-// The board: the tasks inside an area, project or milestone, in Todo / Doing /
-// Done columns.
+// The board: the tasks inside an area, project or milestone (or every task,
+// in the Tasks overview), in Todo / Doing / Done columns.
 // Drag a card into another column to change its status. Clicking a card's
 // circle also changes status, and the card flies to its new column.
 
@@ -37,8 +37,8 @@ const columnCollision: CollisionDetection = (args) => {
 
 interface Props {
   items: Item[]
-  /** The area, project or milestone whose tasks are shown. */
-  scope: Item
+  /** The area, project or milestone whose tasks are shown. null = every task. */
+  scope: Item | null
   selectedId: string | null
   onSelect: (id: string) => void
   onCycleStatus: (task: Item) => void
@@ -59,11 +59,11 @@ export function Board({ items, scope, selectedId, onSelect, onCycleStatus, actio
   }, [landed])
 
   // Every task inside, in list order, with its milestone and project.
-  const tasks = tasksUnder(items, scope.id)
+  const tasks = tasksUnder(items, scope?.id ?? null)
   // Inside a milestone the chip would say the same thing on every card.
-  const showMilestone = scope.kind !== 'milestone'
-  // In an area, cards also say which project they're from.
-  const showProject = scope.kind === 'area'
+  const showMilestone = scope?.kind !== 'milestone'
+  // In an area (or everywhere), cards also say which project they're from.
+  const showProject = !scope || scope.kind === 'area'
   const statusOf = (task: Item) => (pending?.id === task.id ? pending.status : task.status)
   const dragged = tasks.find(({ task }) => task.id === drag.active?.id)
 

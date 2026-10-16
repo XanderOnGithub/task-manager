@@ -61,33 +61,42 @@ export const SOUNDS = {
   ],
   /** Opening search (⌘K): a quiet lift. */
   open: [[0.16, 0.05, 260, 0.004, 0.004, 0.05, 0, 1.2, 0.6, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, -1600]],
-  // Typing (the Fun section in Settings; off unless you turn it on). A short
-  // mechanical click plus a small low thock, like a soft keyboard.
-  /** A letter key. */
+  // Typing (the Fun section in Settings; off unless you turn it on). Creamy,
+  // not clicky: like a lubed keyboard with foam inside. Each key is a round
+  // low "thock" (a sine whose pitch drops) plus a soft, muffled puff of noise
+  // with a tiny attack, so there's no sharp tick on top. Each kind of key has
+  // its own character, so a sentence sounds like a sentence.
+  /** A letter or number key. */
   key: [
-    [0.22, 0.12, 1900, 0, 0, 0.01, 4, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, -4200],
-    [0.22, 0.1, 230, 0, 0.001, 0.022, 0, 1.2, -2, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, -1600],
+    [0.3, 0.1, 205, 0.001, 0.003, 0.032, 0, 1, -1.8, 0, 0, 0, 0, 0, 0, 0, 0, 0.8, 0, 0, -1100],
+    [0.1, 0.15, 900, 0.001, 0, 0.016, 4, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, -1500],
   ],
-  /** Space: a deeper, wider key. */
+  /** A capital or symbol (typed with Shift held): the same key, a little lower and fuller. */
+  keyShift: [
+    [0.32, 0.1, 178, 0.001, 0.004, 0.038, 0, 1, -1.6, 0, 0, 0, 0, 0, 0, 0, 0, 0.8, 0, 0, -1000],
+    [0.1, 0.15, 780, 0.001, 0, 0.018, 4, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, -1300],
+  ],
+  /** Space: the long bar. Deeper and wider, with a soft second knock as it settles. */
   keySpace: [
-    [0.14, 0.1, 1400, 0, 0, 0.012, 4, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, -3200],
-    [0.3, 0.08, 150, 0, 0.002, 0.04, 0, 1.2, -1.5, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, -1200],
+    [0.38, 0.06, 132, 0.002, 0.006, 0.055, 0, 1, -1.2, 0, 0, 0, 0, 0, 0, 0, 0, 0.8, 0, 0, -800],
+    [0.12, 0.12, 620, 0.002, 0, 0.024, 4, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, -1100],
+    [0.12, 0.08, 110, 0.012, 0, 0.03, 0, 1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, -700],
   ],
-  /** Return: the deepest. */
+  /** Return: the heaviest key, low and round. */
   keyEnter: [
-    [0.16, 0.1, 1500, 0, 0, 0.014, 4, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, -3400],
-    [0.34, 0.06, 135, 0, 0.003, 0.05, 0, 1.2, -1.5, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, -1100],
+    [0.42, 0.05, 118, 0.002, 0.008, 0.065, 0, 1, -1.2, 0, 0, 0, 0, 0, 0, 0, 0, 0.8, 0, 0, -750],
+    [0.12, 0.12, 560, 0.002, 0, 0.026, 4, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, -1000],
   ],
-  /** Backspace: a little higher and drier. */
+  /** Backspace: its own sound. Hollow and rising, like taking a letter back out. */
   keyDelete: [
-    [0.18, 0.12, 2300, 0, 0, 0.009, 4, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, -4600],
-    [0.16, 0.1, 290, 0, 0.001, 0.018, 0, 1.2, -2, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, -1800],
+    [0.26, 0.08, 165, 0.002, 0.004, 0.04, 0, 1, 1.4, 0, 0, 0, 0, 0, 0, 0, 0, 0.8, 0, 0, -950],
+    [0.07, 0.15, 1100, 0.001, 0, 0.012, 4, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, -1700],
   ],
 } satisfies Record<string, number[][]>
 
 export type SoundName = keyof typeof SOUNDS
-type TypingSound = 'key' | 'keySpace' | 'keyEnter' | 'keyDelete'
-const TYPING: TypingSound[] = ['key', 'keySpace', 'keyEnter', 'keyDelete']
+type TypingSound = 'key' | 'keyShift' | 'keySpace' | 'keyEnter' | 'keyDelete'
+const TYPING: TypingSound[] = ['key', 'keyShift', 'keySpace', 'keyEnter', 'keyDelete']
 
 /** What each sound is for, in the words Settings shows (Sounds tab). */
 export const SOUND_INFO: { name: Exclude<SoundName, TypingSound>; label: string; when: string }[] = [
@@ -96,7 +105,7 @@ export const SOUND_INFO: { name: Exclude<SoundName, TypingSound>; label: string;
   { name: 'drop', label: 'Drop', when: 'Letting go, or filing from Unsorted' },
   { name: 'complete', label: 'Complete', when: 'A task or milestone becomes Done' },
   { name: 'status', label: 'Status', when: 'Other status changes, formatting, blocks' },
-  { name: 'select', label: 'Select', when: 'Choosing Task, Note or Project; page icons' },
+  { name: 'select', label: 'Select', when: 'Choosing Task, Page or Project; page icons' },
   { name: 'capture', label: 'Capture', when: 'Quick capture saving to Unsorted' },
   { name: 'check', label: 'Checkbox', when: 'Ticking a checkbox in a page' },
   { name: 'delete', label: 'Delete', when: 'Deleting something' },
@@ -184,7 +193,10 @@ export function listenForTyping() {
           : e.key === 'Backspace' || e.key === 'Delete'
             ? 'keyDelete'
             : e.key.length === 1
-              ? 'key'
+              ? // Shift held, or a character that needs it (capitals, !, ?).
+                e.shiftKey
+                ? 'keyShift'
+                : 'key'
               : null
     if (sound) play(sound)
   }

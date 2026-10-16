@@ -19,9 +19,10 @@ export interface PlacedTask {
 
 /**
  * Every task inside an area, project or milestone, in list order (project by
- * project, milestone by milestone), with where each one sits.
+ * project, milestone by milestone), with where each one sits. `null` = every
+ * task in every area.
  */
-export function tasksUnder(items: Item[], scopeId: string): PlacedTask[] {
+export function tasksUnder(items: Item[], scopeId: string | null): PlacedTask[] {
   const out: PlacedTask[] = []
   const children = (id: string) => childrenOf(items, id)
   const walk = (id: string, milestone: Item | null, project: Item | null) => {
@@ -30,6 +31,10 @@ export function tasksUnder(items: Item[], scopeId: string): PlacedTask[] {
       else if (child.kind === 'milestone') walk(child.id, child, project)
       else if (child.kind === 'project') walk(child.id, null, child)
     }
+  }
+  if (scopeId === null) {
+    for (const area of childrenOf(items, null)) walk(area.id, null, null)
+    return out
   }
   const scope = items.find((i) => i.id === scopeId)
   walk(
@@ -40,8 +45,8 @@ export function tasksUnder(items: Item[], scopeId: string): PlacedTask[] {
   return out
 }
 
-/** Done and total tasks anywhere inside an area, project or milestone. */
-export function taskCounts(items: Item[], scopeId: string): { done: number; total: number } {
+/** Done and total tasks anywhere inside an area, project or milestone (`null` = everywhere). */
+export function taskCounts(items: Item[], scopeId: string | null): { done: number; total: number } {
   const tasks = tasksUnder(items, scopeId)
   return { done: tasks.filter(({ task }) => task.status === 'done').length, total: tasks.length }
 }

@@ -9,8 +9,8 @@ import { trailOf } from './lib/items'
 import { isMac } from './lib/platform'
 import { readPref, writePref } from './lib/prefs'
 import {
-  BookOpen,
   FilePlus,
+  FileText,
   Layers,
   ListChecks,
   Monitor,
@@ -27,13 +27,12 @@ import { saveTheme } from './lib/theme'
 import { CommandPalette, type PaletteAction } from './components/CommandPalette'
 import { useActions } from './lib/useActions'
 import { useLibrary } from './lib/useLibrary'
-import { Sidebar, type Section } from './components/Sidebar'
+import { Sidebar, type Overview } from './components/Sidebar'
 import { ScopeView, type Layout } from './components/ScopeView'
 import { DetailsPanel } from './components/DetailsPanel'
 import { UnsortedView } from './components/Unsorted'
-import { DocsView } from './components/Docs'
+import { PagesOverview, PageView } from './components/Pages'
 import { ChooseFolder, QuickCapture, Settings } from './components/Dialogs'
-import { InlineAdd } from './components/controls'
 import { Panel } from './components/ui'
 
 /** Matches --spacing-sidebar in tokens.css. */
@@ -45,14 +44,16 @@ export default function App() {
   const { snapshot, error, needsFolder, byId, reload } = useLibrary()
   const actions = useActions(reload)
 
-  const [section, setSection] = useState<Section>('tasks')
-  // The open area, project or milestone page.
-  const [chosenScope, setChosenScope] = useState<string | null>(null)
+  // What's open: an overview (Unsorted, Tasks, Pages), or an area, project,
+  // milestone or page by id. `page` remembers which overview to fall back to
+  // if the open item disappears (deleted, or removed in Finder).
+  const [view, setView] = useState<{ overview: Overview } | { id: string; page: boolean }>({ overview: 'tasks' })
   const [selectedId, setSelectedId] = useState<string | null>(null)
-  const [noteId, setNoteId] = useState<string | null>(null)
   const [layout, setLayout] = useState<Layout>('list')
+  // Sidebar tree: open areas (and projects showing their pages), and pages with folded subpages.
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
-  const [shownArea, setShownArea] = useState<string | undefined>()
+  const [collapsedPages, setCollapsedPages] = useState<Set<string>>(new Set())
+  const [revealed, setRevealed] = useState<string | undefined>()
   const [dialog, setDialog] = useState<'capture' | 'settings' | 'search' | null>(null)
   const [sidebarOpen, setSidebarOpen] = useState(() => readPref('sidebarOpen', true))
   const toggleSidebar = () =>
@@ -91,62 +92,75 @@ export default function App() {
 
   const items = snapshot?.items ?? []
 
-  // Until you pick one, show the first project (or the first area if there
-  // are no projects). If the chosen one disappears (deleted, or in Finder),
-  // fall back the same way.
-  const areas = childrenOf(items, null)
-  const firstProject = areas.flatMap((a) => childrenOf(items, a.id)).find((i) => i.kind === 'project')
-  const chosen = chosenScope ? byId.get(chosenScope) : undefined
-  const scope =
-    chosen && (chosen.kind === 'area' || chosen.kind === 'project' || chosen.kind === 'milestone')
-      ? chosen
-      : (firstProject ?? areas[0])
-  // Where the open page sits, for the sidebar highlight.
-  const trail = scope ? trailOf(items, scope.id) : []
-  const area = trail[0]
-  const project = trail.find((i) => i.kind === 'project')
+  const open = 'id' in view ? byId.get(view.id) : undefined
+  const overview: Overview | null = open ? null : 'overview' in view ? view.overview : view.page ? 'pages' : 'tasks'
+  const trail = open ? trailOf(items, open.id) : []
+  // The open area, project or milestone, for task views and "+ Task".
+  const scope = open && open.kind !== 'page' ? open : undefined
   const selected = selectedId ? byId.get(selectedId) : undefined
+  // What the sidebar highlights: a milestone shows as its project.
+  const sidebarOpenId = open?.kind === 'milestone' ? (open.parent ?? null) : (open?.id ?? null)
 
-  // Areas you open stay open. The open project's area opens whenever the open
-  // project changes (or moves to another area), so you can always see it.
-  if (area?.id !== shownArea) {
-    setShownArea(area?.id)
-    if (area && !expanded.has(area.id)) setExpanded(new Set(expanded).add(area.id))
+  // Whenever something new opens, unfold the sidebar down to it, so you can
+  // always see where you are. (Folding things yourself afterwards sticks.)
+  if (open?.id !== revealed) {
+    setRevealed(open?.id)
+    if (open) {
+      const above = trail.slice(0, -1)
+      // Its area (or the area itself), and its project if it's a page.
+      const toOpen = trail.filter((i) => i.kind === 'area' || (i.kind === 'project' && open.kind === 'page'))
+      if (toOpen.some((i) => !expanded.has(i.id))) setExpanded(new Set([...expanded, ...toOpen.map((i) => i.id)]))
+      if (above.some((i) => collapsedPages.has(i.id))) {
+        setCollapsedPages(new Set([...collapsedPages].filter((id) => !above.some((i) => i.id === id))))
+      }
+    }
   }
 
-  const toggleArea = (id: string) =>
-    setExpanded((prev) => {
+  const toggleIn = (setter: typeof setExpanded) => (id: string) =>
+    setter((prev) => {
       const next = new Set(prev)
       if (next.has(id)) next.delete(id)
       else next.add(id)
       return next
     })
 
-  const openScope = (id: string) => {
-    setSection('tasks')
-    setChosenScope(id)
+  const openOverview = (o: Overview) => {
+    setView({ overview: o })
     setSelectedId(null)
   }
 
-  // Opening something from search: pages open in Docs; tasks open their
-  // milestone or project with the task selected.
-  const openItem = (item: Item) => {
-    if (item.kind === 'note') {
-      setSection('docs')
-      setNoteId(item.id)
-    } else if (item.kind === 'task') {
-      if (item.parent) openScope(item.parent)
+  // Opens anything by id: areas, projects, milestones and pages open
+  // themselves; a task opens its milestone or project with the task selected.
+  const openId = (id: string) => {
+    const item = byId.get(id)
+    if (!item) return
+    if (item.kind === 'task') {
+      if (item.parent) setView({ id: item.parent, page: false })
       setSelectedId(item.id)
-    } else {
-      openScope(item.id)
+      return
     }
+    setView({ id, page: item.kind === 'page' })
+    setSelectedId(null)
   }
+  const openItem = (item: Item) => openId(item.id)
+
+  // Where a new page goes from ⌘K: the open area or project, next to the open
+  // page, or a milestone's project.
+  const pagePlace = open
+    ? open.kind === 'page' || open.kind === 'milestone'
+      ? open.parent
+        ? byId.get(open.parent)
+        : undefined
+      : open.kind === 'area' || open.kind === 'project'
+        ? open
+        : undefined
+    : undefined
 
   const paletteActions: PaletteAction[] = [
     { id: 'capture', label: 'Quick capture', Icon: Plus, keywords: 'add new unsorted', shortcut: '⌘N', run: () => setDialog('capture') },
-    { id: 'unsorted', label: 'Go to Unsorted', Icon: Layers, keywords: 'inbox', run: () => setSection('unsorted') },
-    { id: 'tasks', label: 'Go to Tasks', Icon: ListChecks, keywords: 'projects', run: () => setSection('tasks') },
-    { id: 'docs', label: 'Go to Docs', Icon: BookOpen, keywords: 'notes pages', run: () => setSection('docs') },
+    { id: 'unsorted', label: 'Go to Unsorted', Icon: Layers, keywords: 'inbox', run: () => openOverview('unsorted') },
+    { id: 'tasks', label: 'Go to Tasks', Icon: ListChecks, keywords: 'projects all board', run: () => openOverview('tasks') },
+    { id: 'pages', label: 'Go to Pages', Icon: FileText, keywords: 'docs notes all', run: () => openOverview('pages') },
     {
       id: 'sidebar',
       label: sidebarOpen ? 'Hide sidebar' : 'Show sidebar',
@@ -192,20 +206,17 @@ export default function App() {
         id: 'task-text',
         label: `New task “${text}” in ${home.title}`,
         Icon: Plus,
-        run: () => void actions.create('task', home.id, text).then(() => openScope(home.id)),
+        run: () => void actions.create('task', home.id, text).then(() => openId(home.id)),
       })
     }
-    out.push({
-      id: 'page-text',
-      label: `New page “${text}”`,
-      Icon: FilePlus,
-      run: () =>
-        void actions.create('note', null, text).then((id) => {
-          if (!id) return
-          setSection('docs')
-          setNoteId(id)
-        }),
-    })
+    if (pagePlace) {
+      out.push({
+        id: 'page-text',
+        label: `New page “${text}” in ${pagePlace.title}`,
+        Icon: FilePlus,
+        run: () => void actions.create('page', pagePlace.id, text).then((id) => id && openId(id)),
+      })
+    }
     return out
   }
 
@@ -221,32 +232,15 @@ export default function App() {
         </Panel>
       )
     }
-    if (section === 'unsorted') return <UnsortedView entries={snapshot.unsorted} items={items} actions={actions} />
-    if (section === 'docs') {
-      return <DocsView items={items} byId={byId} noteId={noteId} onOpen={setNoteId} actions={actions} />
-    }
-    if (!scope) {
-      return (
-        <Panel label="No projects" className="flex-1 items-center justify-center">
-          <div className="flex w-[280px] flex-col gap-2 text-center text-fg-3">
-            {childrenOf(items, null).length === 0 ? (
-              <>
-                <p>Add an area to start, like Home or School.</p>
-                <InlineAdd label="Area name" onAdd={(title) => actions.create('area', null, title)} />
-              </>
-            ) : (
-              <p>Add a project with the + next to an area.</p>
-            )}
-          </div>
-        </Panel>
-      )
-    }
+    if (overview === 'unsorted') return <UnsortedView entries={snapshot.unsorted} items={items} actions={actions} />
+    if (overview === 'pages') return <PagesOverview items={items} onOpen={openId} actions={actions} />
+    if (open?.kind === 'page') return <PageView key={open.id} items={items} page={open} onOpen={openId} actions={actions} />
     return (
       <>
         <ScopeView
           items={items}
-          scope={scope}
-          onOpen={openScope}
+          scope={scope ?? null}
+          onOpen={openId}
           layout={layout}
           onLayout={setLayout}
           selectedId={selected?.id ?? null}
@@ -292,27 +286,22 @@ export default function App() {
         inert={!sidebarOpen}
       >
         <Sidebar
-          onToggleSidebar={toggleSidebar}
-        noteId={(noteId ? byId.get(noteId)?.id : undefined) ?? childrenOf(items, null, true)[0]?.id ?? null}
-        onOpenNote={(id) => {
-          setSection('docs')
-          setNoteId(id)
-        }}
           items={items}
           unsortedCount={snapshot?.unsorted.length ?? 0}
-          section={section}
-          onSection={setSection}
-          projectId={project?.id ?? null}
-          areaId={scope?.kind === 'area' ? scope.id : null}
-          onOpen={openScope}
+          overview={overview}
+          onOverview={openOverview}
+          openId={sidebarOpenId}
+          onOpen={openId}
           expanded={expanded}
-          onToggleArea={toggleArea}
+          onToggle={toggleIn(setExpanded)}
+          collapsedPages={collapsedPages}
+          onTogglePage={toggleIn(setCollapsedPages)}
+          onToggleSidebar={toggleSidebar}
           onQuickCapture={() => setDialog('capture')}
           onSettings={() => setDialog('settings')}
-          onAddArea={(title) => actions.create('area', null, title)}
-          onAddProject={async (areaId, title) => {
-            const id = await actions.create('project', areaId, title)
-            if (id) openScope(id)
+          onAdd={async (kind, parent, title) => {
+            const id = await actions.create(kind, parent, title)
+            if (id && kind !== 'area') openId(id)
           }}
           actions={actions}
         />
@@ -350,7 +339,7 @@ export default function App() {
       >
         {/* Switching sections fades the new one in quickly. */}
         <motion.div
-          key={needsFolder ? 'folder' : section}
+          key={needsFolder ? 'folder' : (overview ?? (open?.kind === 'page' ? 'page' : 'scope'))}
           initial={{ opacity: 0, y: 4 }}
           animate={{ opacity: 1, y: 0 }}
           transition={spring.snappy}

@@ -1,7 +1,7 @@
 //! Item ids.
 //!
 //! Every item gets an `id` in its frontmatter when it's created, and the id never
-//! changes, even when the item is renamed or moved. Later, links between notes and
+//! changes, even when the item is renamed or moved. Later, links between pages and
 //! tasks will point at ids instead of paths, so links survive renames.
 //!
 //! An id is 10 characters of Crockford base32 (digits and capital letters without

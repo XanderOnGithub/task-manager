@@ -8,12 +8,17 @@
 //! Where an item is decides what it is:
 //!
 //! ```text
-//! tasks/<Area>/                          area      (folder)
-//! tasks/<Area>/<Project>/                project   (folder)
-//! tasks/<Area>/<Project>/<Milestone>/    milestone (folder)
+//! areas/<Area>/                          area      (folder)
+//! areas/<Area>/<Project>/                project   (folder)
+//! areas/<Area>/<Project>/<Milestone>/    milestone (folder)
 //! .../<Task>.md                          task      (file in a project or milestone)
-//! notes/<Page>.md  or  notes/<Page>/     note      (file, or folder with subpages)
+//! areas/<Area>/Pages/<Page>.md           page      (file, or folder with subpages)
+//! areas/<Area>/<Project>/Pages/<Page>.md page that belongs to a project
 //! ```
+//!
+//! `Pages` is a plain folder, not an item: it just keeps an area's or a
+//! project's pages apart from its projects or milestones. That's why no project
+//! or milestone may be called "Pages".
 
 use std::collections::HashMap;
 use std::fs;
@@ -31,8 +36,9 @@ use crate::names;
 use crate::order;
 
 /// Folder names inside the data folder.
-pub const TASKS_DIR: &str = "tasks";
-pub const NOTES_DIR: &str = "notes";
+pub const AREAS_DIR: &str = "areas";
+/// The folder inside an area or project that holds its pages.
+pub const PAGES_DIR: &str = "Pages";
 pub const UNSORTED_FILE: &str = "unsorted.md";
 pub const INDEX_FILE: &str = "_index.md";
 
@@ -53,8 +59,8 @@ pub struct Library {
 }
 
 impl Library {
-    /// Reads the whole data folder. Missing `tasks/` or `notes/` folders just
-    /// mean there's nothing there yet. Only fails if the folder itself can't be
+    /// Reads the whole data folder. A missing `areas/` folder just means
+    /// there's nothing there yet. Only fails if the folder itself can't be
     /// read.
     pub fn load(root: impl Into<PathBuf>) -> io::Result<Library> {
         let mut library = Library {
@@ -66,8 +72,7 @@ impl Library {
         // Fail early with a clear error if the data folder itself is missing.
         fs::metadata(&library.root)?;
 
-        library.load_top_level(TASKS_DIR, Kind::Area)?;
-        library.load_top_level(NOTES_DIR, Kind::Note)?;
+        library.load_areas()?;
         Ok(library)
     }
 
@@ -78,13 +83,14 @@ impl Library {
 
     /// The direct children of `parent`, in display order.
     ///
-    /// `parent: None` means the top level. Because areas and top-level notes
-    /// both have no parent, `notes` picks which one you mean.
-    pub fn children(&self, parent: Option<&str>, notes: bool) -> Vec<&Item> {
+    /// `parent: None` means the top level (the areas). An area or project
+    /// holds two separate lists, its pages and everything else, so `pages`
+    /// picks which one you mean.
+    pub fn children(&self, parent: Option<&str>, pages: bool) -> Vec<&Item> {
         let mut children: Vec<&Item> = self
             .items
             .iter()
-            .filter(|item| item.parent.as_deref() == parent && item.kind.is_note() == notes)
+            .filter(|item| item.parent.as_deref() == parent && item.kind.is_page() == pages)
             .collect();
         sort_for_display(&mut children);
         children
@@ -102,7 +108,7 @@ impl Library {
         false
     }
 
-    /// Absolute path for a path stored in an item (`tasks/Home/...`).
+    /// Absolute path for a path stored in an item (`areas/Home/...`).
     pub fn abs(&self, rel: &str) -> PathBuf {
         self.root.join(rel)
     }
@@ -111,21 +117,33 @@ impl Library {
     // Loading
     // ---------------------------------------------------------------------
 
-    /// Loads `tasks/` (folders are areas) or `notes/` (pages).
-    fn load_top_level(&mut self, dir_name: &str, kind: Kind) -> io::Result<()> {
-        let dir = self.root.join(dir_name);
+    /// Loads `areas/`: every folder in it is an area.
+    fn load_areas(&mut self) -> io::Result<()> {
+        let dir = self.root.join(AREAS_DIR);
         if !dir.is_dir() {
             return Ok(());
         }
         for entry in sorted_entries(&dir)? {
-            let rel = format!("{dir_name}/{}", entry.name);
+            let rel = format!("{AREAS_DIR}/{}", entry.name);
             if entry.is_dir {
-                self.load_folder(&rel, kind, None)?;
-            } else if kind == Kind::Note {
-                self.load_file(&rel, Kind::Note, None);
+                self.load_folder(&rel, Kind::Area, None)?;
             } else {
-                // Only area folders belong directly in tasks/.
+                // Only area folders belong directly in areas/.
                 self.issues.push(Issue::StrayFile { path: rel });
+            }
+        }
+        Ok(())
+    }
+
+    /// Loads a `Pages` folder: each file or folder in it is a page whose
+    /// parent is `owner` (the area or project the folder is in).
+    fn load_pages(&mut self, rel: &str, owner: &str) -> io::Result<()> {
+        for entry in sorted_entries(&self.root.join(rel))? {
+            let child_rel = format!("{rel}/{}", entry.name);
+            if entry.is_dir {
+                self.load_folder(&child_rel, Kind::Page, Some(owner.to_owned()))?;
+            } else {
+                self.load_file(&child_rel, Kind::Page, Some(owner.to_owned()));
             }
         }
         Ok(())
@@ -155,6 +173,12 @@ impl Library {
                 continue;
             }
             let child_rel = format!("{rel}/{}", entry.name);
+            // An area's or project's pages. Not an item itself, and it doesn't
+            // count as a milestone when checking a project's children.
+            if entry.is_dir && entry.name == PAGES_DIR && has_pages(kind) {
+                self.load_pages(&child_rel, &id)?;
+                continue;
+            }
             if entry.is_dir {
                 has_folders = true;
                 match kind.child_folder_kind() {
@@ -290,7 +314,7 @@ impl Library {
         } else {
             None
         };
-        let icon = if kind == Kind::Note {
+        let icon = if kind == Kind::Page {
             check("icon", &is_icon)
         } else {
             None
@@ -360,6 +384,11 @@ impl Frontmatter {
     }
 }
 
+/// Areas and projects can have pages (in a `Pages` folder).
+pub fn has_pages(kind: Kind) -> bool {
+    matches!(kind, Kind::Area | Kind::Project)
+}
+
 /// Display order: items with an order key first (by key), then the rest by title.
 pub fn sort_for_display(items: &mut [&Item]) {
     items.sort_by(|a, b| match (&a.order, &b.order) {
@@ -383,7 +412,7 @@ struct Entry {
 
 /// Lists a folder: visible folders and `.md` files only, sorted by name so loads
 /// are predictable. Hidden entries (`.trash`, `.DS_Store`) and other files
-/// (images attached to notes) are skipped.
+/// (images attached to pages) are skipped.
 fn sorted_entries(dir: &Path) -> io::Result<Vec<Entry>> {
     let mut entries = Vec::new();
     for entry in fs::read_dir(dir)? {

@@ -5,20 +5,20 @@
   </picture>
 </h1>
 
-A local-first desktop app for tasks and notes. Capture anything into **Unsorted**, then sort it into a strict hierarchy: **Area → Project → Milestone → Task**, with **Notes** alongside.
+A local-first desktop app for tasks and pages. Capture anything into **Unsorted**, then sort it into a strict hierarchy: **Area → Project → Milestone → Task**, with **Pages** kept right next to the area or project they're about.
 
 Everything is stored as plain markdown files in a folder you choose, laid out so it reads well in Finder:
 
 ```
 data/
 ├── unsorted.md
-├── tasks/
-│   └── Home/
-│       └── Renovate the house/
-│           └── Replace the sink/
-│               └── Install new sink.md
-└── notes/
-    └── Kitchen measurements.md
+└── areas/
+    └── Home/
+        └── Renovate the house/
+            ├── Pages/
+            │   └── Kitchen measurements.md
+            └── Replace the sink/
+                └── Install new sink.md
 ```
 
 ```markdown
@@ -52,7 +52,7 @@ cargo test -p task-core                                  # tests
 cargo run --release -p task-core --example bench         # loading benchmark
 ```
 
-Loading 10,000 tasks (plus 1,000 notes with 20 KB bodies) takes about 70 ms, because only the frontmatter of each file is read.
+Loading 10,000 tasks (plus 1,000 pages with 20 KB bodies) takes about 70 ms, because only the frontmatter of each file is read.
 
 On macOS, Settings includes an opt-in native refresh-rate switch for ProMotion
 displays. It uses `tauri-plugin-macos-fps` to unlock rendering above 60fps; the

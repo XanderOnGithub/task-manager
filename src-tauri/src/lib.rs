@@ -22,7 +22,7 @@ use tauri::{AppHandle, Emitter, Manager, State};
 
 use task_core::unsorted::{self, Entry};
 use task_core::watch::{self, Watcher};
-use task_core::{fix, fsutil, ops, search, Issue, Item, Kind, Library};
+use task_core::{fix, fsutil, migrate, ops, search, Issue, Item, Kind, Library};
 
 /// Name of the event sent to the UI when files change outside the app.
 const DATA_CHANGED: &str = "data-changed";
@@ -138,7 +138,7 @@ async fn load_library(state: State<'_, AppState>) -> CmdResult<Snapshot> {
 // Items
 // ---------------------------------------------------------------------------
 
-/// Creates an area, project, milestone, task or note. Returns the new id.
+/// Creates an area, project, milestone, task or page. Returns the new id.
 #[tauri::command]
 async fn create_item(
     state: State<'_, AppState>,
@@ -247,7 +247,7 @@ async fn add_unsorted(state: State<'_, AppState>, text: String) -> CmdResult<Ent
     write(&state, |lib| unsorted::add(lib, &text, &fsutil::now_stamp()))
 }
 
-/// Turns an Unsorted entry into a task, note or project inside `parent`.
+/// Turns an Unsorted entry into a task, page or project inside `parent`.
 #[tauri::command]
 async fn file_unsorted(
     state: State<'_, AppState>,
@@ -304,6 +304,15 @@ fn open_folder(app: &AppHandle, data: &mut Data, root: PathBuf) {
     data.watcher = None;
     data.library = None;
 
+    // Folders from before pages lived in areas (tasks/ + notes/) move to the
+    // current layout (areas/). See core/src/migrate.rs. Runs before the
+    // watcher starts, like the trash cleanup below.
+    match migrate::migrate_layout(&root) {
+        Ok(true) => eprintln!("Moved the data folder to the current layout"),
+        Ok(false) => {}
+        Err(e) => eprintln!("Couldn't move the data folder to the current layout: {e}"),
+    }
+
     // Things deleted more than 30 days ago leave the hidden .trash folder for
     // good. (Before the watcher starts, so this doesn't trigger a reload.)
     match ops::empty_old_trash_now(&root) {
@@ -337,7 +346,7 @@ fn load_settings(path: &Path) -> Settings {
 /// `com.xanderreyes.taskmanager`. Settings live in a folder named after the id,
 /// so after the rename to Moss they'd be "lost" (you'd have to choose your data
 /// folder again). On first start as Moss, copy the old settings file over.
-/// Your notes and tasks never moved; this is only the settings file.
+/// Your pages and tasks never moved; this is only the settings file.
 fn bring_over_old_settings(new_file: &Path) {
     if new_file.exists() {
         return;

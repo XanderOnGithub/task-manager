@@ -1,39 +1,61 @@
-// The sidebar's areas and projects, draggable.
-// - Drag an area to reorder areas (they all fold shut while you do).
-// - Drag a project to reorder it, or into another area (drop on the area's
-//   name to put it first, even if the area is closed).
+// The sidebar tree: areas → projects → pages, all draggable.
+//
+//   Area            chevron folds it; the name opens the area
+//     Project       opens the project's tasks; its chevron (if it has pages) folds them
+//       Page        opens the page
+//     Page          an area's own pages come after its projects
+//
+// Dragging:
+// - An area: reorder areas (they all fold shut while you do).
+// - A project: reorder it, or move it into another area (drop on the area's
+//   name to put it first, even if the area is closed). See useTwoLevelDrag.
+// - A page: above / inside / below another page, or onto an area or project
+//   to move it there. See PageTree.tsx.
+// One DndContext holds all three, and the dragged thing's type decides which
+// logic runs.
 
-import { useCallback, useMemo, type CSSProperties } from 'react'
-import { DndContext, DragOverlay } from '@dnd-kit/core'
+import { useCallback, useContext, useMemo, type CSSProperties } from 'react'
+import { DndContext, DragOverlay, type CollisionDetection, type DragStartEvent } from '@dnd-kit/core'
 import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { motion } from 'motion/react'
-import { ChevronDown, Folder, Plus, Target } from 'lucide-react'
+import { ChevronDown, FilePlus, Folder, Plus, Target } from 'lucide-react'
 import { childrenOf, type Item } from '../lib/api'
 import { collisionFor, dropSettle, SLIDE, useDragSensors } from '../lib/drag'
 import { taskCounts } from '../lib/items'
 import { spring } from '../lib/motion'
 import type { Actions } from '../lib/useActions'
 import { useTwoLevelDrag, type Order } from '../lib/useTwoLevelDrag'
-import { InlineAdd } from './controls'
+import { InlineAdd, Menu } from './controls'
 import { Lifted } from './Lifted'
 import { Collapse } from './motion'
+import { INDENT, pageCollision, PageDropContext, TOGGLE, usePageDrag } from '../lib/pageDrag'
+import { FoldButton, PageIcon, PageRows, SidebarHighlight } from './PageTree'
 
 const ROOT = 'areas'
+/** Left padding of a page row directly in an area / in a project, so the icons line up with the project icons above them. */
+const AREA_PAGE_INDENT = 34 - TOGGLE
+const PROJECT_PAGE_INDENT = AREA_PAGE_INDENT + INDENT
+
+/** Where an inline "add" field is open. */
+export type Adding = { kind: 'area' } | { kind: 'project' | 'page'; parent: string } | null
 
 interface Props {
   items: Item[]
-  activeProjectId: string | null
-  activeAreaId: string | null
-  /** Opens an area or project page. */
+  /** What the sidebar highlights: the open area, project (also for its milestones) or page. */
+  openId: string | null
+  /** Opens an area, project or page. */
   onOpen: (id: string) => void
+  /** Open areas, and projects showing their pages. */
   expanded: Set<string>
-  onToggleArea: (id: string) => void
-  /** Where an inline "add" field is open: 'area', or an area id for a new project. */
-  adding: string | null
-  setAdding: (where: string | null) => void
-  onAddArea: (title: string) => Promise<unknown>
-  onAddProject: (areaId: string, title: string) => Promise<unknown>
+  onToggle: (id: string) => void
+  /** Pages whose subpages are folded away. */
+  collapsedPages: Set<string>
+  onTogglePage: (id: string) => void
+  adding: Adding
+  setAdding: (adding: Adding) => void
+  /** Creates an area, project or page and opens it. */
+  onAdd: (kind: 'area' | 'project' | 'page', parent: string | null, title: string) => Promise<unknown>
   actions: Actions
 }
 
@@ -54,67 +76,85 @@ export function AreaTree(props: Props) {
       const item = byId.get(id)
       if (!item) return Promise.resolve()
       // Keep a folded area open after a project is dropped into it.
-      if (parent && item.kind === 'project' && !props.expanded.has(parent)) props.onToggleArea(parent)
+      if (parent && item.kind === 'project' && !props.expanded.has(parent)) props.onToggle(parent)
       return actions.move(item, { id: parent, title: parent ? (byId.get(parent)?.title ?? '') : 'Areas' }, before, from)
     },
     [byId, actions, props],
   )
 
   const drag = useTwoLevelDrag({ base, rootKey: ROOT, rootParent: null, groupType: 'area', itemType: 'project', commit })
+  const pageDrag = usePageDrag(items, actions, (parent) => {
+    // Unfold whatever the page landed in, so you can see it there.
+    if (byId.get(parent)?.kind === 'page') {
+      if (props.collapsedPages.has(parent)) props.onTogglePage(parent)
+    } else if (!props.expanded.has(parent)) {
+      props.onToggle(parent)
+    }
+  })
   const areas = (drag.order[ROOT] ?? []).map((id) => byId.get(id)).filter((a): a is Item => !!a)
   const dragged = drag.activeId ? byId.get(drag.activeId) : undefined
   const movingArea = dragged?.kind === 'area'
 
+  // Pages and areas/projects drag differently; the dragged thing's type decides.
+  const isPage = (e: { active: { data: { current?: Record<string, unknown> } } }) => e.active.data.current?.type === 'page'
+  const collision: CollisionDetection = useMemo(() => {
+    const tasksSide = collisionFor({ project: ['area'] })
+    return (args) => (args.active.data.current?.type === 'page' ? pageCollision(args) : tasksSide(args))
+  }, [])
+
   return (
     <DndContext
       sensors={sensors}
-      collisionDetection={collisionFor({ project: ['area'] })}
-      onDragStart={drag.onDragStart}
-      onDragOver={drag.onDragOver}
-      onDragEnd={(e) => void drag.onDragEnd(e)}
-      onDragCancel={drag.onDragCancel}
+      collisionDetection={collision}
+      onDragStart={(e: DragStartEvent) => (isPage(e) ? pageDrag.onDragStart(e) : drag.onDragStart(e))}
+      onDragMove={(e) => isPage(e) && pageDrag.onDragMove(e)}
+      onDragOver={(e) => (isPage(e) ? pageDrag.onDragOver(e) : drag.onDragOver(e))}
+      onDragEnd={(e) => (isPage(e) ? pageDrag.onDragEnd() : void drag.onDragEnd(e))}
+      onDragCancel={(e) => (isPage(e) ? pageDrag.onDragCancel() : drag.onDragCancel())}
     >
-      <SortableContext items={areas.map((a) => a.id)} strategy={verticalListSortingStrategy}>
-        {areas.map((area) => (
-          <SortableArea
-            key={area.id}
-            area={area}
-            projects={(drag.order[area.id] ?? []).map((id) => byId.get(id)).filter((p): p is Item => !!p)}
-            // A folded area opens while it holds the dragged project, so the gap
-            // shows where it will land (and the list doesn't shrink under the pointer).
-            open={
-              !movingArea &&
-              (props.expanded.has(area.id) ||
-                props.adding === area.id ||
-                (!!drag.activeId && (drag.order[area.id] ?? []).includes(drag.activeId)))
-            }
-            {...props}
-          />
-        ))}
-      </SortableContext>
+      <PageDropContext.Provider value={{ activeId: pageDrag.active?.id ?? null, target: pageDrag.target }}>
+        <SortableContext items={areas.map((a) => a.id)} strategy={verticalListSortingStrategy}>
+          {areas.map((area) => (
+            <SortableArea
+              key={area.id}
+              area={area}
+              projects={(drag.order[area.id] ?? []).map((id) => byId.get(id)).filter((p): p is Item => !!p)}
+              // A folded area opens while it holds the dragged project, so the gap
+              // shows where it will land (and the list doesn't shrink under the pointer).
+              open={
+                !movingArea &&
+                (props.expanded.has(area.id) ||
+                  (props.adding?.kind !== 'area' && props.adding?.parent === area.id) ||
+                  (!!drag.activeId && (drag.order[area.id] ?? []).includes(drag.activeId)))
+              }
+              {...props}
+            />
+          ))}
+        </SortableContext>
+      </PageDropContext.Provider>
 
-      {props.adding === 'area' && (
+      {props.adding?.kind === 'area' && (
         <InlineAdd
           autoFocus
           label="Area name"
           className="h-7"
           onAdd={async (title) => {
-            await props.onAddArea(title)
+            await props.onAdd('area', null, title)
             props.setAdding(null)
           }}
           onDone={() => props.setAdding(null)}
         />
       )}
-      {areas.length === 0 && props.adding !== 'area' && (
-        <button onClick={() => props.setAdding('area')} className="px-2.5 py-1 text-left text-fg-3 hover:text-fg-2">
+      {areas.length === 0 && props.adding?.kind !== 'area' && (
+        <button onClick={() => props.setAdding({ kind: 'area' })} className="px-2.5 py-1 text-left text-fg-3 hover:text-fg-2">
           Add an area
         </button>
       )}
 
       <DragOverlay dropAnimation={dropSettle}>
+        {/* Same padding as the row it came from, so nothing jumps on pickup. */}
         {dragged && drag.active && (
           <Lifted grab={drag.active.grab} width={drag.active.width} className="rounded-control">
-            {/* Same padding as the row it came from, so nothing jumps on pickup. */}
             {dragged.kind === 'area' ? (
               <div className="flex h-7 items-center gap-1 rounded-control border border-border-menu bg-menu px-2 text-fg">
                 <ChevronDown size={14} strokeWidth={2} className="-rotate-90 text-fg-3" aria-hidden="true" />
@@ -131,9 +171,31 @@ export function AreaTree(props: Props) {
             )}
           </Lifted>
         )}
+        {pageDrag.dragged && pageDrag.active && (
+          <Lifted grab={pageDrag.active.grab} width={pageDrag.active.width} className="rounded-control">
+            <div
+              className="flex h-7 items-center gap-2 rounded-control border border-border-menu bg-menu pr-2 text-fg"
+              style={{ paddingLeft: pageIndent(pageDrag.dragged, byId) + TOGGLE }}
+            >
+              <PageIcon page={pageDrag.dragged} />
+              <span className="truncate">{pageDrag.dragged.title}</span>
+            </div>
+          </Lifted>
+        )}
       </DragOverlay>
     </DndContext>
   )
+}
+
+/** A page row's left padding: deeper under a project, and one step per parent page. */
+function pageIndent(page: Item, byId: Map<string, Item>): number {
+  let depth = 0
+  let parent = page.parent ? byId.get(page.parent) : undefined
+  while (parent?.kind === 'page') {
+    depth++
+    parent = parent.parent ? byId.get(parent.parent) : undefined
+  }
+  return (parent?.kind === 'project' ? PROJECT_PAGE_INDENT : AREA_PAGE_INDENT) + depth * INDENT
 }
 
 function SortableArea({
@@ -141,34 +203,36 @@ function SortableArea({
   projects,
   open,
   items,
-  activeProjectId,
-  activeAreaId,
+  openId,
   onOpen,
-  onToggleArea,
+  onToggle,
+  expanded,
+  collapsedPages,
+  onTogglePage,
   adding,
   setAdding,
-  onAddProject,
+  onAdd,
 }: Props & { area: Item; projects: Item[]; open: boolean }) {
   const sortable = useSortable({ id: area.id, data: { type: 'area' }, transition: SLIDE })
   const style: CSSProperties = { transform: CSS.Translate.toString(sortable.transform), transition: sortable.transition }
+  const pageTarget = usePageTarget(area.id)
+  const active = area.id === openId
+  const addingHere = adding && adding.kind !== 'area' && adding.parent === area.id ? adding.kind : null
 
   return (
     <div ref={sortable.setNodeRef} style={style} className="flex flex-col gap-0.5">
       <div
         className={`group relative flex h-7 items-center rounded-control transition-colors duration-100 ${
-          sortable.isDragging
-            ? 'bg-hover [&>*]:invisible'
-            : area.id === activeAreaId
-              ? 'bg-selected font-medium'
-              : 'hover:bg-hover'
+          sortable.isDragging ? 'bg-hover [&>*]:invisible' : pageTarget ? 'bg-selected' : active ? '' : 'hover:bg-hover'
         }`}
       >
+        {active && !sortable.isDragging && <SidebarHighlight />}
         {/* The chevron folds the area; the name opens the area's page. */}
         <button
-          onClick={() => onToggleArea(area.id)}
+          onClick={() => onToggle(area.id)}
           aria-label={open ? `Collapse ${area.title}` : `Expand ${area.title}`}
           aria-expanded={open}
-          className="flex h-full items-center pr-1 pl-2 text-fg-3 hover:text-fg-2"
+          className="relative flex h-full items-center pr-1 pl-2 text-fg-3 hover:text-fg-2"
         >
           <motion.span initial={false} animate={{ rotate: open ? 0 : -90 }} transition={spring.snappy} className="flex">
             <ChevronDown size={14} strokeWidth={2} aria-hidden="true" />
@@ -179,21 +243,21 @@ function SortableArea({
           {...sortable.attributes}
           {...sortable.listeners}
           onClick={() => onOpen(area.id)}
-          aria-current={area.id === activeAreaId ? 'true' : undefined}
-          className="flex h-full min-w-0 flex-1 items-center gap-1.5 pr-2 text-left text-fg"
+          aria-current={active ? 'true' : undefined}
+          className={`relative flex h-full min-w-0 flex-1 items-center gap-1.5 pr-7 text-left text-fg ${active ? 'font-medium' : ''}`}
         >
           <Folder size={15} strokeWidth={1.75} className="text-fg-2" aria-hidden="true" />
           <span className="truncate">{area.title}</span>
         </button>
         <span className="absolute top-1 right-1">
-          <button
-            onClick={() => setAdding(area.id)}
-            aria-label={`Add a project to ${area.title}`}
-            title={`Add a project to ${area.title}`}
-            className="flex rounded-md p-0.5 text-fg-3 opacity-0 transition-opacity duration-100 group-hover:opacity-100 hover:bg-hover hover:text-fg-2 focus-visible:opacity-100"
-          >
-            <Plus size={14} strokeWidth={2} aria-hidden="true" />
-          </button>
+          <Menu
+            label={`Add to ${area.title}`}
+            trigger={<AddIcon />}
+            items={[
+              { label: 'Add a project', Icon: Target, onSelect: () => setAdding({ kind: 'project', parent: area.id }) },
+              { label: 'Add a page', Icon: FilePlus, onSelect: () => setAdding({ kind: 'page', parent: area.id }) },
+            ]}
+          />
         </span>
       </div>
 
@@ -204,25 +268,35 @@ function SortableArea({
               key={project.id}
               project={project}
               items={items}
-              active={project.id === activeProjectId}
+              active={project.id === openId}
+              openId={openId}
               onOpen={onOpen}
+              showPages={expanded.has(project.id) || (adding?.kind === 'page' && adding.parent === project.id)}
+              onToggle={onToggle}
+              collapsedPages={collapsedPages}
+              onTogglePage={onTogglePage}
+              adding={adding}
+              setAdding={setAdding}
+              onAdd={onAdd}
             />
           ))}
         </SortableContext>
-      </Collapse>
-
-      {adding === area.id && (
-        <InlineAdd
-          autoFocus
-          label="Project name"
-          className="ml-[26px] h-7"
-          onAdd={async (title) => {
-            await onAddProject(area.id, title)
-            setAdding(null)
-          }}
-          onDone={() => setAdding(null)}
+        {addingHere === 'project' && (
+          <AddRow label="Project name" indent={26} onAdd={(title) => onAdd('project', area.id, title)} onDone={() => setAdding(null)} />
+        )}
+        <PageRows
+          items={items}
+          parent={area.id}
+          indent={AREA_PAGE_INDENT}
+          openId={openId}
+          onOpen={onOpen}
+          collapsed={collapsedPages}
+          onToggle={onTogglePage}
         />
-      )}
+        {addingHere === 'page' && (
+          <AddRow label="Page name" indent={26} onAdd={(title) => onAdd('page', area.id, title)} onDone={() => setAdding(null)} />
+        )}
+      </Collapse>
     </div>
   )
 }
@@ -231,46 +305,131 @@ function SortableProject({
   project,
   items,
   active,
+  openId,
   onOpen,
-}: {
+  showPages,
+  onToggle,
+  collapsedPages,
+  onTogglePage,
+  adding,
+  setAdding,
+  onAdd,
+}: Pick<Props, 'items' | 'openId' | 'onOpen' | 'onToggle' | 'collapsedPages' | 'onTogglePage' | 'adding' | 'setAdding' | 'onAdd'> & {
   project: Item
-  items: Item[]
   active: boolean
-  onOpen: (id: string) => void
+  showPages: boolean
 }) {
   const sortable = useSortable({ id: project.id, data: { type: 'project' }, transition: SLIDE })
   const style: CSSProperties = { transform: CSS.Translate.toString(sortable.transform), transition: sortable.transition }
+  const pageTarget = usePageTarget(project.id)
   const { done, total } = taskCounts(items, project.id)
   const finished = project.status === 'done' || project.status === 'dropped'
+  const hasPages = items.some((i) => i.kind === 'page' && i.parent === project.id)
 
   return (
-    <button
-      ref={sortable.setNodeRef}
-      style={style}
-      {...sortable.attributes}
-      {...sortable.listeners}
-      onClick={() => onOpen(project.id)}
-      aria-current={active ? 'true' : undefined}
-      className={`relative flex h-7 shrink-0 items-center gap-2 rounded-control pr-2 pl-[34px] text-left transition-colors duration-100 ${
-        sortable.isDragging
-          ? 'bg-hover [&>*]:invisible'
-          : active
-            ? 'font-medium text-fg'
-            : `${finished ? 'text-fg-3' : 'text-fg-2'} hover:bg-hover`
-      }`}
-    >
-      {/* One highlight that slides to whichever project is open. */}
-      {active && !sortable.isDragging && (
-        <motion.span layoutId="sidebar-project" transition={spring.snappy} className="absolute inset-0 rounded-control bg-selected" />
-      )}
-      <Target
-        size={15}
-        strokeWidth={1.75}
-        className={`relative transition-colors duration-100 ${active ? 'text-accent' : ''}`}
-        aria-hidden="true"
+    <div ref={sortable.setNodeRef} style={style} className="flex flex-col gap-0.5">
+      <div
+        className={`group relative flex h-7 shrink-0 items-center rounded-control transition-colors duration-100 ${
+          sortable.isDragging
+            ? 'bg-hover [&>*]:invisible'
+            : pageTarget
+              ? 'bg-selected'
+              : active
+                ? 'font-medium text-fg'
+                : `${finished ? 'text-fg-3' : 'text-fg-2'} hover:bg-hover`
+        }`}
+      >
+        {active && !sortable.isDragging && <SidebarHighlight />}
+        {/* Only projects with pages can fold; the chevron sits just left of the icon. */}
+        <span className="relative flex w-[34px] shrink-0 justify-end pr-0.5">
+          {hasPages && <FoldButton title={project.title} open={showPages} onClick={() => onToggle(project.id)} />}
+        </span>
+        <button
+          {...sortable.attributes}
+          {...sortable.listeners}
+          onClick={() => onOpen(project.id)}
+          aria-current={active ? 'true' : undefined}
+          className="relative flex h-full min-w-0 flex-1 items-center gap-2 pr-2 text-left"
+        >
+          <Target
+            size={15}
+            strokeWidth={1.75}
+            className={`transition-colors duration-100 ${active ? 'text-accent' : ''}`}
+            aria-hidden="true"
+          />
+          <span className="flex-1 truncate">{project.title}</span>
+          {total > 0 && (
+            <span className="text-label font-normal text-fg-3 transition-opacity duration-100 group-hover:opacity-0">{`${done}/${total}`}</span>
+          )}
+        </button>
+        <span className="absolute top-1 right-1 opacity-0 transition-opacity duration-100 group-hover:opacity-100 focus-within:opacity-100">
+          <button
+            onClick={() => setAdding({ kind: 'page', parent: project.id })}
+            aria-label={`Add a page to ${project.title}`}
+            title="Add a page"
+            className="flex rounded-md p-0.5 text-fg-3 hover:bg-hover hover:text-fg-2"
+          >
+            <Plus size={14} strokeWidth={2} aria-hidden="true" />
+          </button>
+        </span>
+      </div>
+
+      <Collapse open={showPages} className="flex flex-col gap-0.5">
+        <PageRows
+          items={items}
+          parent={project.id}
+          indent={PROJECT_PAGE_INDENT}
+          openId={openId}
+          onOpen={onOpen}
+          collapsed={collapsedPages}
+          onToggle={onTogglePage}
+        />
+        {adding?.kind === 'page' && adding.parent === project.id && (
+          <AddRow label="Page name" indent={42} onAdd={(title) => onAdd('page', project.id, title)} onDone={() => setAdding(null)} />
+        )}
+      </Collapse>
+    </div>
+  )
+}
+
+/** True while a dragged page would drop into this area or project. */
+function usePageTarget(id: string) {
+  const { activeId, target } = useContext(PageDropContext)
+  return !!activeId && target?.id === id
+}
+
+function AddRow({
+  label,
+  indent,
+  onAdd,
+  onDone,
+}: {
+  label: string
+  indent: number
+  onAdd: (title: string) => Promise<unknown>
+  onDone: () => void
+}) {
+  return (
+    <div style={{ marginLeft: indent }}>
+      <InlineAdd
+        autoFocus
+        label={label}
+        className="h-7"
+        onAdd={async (title) => {
+          await onAdd(title)
+          onDone()
+        }}
+        onDone={onDone}
       />
-      <span className="relative flex-1 truncate">{project.title}</span>
-      {total > 0 && <span className="relative text-label font-normal text-fg-3">{`${done}/${total}`}</span>}
-    </button>
+    </div>
+  )
+}
+
+/** The "+" on a row, shown on hover. */
+function AddIcon() {
+  return (
+    <span className="flex rounded-md p-0.5 text-fg-3 opacity-0 transition-opacity duration-100 group-hover:opacity-100 in-focus-visible:opacity-100 in-aria-expanded:opacity-100 hover:bg-hover hover:text-fg-2">
+      <Plus size={14} strokeWidth={2} aria-hidden="true" />
+    </span>
   )
 }

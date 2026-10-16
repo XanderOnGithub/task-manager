@@ -190,8 +190,8 @@ function SoundsTab() {
   }
   // A little typed phrase, for hearing the keyboard sounds without typing.
   const demoTyping = () => {
-    const keys: SoundName[] = ['key', 'key', 'key', 'key', 'keySpace', 'key', 'key', 'keyDelete', 'key', 'key', 'keyEnter']
-    keys.forEach((k, i) => window.setTimeout(() => play(k, { force: true }), i * 85 + Math.random() * 30))
+    const keys: SoundName[] = ['keyShift', 'key', 'key', 'key', 'keySpace', 'key', 'key', 'keyDelete', 'keyDelete', 'key', 'keyShift', 'keyEnter']
+    keys.forEach((k, i) => window.setTimeout(() => play(k, { force: true }), i * 95 + Math.random() * 30))
   }
 
   return (

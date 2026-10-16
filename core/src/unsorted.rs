@@ -146,7 +146,7 @@ pub fn restore(lib: &Library, entry: &Entry) -> Result<()> {
     Ok(())
 }
 
-/// Turns an entry into a task, note or project inside `parent`, then removes it
+/// Turns an entry into a task, page or project inside `parent`, then removes it
 /// from Unsorted. Returns the new item's id.
 ///
 /// The text becomes the title. If it had to change (too long, or it contained

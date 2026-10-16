@@ -1,50 +1,50 @@
-// The left column: quick capture, the three sections, the areas tree, settings.
+// The left column: quick capture, the overviews, the areas tree, settings.
 // It sits on the window's vibrancy (no panel behind it).
+//
+// One tree for everything: areas → projects → pages (AreaTree.tsx). The three
+// rows above it are overviews: Unsorted, every project (Tasks), every page
+// (Pages).
 
 import { useState, type ReactNode } from 'react'
-import { AnimatePresence, motion } from 'motion/react'
+import { motion } from 'motion/react'
 import { spring } from '../lib/motion'
-import { BookOpen, Layers, ListChecks, PanelLeft, Plus, Settings, type LucideIcon } from 'lucide-react'
+import { FileText, Layers, ListChecks, PanelLeft, Plus, Settings, type LucideIcon } from 'lucide-react'
 import type { Item } from '../lib/api'
 import { icon } from '../lib/items'
 import { isMac } from '../lib/platform'
 import type { Actions } from '../lib/useActions'
-import { AreaTree } from './AreaTree'
-import { InlineAdd } from './controls'
-import { NoteTree } from './NoteTree'
+import { AreaTree, type Adding } from './AreaTree'
 import { MossMark } from './Brand'
 import { SectionLabel } from './ui'
 
-export type Section = 'unsorted' | 'tasks' | 'docs'
+/** The overviews at the top of the sidebar. */
+export type Overview = 'unsorted' | 'tasks' | 'pages'
 
 interface Props {
   items: Item[]
   unsortedCount: number
-  section: Section
-  onSection: (section: Section) => void
-  /** The open project (also when one of its milestones is open). */
-  projectId: string | null
-  /** The open area, when an area page is open. */
-  areaId: string | null
-  /** Opens an area or project page. */
+  /** The open overview, or null when an area, project or page is open. */
+  overview: Overview | null
+  onOverview: (overview: Overview) => void
+  /** The highlighted row in the tree: the open area, project (also for its milestones) or page. */
+  openId: string | null
+  /** Opens an area, project or page. */
   onOpen: (id: string) => void
   expanded: Set<string>
-  onToggleArea: (id: string) => void
+  onToggle: (id: string) => void
+  collapsedPages: Set<string>
+  onTogglePage: (id: string) => void
   onQuickCapture: () => void
   onSettings: () => void
   onToggleSidebar: () => void
-  /** Docs: the open page, and opening one. */
-  noteId: string | null
-  onOpenNote: (id: string) => void
-  onAddArea: (title: string) => Promise<unknown>
-  onAddProject: (areaId: string, title: string) => Promise<unknown>
+  /** Creates an area, project or page and opens it. */
+  onAdd: (kind: 'area' | 'project' | 'page', parent: string | null, title: string) => Promise<unknown>
   actions: Actions
 }
 
 export function Sidebar(props: Props) {
-  const { items, unsortedCount, section, onSection, projectId, areaId, onOpen, expanded, onToggleArea } = props
-  // Where an inline "add" field is open: 'area' for a new area, or an area id for a new project.
-  const [adding, setAdding] = useState<string | null>(null)
+  const { items, unsortedCount, overview, onOverview } = props
+  const [adding, setAdding] = useState<Adding>(null)
 
   return (
     <nav aria-label="Sidebar" className="flex w-sidebar shrink-0 flex-col gap-3.5 pt-3.5 pr-2.5 pb-3 pl-3">
@@ -79,7 +79,7 @@ export function Sidebar(props: Props) {
       </button>
 
       <div className="flex flex-col gap-0.5">
-        <NavItem Icon={Layers} active={section === 'unsorted'} onClick={() => onSection('unsorted')}>
+        <NavItem Icon={Layers} active={overview === 'unsorted'} onClick={() => onOverview('unsorted')}>
           Unsorted
           {unsortedCount > 0 && (
             <span className="ml-auto flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-badge px-1.5 text-label text-fg">
@@ -87,75 +87,33 @@ export function Sidebar(props: Props) {
             </span>
           )}
         </NavItem>
-        <NavItem Icon={ListChecks} active={section === 'tasks'} onClick={() => onSection('tasks')}>
+        <NavItem Icon={ListChecks} active={overview === 'tasks'} onClick={() => onOverview('tasks')}>
           Tasks
         </NavItem>
-        <NavItem Icon={BookOpen} active={section === 'docs'} onClick={() => onSection('docs')}>
-          Docs
+        <NavItem Icon={FileText} active={overview === 'pages'} onClick={() => onOverview('pages')}>
+          Pages
         </NavItem>
       </div>
 
-      {/* The lower half follows the section: pages while you're in Docs,
-          areas and projects everywhere else. One sidebar, never two. */}
-      <AnimatePresence mode="wait" initial={false}>
-        {section === 'docs' ? (
-          <motion.div
-            key="pages"
-            initial={{ opacity: 0, x: 8 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: 8 }}
-            transition={spring.snappy}
-            className="flex min-h-0 flex-col gap-0.5 overflow-y-auto"
-          >
-            <div className="group flex items-center pr-1 pb-1.5 pl-2.5">
-              <SectionLabel className="flex-1">Pages</SectionLabel>
-              <AddButton label="Add a page" onClick={() => setAdding('page')} />
-            </div>
-            <NoteTree items={items} openId={props.noteId} onOpen={props.onOpenNote} actions={props.actions} />
-            {adding === 'page' && (
-              <InlineAdd
-                autoFocus
-                label="Page name"
-                className="h-7"
-                onAdd={async (title) => {
-                  const id = await props.actions.create('note', null, title)
-                  setAdding(null)
-                  if (id) props.onOpenNote(id)
-                }}
-                onDone={() => setAdding(null)}
-              />
-            )}
-          </motion.div>
-        ) : (
-          <motion.div
-            key="areas"
-            initial={{ opacity: 0, x: -8 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -8 }}
-            transition={spring.snappy}
-            className="flex min-h-0 flex-col gap-0.5 overflow-y-auto"
-          >
-            <div className="group flex items-center pr-1 pb-1.5 pl-2.5">
-              <SectionLabel className="flex-1">Areas</SectionLabel>
-              <AddButton label="Add an area" onClick={() => setAdding('area')} />
-            </div>
-
-            <AreaTree
-              items={items}
-              activeProjectId={section === 'tasks' ? projectId : null}
-              activeAreaId={section === 'tasks' ? areaId : null}
-              onOpen={onOpen}
-              expanded={expanded}
-              onToggleArea={onToggleArea}
-              adding={adding}
-              setAdding={setAdding}
-              onAddArea={props.onAddArea}
-              onAddProject={props.onAddProject}
-              actions={props.actions}
-            />
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <div className="flex min-h-0 flex-col gap-0.5 overflow-y-auto">
+        <div className="group flex items-center pr-1 pb-1.5 pl-2.5">
+          <SectionLabel className="flex-1">Areas</SectionLabel>
+          <AddButton label="Add an area" onClick={() => setAdding({ kind: 'area' })} />
+        </div>
+        <AreaTree
+          items={items}
+          openId={props.openId}
+          onOpen={props.onOpen}
+          expanded={props.expanded}
+          onToggle={props.onToggle}
+          collapsedPages={props.collapsedPages}
+          onTogglePage={props.onTogglePage}
+          adding={adding}
+          setAdding={setAdding}
+          onAdd={props.onAdd}
+          actions={props.actions}
+        />
+      </div>
 
       <div className="mt-auto">
         <NavItem Icon={Settings} active={false} onClick={props.onSettings}>
