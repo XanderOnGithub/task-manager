@@ -56,6 +56,7 @@ import { play } from '../lib/sounds'
 import { matchBlocks, type Block } from './editor/blocks'
 import {
   SelectionToolbar,
+  EmojiMenu,
   SlashMenu,
   TableBar,
   type MarkAction,
@@ -64,6 +65,7 @@ import {
   type ToolbarState,
 } from './editor/EditorMenus'
 import { menuPlugin } from './editor/menuPlugin'
+import { exactShortcode, matchShortcodes } from './editor/emojiShortcodes'
 
 // Milkdown keeps empty paragraphs by writing `<br />` into the file. We'd
 // rather keep files clean, so that one piece of the preset is left out.
@@ -158,10 +160,15 @@ export function MarkdownEditor({
   const [tableBar, setTableBar] = useState<{ x: number; y: number } | null>(null)
   // Where Escape closed the "/" menu, so it stays closed for that "/".
   const dismissed = useRef<number | null>(null)
+  // ":name" emoji menu: same shape as the "/" menu (range, query, caret).
+  const [colon, setColon] = useState<SlashState | null>(null)
+  const [colonIndex, setColonIndex] = useState(0)
+  const colonDismissed = useRef<number | null>(null)
+  const emojiMatches = colon ? matchShortcodes(colon.query) : []
   const blocks = slash ? matchBlocks(slash.query, !!onCreatePage) : []
   // The key handler runs inside ProseMirror, so it reads the latest values here.
-  const live = useRef({ slash, blocks, slashIndex, naming })
-  live.current = { slash, blocks, slashIndex, naming }
+  const live = useRef({ slash, blocks, slashIndex, naming, colon, emojiMatches, colonIndex })
+  live.current = { slash, blocks, slashIndex, naming, colon, emojiMatches, colonIndex }
 
   const flush = () => {
     window.clearTimeout(timer.current)
@@ -211,10 +218,32 @@ export function MarkdownEditor({
         setTableBar(null)
       }
 
+      // ":name" emoji menu: a colon at the start of a line or after a space,
+      // then at least two letters of an emoji's name (so "10:30" or a lone
+      // ":" don't pop it open).
+      const $from = sel.$from
+      let nextColon: SlashState | null = null
+      if (focused && sel.empty && !$from.parent.type.spec.code) {
+        const before = $from.parent.textBetween(0, $from.parentOffset, undefined, '\ufffc')
+        const match = /(?:^|\s):([a-z0-9_+-]{2,30})$/i.exec(before)
+        if (match) {
+          const from = $from.pos - match[1].length - 1
+          if (colonDismissed.current !== from && matchShortcodes(match[1], 1).length > 0) {
+            const caret = view.coordsAtPos($from.pos)
+            nextColon = { from, to: $from.pos, query: match[1], x: caret.left, top: caret.top, bottom: caret.bottom }
+          }
+        } else {
+          colonDismissed.current = null
+        }
+      }
+      setColon((prev) => {
+        if (prev?.query !== nextColon?.query) setColonIndex(0)
+        return nextColon
+      })
+
       // "/" menu: a slash at the start of a line or after a space, followed by
       // what you've typed so far.
       if (live.current.naming) return // asking for a page name: keep the menu
-      const $from = sel.$from
       if (focused && sel.empty && !$from.parent.type.spec.code) {
         const before = $from.parent.textBetween(0, $from.parentOffset, undefined, '\ufffc')
         const match = /(?:^|\s)\/([^\s/]{0,24})$/.exec(before)
@@ -255,6 +284,31 @@ export function MarkdownEditor({
         const br = state.schema.nodes.hardbreak
         if (br && !state.selection.$from.parent.type.spec.code && !isInTable(state)) {
           view.dispatch(state.tr.setMeta('hardbreak', true).replaceSelectionWith(br.create()).scrollIntoView())
+          return true
+        }
+      }
+      // ":name" emoji menu: arrows move, Enter or Tab inserts, Escape closes.
+      // Typing the closing ":" of a full name inserts it too, as in Slack.
+      const { colon, emojiMatches, colonIndex } = live.current
+      if (colon && emojiMatches.length > 0) {
+        const insert = (emoji: string) => {
+          view.dispatch(view.state.tr.insertText(emoji, colon.from, colon.to).scrollIntoView())
+          setColon(null)
+          return true
+        }
+        if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+          const step = event.key === 'ArrowDown' ? 1 : -1
+          setColonIndex((i) => (i + step + emojiMatches.length) % emojiMatches.length)
+          return true
+        }
+        if (event.key === 'Enter' || event.key === 'Tab') return insert(emojiMatches[colonIndex].emoji)
+        if (event.key === ':') {
+          const exact = exactShortcode(colon.query)
+          if (exact) return insert(exact)
+        }
+        if (event.key === 'Escape') {
+          colonDismissed.current = colon.from
+          setColon(null)
           return true
         }
       }
@@ -446,6 +500,7 @@ export function MarkdownEditor({
           setToolbar(null)
           setTableBar(null)
           if (!live.current.naming) setSlash(null)
+          setColon(null)
         }}
         // Page links (to subpages) open with a click. Web links open in the
         // browser with ⌘-click; a plain click just places the cursor.
@@ -463,6 +518,22 @@ export function MarkdownEditor({
         className={`md-editor ${className}`}
       />
       <AnimatePresence>
+        {colon && emojiMatches.length > 0 && !slash && (
+          <EmojiMenu
+            key="emoji"
+            state={colon}
+            matches={emojiMatches}
+            index={colonIndex}
+            onHover={setColonIndex}
+            onPick={(emoji) =>
+              withView((view) => {
+                view.dispatch(view.state.tr.insertText(emoji, colon.from, colon.to))
+                setColon(null)
+                view.focus()
+              })
+            }
+          />
+        )}
         {toolbar && !slash && <SelectionToolbar key="toolbar" state={toolbar} onMark={toggleMark} onLink={setLink} />}
         {tableBar && !toolbar && !slash && <TableBar key="table" x={tableBar.x} y={tableBar.y} onAction={tableAction} />}
         {slash && (
