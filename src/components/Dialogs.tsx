@@ -5,6 +5,7 @@ import { AnimatePresence, motion } from 'motion/react'
 import { FolderOpen, Layers, Play } from 'lucide-react'
 import { spring } from '../lib/motion'
 import { open } from '@tauri-apps/plugin-dialog'
+import { getVersion } from '@tauri-apps/api/app'
 import { getHighRefresh, setDataFolder, setHighRefresh, type HighRefresh } from '../lib/api'
 import { useFrameRate } from '../lib/useFrameRate'
 import { useTheme, type Theme } from '../lib/theme'
@@ -139,6 +140,7 @@ export function Settings({
           </motion.div>
         )}
       </AnimatePresence>
+      <VersionInfo />
     </Modal>
   )
 }
@@ -295,6 +297,26 @@ function SoundRow({
         <span className="truncate text-label font-normal text-fg-3">{when}</span>
       </div>
       <Switch label={label} checked={on} onChange={onToggle} />
+    </div>
+  )
+}
+
+/** Which build this is: "Alpha 0.1.0". The version comes from the app itself (tauri.conf.json), the stage from package.json. */
+function VersionInfo() {
+  const [version, setVersion] = useState<string | null>(null)
+  useEffect(() => {
+    getVersion()
+      .then(setVersion)
+      .catch(() => setVersion(null))
+  }, [])
+  const stage = __APP_STAGE__ ? __APP_STAGE__[0].toUpperCase() + __APP_STAGE__.slice(1) : ''
+  return (
+    // A quiet footer under both tabs.
+    <div className="flex items-center gap-2 border-t border-border px-5 py-3 text-meta font-normal text-fg-3">
+      <span className="flex-1">Moss</span>
+      <span className="select-text">
+        {stage} <span className="font-mono">{version ?? '…'}</span>
+      </span>
     </div>
   )
 }
