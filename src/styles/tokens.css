@@ -1,0 +1,208 @@
+/* Task app design tokens.
+   Source of truth for how things look: the design canvas linked in CLAUDE.md.
+   Components use these variables only. Never hard-code a hex value. */
+
+:root {
+  /* Type */
+  --font-sans: "Geist", "Geist Sans", system-ui, sans-serif;
+  --font-mono: "Geist Mono", ui-monospace, monospace;
+  --text-title: 600 22px/28px var(--font-sans);    /* page titles */
+  --text-heading: 600 15px/20px var(--font-sans);  /* section headings */
+  --text-body: 400 13px/1.5 var(--font-sans);      /* default */
+  --text-meta: 500 12px/16px var(--font-sans);     /* dates, counts */
+  --text-mono: 400 12px/16px var(--font-mono);     /* shortcuts, paths */
+  --tracking-tight: -0.01em;
+
+  /* Shape and spacing */
+  --radius-window: 14px;
+  --radius-panel: 12px;
+  --radius-card: 9px;
+  --radius-row: 8px;
+  --radius-control: 7px;
+  --radius-chip: 5px;
+  --gap: 8px;
+  --row-height: 34px;
+  --sidebar-width: 244px;
+  --details-width: 340px;
+  --icon-size: 16px;
+  --icon-stroke: 1.75;
+
+  /* Milestone palette (muted; avoids amber and green so it never reads as a status) */
+  --ms-dusty-blue: #93AECF;
+  --ms-mauve: #C3A0C0;
+  --ms-rose: #CF9A9F;
+  --ms-teal: #86B3BE;
+  --ms-lavender: #A9A3D6;
+  --ms-sand: #BDB39A;
+
+  /* Window chrome (macOS traffic lights) */
+  --traffic-close: #FF5F57;
+  --traffic-min: #FEBC2E;
+  --traffic-max: #28C840;
+}
+
+/* Dark theme (default) */
+:root,
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --bg-wall: #0C0D10;                       /* behind the window, only for mockups */
+  --bg-window: rgba(24, 25, 29, 0.62);      /* vibrancy tint: sidebar and background */
+  --border-window: rgba(255, 255, 255, 0.09);
+  --bg-panel: #16171A;                      /* solid content panels */
+  --bg-raised: #212227;                     /* segmented controls, pills */
+  --bg-card: #1E1F23;                       /* board cards */
+  --bg-column: rgba(255, 255, 255, 0.025);  /* board columns */
+  --bg-field: rgba(255, 255, 255, 0.05);
+  --bg-hover: rgba(255, 255, 255, 0.07);
+  --bg-badge: rgba(255, 255, 255, 0.08);
+  --bg-seg-on: #2C2D33;
+  --bg-menu: #222328;                       /* menus and toasts */
+  --border: rgba(255, 255, 255, 0.07);
+  --border-strong: rgba(255, 255, 255, 0.12);
+  --border-menu: rgba(255, 255, 255, 0.10);
+  --border-dashed: rgba(255, 255, 255, 0.14);
+  --track: rgba(255, 255, 255, 0.09);       /* progress bar background */
+
+  --text: #ECECEE;
+  --text-2: #A9A9B2;
+  --text-3: #8A8A94;
+  --placeholder: #6C6C75;
+
+  --accent: #8FB996;                        /* sage */
+  --on-accent: #0B0C10;
+  --selected: rgba(143, 185, 150, 0.16);
+
+  --status-todo: var(--text-3);
+  --status-doing: #E0A458;
+  --status-done: var(--accent);
+  --doing-soft: rgba(224, 164, 88, 0.16);
+
+  --due: var(--text-3);
+  --due-soon: #B99873;                      /* amber blended 45% toward gray */
+  --due-overdue: #BE807D;                   /* red blended 40% toward gray */
+  --danger: #BE807D;
+
+  --chip-fill: 10%;
+  --chip-border: 25%;
+  --chip-text-mix: 100%;
+
+  --shadow-window: 0 30px 80px rgba(0, 0, 0, 0.35);
+  --shadow-menu: 0 12px 32px rgba(0, 0, 0, 0.35);
+  --shadow-seg: 0 1px 2px rgba(0, 0, 0, 0.18);
+  --shadow-card: none;
+}
+
+/* Light theme: follows the system unless data-theme="dark" is set */
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    color-scheme: light;
+
+    --bg-wall: #D9DDE5;
+    --bg-window: rgba(244, 244, 247, 0.60);
+    --border-window: rgba(0, 0, 0, 0.10);
+    --bg-panel: #FFFFFF;
+    --bg-raised: #F1F1F4;
+    --bg-card: #FFFFFF;
+    --bg-column: #F5F5F7;
+    --bg-field: rgba(255, 255, 255, 0.55);
+    --bg-hover: rgba(0, 0, 0, 0.05);
+    --bg-badge: rgba(0, 0, 0, 0.06);
+    --bg-seg-on: #FFFFFF;
+    --bg-menu: #FFFFFF;
+    --border: rgba(0, 0, 0, 0.08);
+    --border-strong: rgba(0, 0, 0, 0.12);
+    --border-menu: rgba(0, 0, 0, 0.10);
+    --border-dashed: rgba(0, 0, 0, 0.16);
+    --track: rgba(0, 0, 0, 0.08);
+
+    --text: #18181B;
+    --text-2: #4E4E57;
+    --text-3: #6A6A73;
+    --placeholder: #9A9AA3;
+
+    --accent: #59735D;                      /* sage darkened for contrast on white */
+    --on-accent: #FFFFFF;
+    --selected: rgba(89, 115, 93, 0.12);
+
+    --status-doing: #A86A1E;
+    --doing-soft: rgba(168, 106, 30, 0.12);
+
+    --due-soon: #8C6A44;
+    --due-overdue: #965551;
+    --danger: #965551;
+
+    --chip-fill: 12%;
+    --chip-border: 32%;
+    --chip-text-mix: 52%;                   /* chip text = milestone color darkened */
+
+    --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.05);
+  }
+}
+
+/* Explicit light override (same values as the media query above) */
+:root[data-theme="light"] {
+  color-scheme: light;
+
+  --bg-wall: #D9DDE5;
+  --bg-window: rgba(244, 244, 247, 0.60);
+  --border-window: rgba(0, 0, 0, 0.10);
+  --bg-panel: #FFFFFF;
+  --bg-raised: #F1F1F4;
+  --bg-card: #FFFFFF;
+  --bg-column: #F5F5F7;
+  --bg-field: rgba(255, 255, 255, 0.55);
+  --bg-hover: rgba(0, 0, 0, 0.05);
+  --bg-badge: rgba(0, 0, 0, 0.06);
+  --bg-seg-on: #FFFFFF;
+  --bg-menu: #FFFFFF;
+  --border: rgba(0, 0, 0, 0.08);
+  --border-strong: rgba(0, 0, 0, 0.12);
+  --border-menu: rgba(0, 0, 0, 0.10);
+  --border-dashed: rgba(0, 0, 0, 0.16);
+  --track: rgba(0, 0, 0, 0.08);
+
+  --text: #18181B;
+  --text-2: #4E4E57;
+  --text-3: #6A6A73;
+  --placeholder: #9A9AA3;
+
+  --accent: #59735D;
+  --on-accent: #FFFFFF;
+  --selected: rgba(89, 115, 93, 0.12);
+
+  --status-doing: #A86A1E;
+  --doing-soft: rgba(168, 106, 30, 0.12);
+
+  --due-soon: #8C6A44;
+  --due-overdue: #965551;
+  --danger: #965551;
+
+  --chip-fill: 12%;
+  --chip-border: 32%;
+  --chip-text-mix: 52%;
+
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+/* Milestone chip. Set --ms on the element to one of the palette colors:
+   <span class="milestone-chip" style="--ms: var(--ms-dusty-blue)">Replace the sink</span> */
+.milestone-chip {
+  display: inline-flex;
+  align-items: center;
+  height: 18px;
+  padding: 0 6px;
+  border-radius: var(--radius-chip);
+  font: 400 11.5px/1 var(--font-sans);
+  background: color-mix(in srgb, var(--ms) var(--chip-fill), transparent);
+  border: 1px solid color-mix(in srgb, var(--ms) var(--chip-border), transparent);
+  color: color-mix(in srgb, var(--ms) var(--chip-text-mix), black);
+}
+
+/* Larger variant for milestone headers in List view */
+.milestone-chip--header {
+  height: 22px;
+  padding: 0 8px;
+  border-radius: 6px;
+  font: 600 12.5px/1 var(--font-sans);
+}

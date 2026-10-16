@@ -1,0 +1,15 @@
+# One Cargo workspace for both Rust crates, so they share a single target/ folder
+# and a single Cargo.lock.
+#
+#   core/       the file format: reading, validating and writing your data folder.
+#               Plain Rust with no Tauri in it, so it can be tested on its own.
+#   src-tauri/  the desktop app: turns core functions into commands the UI can call.
+[workspace]
+members = ["core", "src-tauri"]
+resolver = "2"
+
+[profile.release]
+# Smaller, faster release builds of the app.
+lto = true
+codegen-units = 1
+strip = true

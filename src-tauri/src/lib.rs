@@ -1,0 +1,399 @@
+//! The desktop app: the bridge between the UI and `task-core`.
+//!
+//! Each `#[tauri::command]` function below can be called from TypeScript with
+//! `invoke("command_name", { ...args })` (see `src/lib/api.ts`). The commands
+//! are thin: they find the data folder, call into `task-core`, and turn errors
+//! into plain strings the UI can show.
+//!
+//! The loaded `Library` is cached between commands so clicking around never
+//! touches the disk. The cache is dropped whenever files change, either because
+//! a command wrote something or because the watcher saw an outside change. The
+//! UI hears about outside changes through the `data-changed` event and calls
+//! `load_library` again.
+
+use std::fs;
+use std::path::{Path, PathBuf};
+use std::sync::{Mutex, MutexGuard};
+
+use serde::{Deserialize, Serialize};
+use tauri::{AppHandle, Emitter, Manager, State};
+
+use task_core::unsorted::{self, Entry};
+use task_core::watch::{self, Watcher};
+use task_core::{fix, fsutil, ops, Issue, Item, Kind, Library};
+
+/// Name of the event sent to the UI when files change outside the app.
+const DATA_CHANGED: &str = "data-changed";
+
+/// Everything the app keeps in memory between commands.
+struct AppState {
+    /// Where `settings.json` lives (the app's config folder).
+    settings_file: PathBuf,
+    data: Mutex<Data>,
+}
+
+#[derive(Default)]
+struct Data {
+    /// The data folder you picked.
+    root: Option<PathBuf>,
+    /// Cached library. `None` means "load it next time it's needed".
+    library: Option<Library>,
+    /// Keeps the folder watcher running. Replaced when the folder changes.
+    watcher: Option<Watcher>,
+}
+
+/// The small settings file. Only the data folder for now.
+#[derive(Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct Settings {
+    data_folder: Option<PathBuf>,
+}
+
+/// What the UI gets from `load_library`: everything it needs to draw.
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct Snapshot {
+    data_folder: String,
+    items: Vec<Item>,
+    issues: Vec<Issue>,
+    unsorted: Vec<Entry>,
+}
+
+/// What `trash_item` returns, so the UI can offer Undo.
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct Trashed {
+    trash_path: String,
+    original_path: String,
+}
+
+/// Commands return `Result<T, String>`: the string is shown to you as-is.
+type CmdResult<T> = Result<T, String>;
+
+// ---------------------------------------------------------------------------
+// Data folder
+// ---------------------------------------------------------------------------
+
+/// The data folder in use, if one is set.
+#[tauri::command]
+fn get_data_folder(state: State<'_, AppState>) -> CmdResult<Option<String>> {
+    let data = lock(&state)?;
+    Ok(data.root.as_ref().map(|p| p.display().to_string()))
+}
+
+/// Switches to another data folder and remembers it for next time.
+#[tauri::command]
+fn set_data_folder(app: AppHandle, state: State<'_, AppState>, path: String) -> CmdResult<()> {
+    let root = PathBuf::from(&path);
+    if !root.is_dir() {
+        return Err(format!("Folder not found: {path}"));
+    }
+    let settings = Settings {
+        data_folder: Some(root.clone()),
+    };
+    save_settings(&state.settings_file, &settings).map_err(|e| e.to_string())?;
+    let mut data = lock(&state)?;
+    open_folder(&app, &mut data, root);
+    Ok(())
+}
+
+/// Loads everything: items, issues and Unsorted.
+///
+/// Also does the automatic housekeeping: writes missing ids (see `fix.rs`) and
+/// timestamps Unsorted lines added from elsewhere.
+#[tauri::command]
+async fn load_library(state: State<'_, AppState>) -> CmdResult<Snapshot> {
+    let mut data = lock(&state)?;
+    let root = data.root.clone().ok_or("Choose a data folder")?;
+
+    let mut library = Library::load(&root).map_err(|e| format!("Couldn't open {}: {e}", root.display()))?;
+    if fix::apply(&library).map_err(|e| e.to_string())? > 0 {
+        library = Library::load(&root).map_err(|e| e.to_string())?;
+    }
+    unsorted::stamp_missing(&library, &fsutil::now_stamp()).map_err(|e| e.to_string())?;
+    let entries = unsorted::read(&library).map_err(|e| e.to_string())?;
+
+    let snapshot = Snapshot {
+        data_folder: root.display().to_string(),
+        items: library.items.clone(),
+        issues: library.issues.clone(),
+        unsorted: entries,
+    };
+    data.library = Some(library);
+    Ok(snapshot)
+}
+
+// ---------------------------------------------------------------------------
+// Items
+// ---------------------------------------------------------------------------
+
+/// Creates an area, project, milestone, task or note. Returns the new id.
+#[tauri::command]
+async fn create_item(
+    state: State<'_, AppState>,
+    kind: Kind,
+    parent: Option<String>,
+    title: String,
+) -> CmdResult<String> {
+    write(&state, |lib| {
+        ops::create(lib, kind, parent.as_deref(), &title, "")
+    })
+}
+
+#[tauri::command]
+async fn rename_item(state: State<'_, AppState>, id: String, title: String) -> CmdResult<()> {
+    write(&state, |lib| ops::rename(lib, &id, &title))
+}
+
+/// Moves an item into `parent` (or reorders it there), placing it before the
+/// sibling `before`, or at the end.
+#[tauri::command]
+async fn move_item(
+    state: State<'_, AppState>,
+    id: String,
+    parent: Option<String>,
+    before: Option<String>,
+) -> CmdResult<()> {
+    write(&state, |lib| {
+        ops::move_item(lib, &id, parent.as_deref(), before.as_deref())
+    })
+}
+
+/// Sets `status`, `due` or `color`. A `null` value clears it.
+#[tauri::command]
+async fn set_field(
+    state: State<'_, AppState>,
+    id: String,
+    field: String,
+    value: Option<String>,
+) -> CmdResult<()> {
+    write(&state, |lib| ops::set_field(lib, &id, &field, value.as_deref()))
+}
+
+#[tauri::command]
+async fn read_body(state: State<'_, AppState>, id: String) -> CmdResult<String> {
+    read(&state, |lib| ops::read_body(lib, &id))
+}
+
+#[tauri::command]
+async fn write_body(state: State<'_, AppState>, id: String, body: String) -> CmdResult<()> {
+    write(&state, |lib| ops::write_body(lib, &id, &body))
+}
+
+/// Sends an item to the hidden `.trash` folder. Pass the result to
+/// `restore_item` to undo.
+#[tauri::command]
+async fn trash_item(state: State<'_, AppState>, id: String) -> CmdResult<Trashed> {
+    write(&state, |lib| {
+        let original_path = lib.get(&id).map(|i| i.path.clone()).unwrap_or_default();
+        let trash_path = ops::trash(lib, &id)?;
+        Ok(Trashed {
+            trash_path,
+            original_path,
+        })
+    })
+}
+
+#[tauri::command]
+async fn restore_item(
+    state: State<'_, AppState>,
+    trash_path: String,
+    original_path: String,
+) -> CmdResult<()> {
+    write(&state, |lib| ops::restore(lib, &trash_path, &original_path))
+}
+
+/// Shows the item's file or folder in Finder.
+#[tauri::command]
+async fn reveal_in_finder(state: State<'_, AppState>, id: String) -> CmdResult<()> {
+    let path = item_path(state, id).await?;
+    tauri_plugin_opener::reveal_item_in_dir(path).map_err(|e| e.to_string())
+}
+
+/// The item's full path on disk, for "Copy path".
+#[tauri::command]
+async fn item_path(state: State<'_, AppState>, id: String) -> CmdResult<String> {
+    read(&state, |lib| {
+        let item = lib
+            .get(&id)
+            .ok_or_else(|| task_core::Error::NotFound(id.clone()))?;
+        Ok(lib.abs(&item.path).display().to_string())
+    })
+}
+
+// ---------------------------------------------------------------------------
+// Unsorted
+// ---------------------------------------------------------------------------
+
+#[tauri::command]
+async fn add_unsorted(state: State<'_, AppState>, text: String) -> CmdResult<Entry> {
+    write(&state, |lib| unsorted::add(lib, &text, &fsutil::now_stamp()))
+}
+
+/// Turns an Unsorted entry into a task, note or project inside `parent`.
+#[tauri::command]
+async fn file_unsorted(
+    state: State<'_, AppState>,
+    entry: Entry,
+    kind: Kind,
+    parent: Option<String>,
+) -> CmdResult<String> {
+    write(&state, |lib| unsorted::file(lib, &entry, kind, parent.as_deref()))
+}
+
+#[tauri::command]
+async fn remove_unsorted(state: State<'_, AppState>, entry: Entry) -> CmdResult<()> {
+    write(&state, |lib| unsorted::remove(lib, &entry))
+}
+
+/// Puts an entry back (Undo after filing or removing).
+#[tauri::command]
+async fn restore_unsorted(state: State<'_, AppState>, entry: Entry) -> CmdResult<()> {
+    write(&state, |lib| unsorted::restore(lib, &entry))
+}
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+fn lock<'a>(state: &'a State<'_, AppState>) -> CmdResult<MutexGuard<'a, Data>> {
+    state
+        .data
+        .lock()
+        .map_err(|_| "The app hit an internal error. Restart it.".to_owned())
+}
+
+/// Runs `f` with the library, loading it first if the cache is empty.
+fn read<T>(state: &State<'_, AppState>, f: impl FnOnce(&Library) -> task_core::Result<T>) -> CmdResult<T> {
+    let mut data = lock(state)?;
+    if data.library.is_none() {
+        let root = data.root.clone().ok_or("Choose a data folder")?;
+        data.library = Some(Library::load(&root).map_err(|e| e.to_string())?);
+    }
+    f(data.library.as_ref().expect("just loaded")).map_err(|e| e.to_string())
+}
+
+/// Like `read`, but for commands that change files: drops the cache afterwards
+/// (even if the command failed halfway) so the next read sees the new state.
+fn write<T>(state: &State<'_, AppState>, f: impl FnOnce(&Library) -> task_core::Result<T>) -> CmdResult<T> {
+    let result = read(state, f);
+    lock(state)?.library = None;
+    result
+}
+
+/// Switches to `root` and starts watching it.
+fn open_folder(app: &AppHandle, data: &mut Data, root: PathBuf) {
+    // Dropping the old watcher stops it.
+    data.watcher = None;
+    data.library = None;
+
+    let handle = app.clone();
+    match watch::watch(&root, move |paths| {
+        // Forget the cached library, then tell the UI to load again.
+        if let Ok(mut data) = handle.state::<AppState>().data.lock() {
+            data.library = None;
+        }
+        let _ = handle.emit(DATA_CHANGED, paths);
+    }) {
+        Ok(watcher) => data.watcher = Some(watcher),
+        Err(e) => eprintln!("Not watching {}: {e}", root.display()),
+    }
+    data.root = Some(root);
+}
+
+fn load_settings(path: &Path) -> Settings {
+    fs::read_to_string(path)
+        .ok()
+        .and_then(|text| serde_json::from_str(&text).ok())
+        .unwrap_or_default()
+}
+
+fn save_settings(path: &Path, settings: &Settings) -> std::io::Result<()> {
+    if let Some(dir) = path.parent() {
+        fs::create_dir_all(dir)?;
+    }
+    fs::write(
+        path,
+        serde_json::to_string_pretty(settings).expect("settings are plain data"),
+    )
+}
+
+/// In development builds with no folder chosen yet, use a copy of the repo's
+/// `sample-data/` so `npm run tauri dev` shows something right away. The copy
+/// lives in the app's data folder, so playing with it never changes the repo.
+fn dev_sample_folder(app: &AppHandle) -> Option<PathBuf> {
+    if !cfg!(debug_assertions) {
+        return None;
+    }
+    let source = Path::new(env!("CARGO_MANIFEST_DIR")).join("../sample-data");
+    let target = app.path().app_data_dir().ok()?.join("sample-data");
+    if !target.exists() {
+        copy_dir(&source, &target).ok()?;
+    }
+    Some(target)
+}
+
+fn copy_dir(from: &Path, to: &Path) -> std::io::Result<()> {
+    fs::create_dir_all(to)?;
+    for entry in fs::read_dir(from)? {
+        let entry = entry?;
+        let target = to.join(entry.file_name());
+        if entry.file_type()?.is_dir() {
+            copy_dir(&entry.path(), &target)?;
+        } else {
+            fs::copy(entry.path(), target)?;
+        }
+    }
+    Ok(())
+}
+
+// ---------------------------------------------------------------------------
+// Startup
+// ---------------------------------------------------------------------------
+
+#[cfg_attr(mobile, tauri::mobile_entry_point)]
+pub fn run() {
+    tauri::Builder::default()
+        .plugin(tauri_plugin_opener::init())
+        .setup(|app| {
+            let settings_file = app.path().app_config_dir()?.join("settings.json");
+            let settings = load_settings(&settings_file);
+            app.manage(AppState {
+                settings_file,
+                data: Mutex::new(Data::default()),
+            });
+
+            let handle = app.handle().clone();
+            let root = settings
+                .data_folder
+                .filter(|p| p.is_dir())
+                .or_else(|| dev_sample_folder(&handle));
+            if let Some(root) = root {
+                let state = handle.state::<AppState>();
+                let mut data = state.data.lock().expect("not poisoned at startup");
+                open_folder(&handle, &mut data, root);
+            }
+            Ok(())
+        })
+        .invoke_handler(tauri::generate_handler![
+            get_data_folder,
+            set_data_folder,
+            load_library,
+            create_item,
+            rename_item,
+            move_item,
+            set_field,
+            read_body,
+            write_body,
+            trash_item,
+            restore_item,
+            reveal_in_finder,
+            item_path,
+            add_unsorted,
+            file_unsorted,
+            remove_unsorted,
+            restore_unsorted,
+        ])
+        .run(tauri::generate_context!())
+        .expect("error while running the app");
+}
