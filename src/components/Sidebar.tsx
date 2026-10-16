@@ -18,8 +18,12 @@ interface Props {
   unsortedCount: number
   section: Section
   onSection: (section: Section) => void
+  /** The open project (also when one of its milestones is open). */
   projectId: string | null
-  onProject: (id: string) => void
+  /** The open area, when an area page is open. */
+  areaId: string | null
+  /** Opens an area or project page. */
+  onOpen: (id: string) => void
   expanded: Set<string>
   onToggleArea: (id: string) => void
   onQuickCapture: () => void
@@ -30,7 +34,7 @@ interface Props {
 }
 
 export function Sidebar(props: Props) {
-  const { items, unsortedCount, section, onSection, projectId, onProject, expanded, onToggleArea } = props
+  const { items, unsortedCount, section, onSection, projectId, areaId, onOpen, expanded, onToggleArea } = props
   // Where an inline "add" field is open: 'area' for a new area, or an area id for a new project.
   const [adding, setAdding] = useState<string | null>(null)
 
@@ -82,7 +86,8 @@ export function Sidebar(props: Props) {
         <AreaTree
           items={items}
           activeProjectId={section === 'tasks' ? projectId : null}
-          onProject={onProject}
+          activeAreaId={section === 'tasks' ? areaId : null}
+          onOpen={onOpen}
           expanded={expanded}
           onToggleArea={onToggleArea}
           adding={adding}

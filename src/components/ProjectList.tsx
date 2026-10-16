@@ -1,4 +1,5 @@
-// The project's list: milestones holding tasks (or loose tasks), all draggable.
+// A project's list (milestones holding tasks, or loose tasks) or a milestone's
+// list (its tasks), all draggable.
 //
 // - Drag a task to reorder it, or into another milestone (it opens a gap there
 //   as you cross over). Dropping on a milestone header puts it at the top.
@@ -10,7 +11,7 @@ import { DndContext, DragOverlay } from '@dnd-kit/core'
 import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { AnimatePresence, motion } from 'motion/react'
-import { ChevronDown } from 'lucide-react'
+import { ArrowUpRight, ChevronDown } from 'lucide-react'
 import { childrenOf, type Item } from '../lib/api'
 import { collisionFor, dropSettle, SLIDE, useDragSensors } from '../lib/drag'
 import { statusLabel } from '../lib/items'
@@ -24,27 +25,30 @@ import { DueDate, MilestoneChip, Progress, StatusIcon, TaskTitle } from './ui'
 
 interface Props {
   items: Item[]
-  project: Item
+  /** A project, or a milestone opened on its own. */
+  container: Item
   collapsed: Set<string>
   onToggle: (id: string) => void
   selectedId: string | null
   onSelect: (id: string | null) => void
   onCycleStatus: (task: Item) => void
+  /** Opens a milestone on its own page. */
+  onOpen: (id: string) => void
   actions: Actions
 }
 
 
-export function ProjectList({ items, project, collapsed, onToggle, selectedId, onSelect, onCycleStatus, actions }: Props) {
+export function ProjectList({ items, container, collapsed, onToggle, selectedId, onSelect, onCycleStatus, onOpen, actions }: Props) {
   const byId = useMemo(() => new Map(items.map((i) => [i.id, i])), [items])
   const sensors = useDragSensors()
 
-  // The real order: the project holds milestones (or loose tasks); each milestone holds tasks.
+  // The real order: the container holds milestones or tasks; each milestone holds tasks.
   const base = useMemo<Order>(() => {
-    const top = childrenOf(items, project.id)
-    const order: Order = { [project.id]: top.map((c) => c.id) }
+    const top = childrenOf(items, container.id)
+    const order: Order = { [container.id]: top.map((c) => c.id) }
     for (const m of top) if (m.kind === 'milestone') order[m.id] = childrenOf(items, m.id).map((t) => t.id)
     return order
-  }, [items, project.id])
+  }, [items, container.id])
 
   const commit = useCallback(
     (id: string, parent: string | null, before: string | null, from: { parent: string | null; before: string | null }) => {
@@ -58,14 +62,14 @@ export function ProjectList({ items, project, collapsed, onToggle, selectedId, o
 
   const drag = useTwoLevelDrag({
     base,
-    rootKey: project.id,
-    rootParent: project.id,
+    rootKey: container.id,
+    rootParent: container.id,
     groupType: 'milestone',
     itemType: 'task',
     commit,
   })
 
-  const top = (drag.order[project.id] ?? []).map((id) => byId.get(id)).filter((i): i is Item => !!i)
+  const top = (drag.order[container.id] ?? []).map((id) => byId.get(id)).filter((i): i is Item => !!i)
   const milestones = top.filter((i) => i.kind === 'milestone')
   const looseTasks = top.filter((i) => i.kind === 'task')
   const dragged = drag.activeId ? byId.get(drag.activeId) : undefined
@@ -93,6 +97,7 @@ export function ProjectList({ items, project, collapsed, onToggle, selectedId, o
                   selectedId={selectedId}
                   onSelect={onSelect}
                   onCycleStatus={onCycleStatus}
+                  onOpen={() => onOpen(milestone.id)}
                   actions={actions}
                 />
               </ListRow>
@@ -115,19 +120,20 @@ export function ProjectList({ items, project, collapsed, onToggle, selectedId, o
                 ))}
               </AnimatePresence>
               <InlineAdd
-                id={`add-task-${project.id}`}
+                id={`add-task-${container.id}`}
                 label="Add a task"
-                onAdd={(title) => actions.create('task', project.id, title)}
+                onAdd={(title) => actions.create('task', container.id, title)}
               />
             </div>
           )}
         </SortableContext>
 
-        {/* A project holds milestones or loose tasks, never both. */}
-        {looseTasks.length === 0 && (
+        {/* A project holds milestones or loose tasks, never both. Milestones
+            hold only tasks. */}
+        {looseTasks.length === 0 && container.kind === 'project' && (
           <InlineAdd
             label="Add a milestone"
-            onAdd={(title) => actions.create('milestone', project.id, title)}
+            onAdd={(title) => actions.create('milestone', container.id, title)}
             className={milestones.length === 0 ? '' : 'mt-[22px]'}
           />
         )}
@@ -170,6 +176,7 @@ function SortableMilestone({
   selectedId,
   onSelect,
   onCycleStatus,
+  onOpen,
   actions,
 }: {
   milestone: Item
@@ -179,6 +186,7 @@ function SortableMilestone({
   selectedId: string | null
   onSelect: (id: string) => void
   onCycleStatus: (task: Item) => void
+  onOpen: () => void
   actions: Actions
 }) {
   const sortable = useSortable({ id: milestone.id, data: { type: 'milestone' }, transition: SLIDE })
@@ -196,7 +204,7 @@ function SortableMilestone({
         {...sortable.attributes}
         {...sortable.listeners}
         aria-label={`${milestone.title}, milestone. Press space to move.`}
-        className={`flex h-row items-center gap-1 rounded-row pr-2 pl-0.5 transition-colors duration-100 ${
+        className={`group/ms flex h-row items-center gap-1 rounded-row pr-1 pl-0.5 transition-colors duration-100 ${
           sortable.isDragging ? 'bg-hover [&>*]:invisible' : selected ? 'bg-selected' : 'hover:bg-hover'
         }`}
       >
@@ -216,6 +224,14 @@ function SortableMilestone({
           <span className="text-meta font-normal text-fg-3">{`${done} / ${tasks.length}`}</span>
           <DueDate item={milestone} />
           <Progress done={done} total={tasks.length} className="ml-1.5 max-w-[120px] flex-1" />
+        </button>
+        <button
+          onClick={onOpen}
+          aria-label={`Open ${milestone.title}`}
+          title="Open milestone"
+          className="flex rounded-md p-1 text-fg-3 opacity-0 transition-opacity duration-100 group-hover/ms:opacity-100 hover:bg-hover hover:text-fg-2 focus-visible:opacity-100"
+        >
+          <ArrowUpRight size={14} strokeWidth={2} aria-hidden="true" />
         </button>
       </div>
 

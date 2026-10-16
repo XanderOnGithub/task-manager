@@ -44,7 +44,7 @@ export function MilestoneChip({
 }) {
   const style = { '--ms': `var(--color-ms-${color ?? 'sand'})` } as CSSProperties
   return (
-    <span className={`milestone-chip ${header ? 'milestone-chip-header' : ''}`} style={style}>
+    <span className={`milestone-chip shrink-0 whitespace-nowrap ${header ? 'milestone-chip-header' : ''}`} style={style}>
       {title}
     </span>
   )

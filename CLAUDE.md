@@ -33,6 +33,7 @@ sample-data/    the renovation example from the mockups; dev builds open a copy 
 - `cargo run --release -p task-core --example bench`: loading benchmark
 - `cargo clippy --workspace --all-targets` and `cargo fmt --all`: lint and format Rust
 - `pnpm lint` and `pnpm build`: lint and type-check the front end
+- Release: bump `version` in `src-tauri/tauri.conf.json`, then `git tag vX.Y.Z && git push origin vX.Y.Z`. `.github/workflows/release.yml` builds macOS (Apple silicon + Intel), Windows and Linux installers into a draft GitHub Release. Builds aren't code-signed yet.
 
 ## Rules for the code
 
@@ -55,19 +56,21 @@ sample-data/    the renovation example from the mockups; dev builds open a copy 
 
 - `src/lib/useLibrary.ts` loads the snapshot and reloads on `data-changed`. `src/lib/useActions.ts` holds every change the UI can make (each one calls Rust, shows a toast with Undo where it makes sense, and reloads). Add new actions there, not in components.
 - `src/components/controls.tsx`: InlineAdd, EditableTitle, Menu, Segmented, Modal, BodyEditor, DateField. `ui.tsx`: Panel, chips, status icon, due date, progress.
+- Tasks pages: `ScopeView.tsx` shows an area, project or milestone (breadcrumb, List/Board). List: `AreaList.tsx` (projects with their open tasks) or `ProjectList.tsx` (a project's milestones/tasks, or a milestone's tasks). Board: `Board.tsx` for any of the three. `tasksUnder()` in `lib/items.ts` collects the tasks inside anything.
+- Text: `MarkdownEditor.tsx` (Milkdown) for note pages and every description. Rich text on screen, plain markdown on disk ("-" bullets, no `<br />`), saved only after a real edit. Styles in `styles/editor.css`. Loaded lazily.
 - Toasts: `useToast()`; ⌘Z runs the visible toast's Undo. ⌘N opens Quick capture.
 
 ## Motion
 
 The app should feel smooth and considered, never gamified. Library: Motion (`motion/react`).
-- Springs only, from `src/lib/motion.ts`: `spring.snappy` (default), `spring.smooth` (size changes, panels), `spring.pop` (small overshoot, only for completing a task or dropping a card). No hand-written durations.
+- Springs only, from `src/lib/motion.ts`: `spring.snappy` (default, ~140ms), `spring.smooth` (size changes, panels, ~220ms), `spring.pop` (small overshoot, only for completing a task or dropping a card). No hand-written durations. Keep things quick: hover transitions are 100–150ms.
 - Motion explains cause and effect: where something came from and where it went. Don't animate for decoration.
 - Nothing animates on first render (`initial={false}`), only on changes.
 - Building blocks: `Collapse` (open/close by height, staggered rows), `ListRow` (rows entering and leaving a list), `StatusIcon` (ring, half fill, pop, check draws), `TaskTitle` (strikethrough sweep), `layoutId` for shared highlights (segmented thumb, sidebar selection) and board cards moving between columns.
 - Reduce motion is respected through `<MotionConfig reducedMotion="user">` in main.tsx and a rule in motion.css.
 - Drag and drop: dnd-kit. Shared pieces in `src/lib/drag.ts` (sensors, collision, drop settle, click swallowing) and `src/lib/useTwoLevelDrag.ts` (groups holding items: milestones/tasks in `ProjectList.tsx`, areas/projects in `AreaTree.tsx`). We draw the held item ourselves in `<DragOverlay>` with `Lifted`: velocity tilt up to ~6° (less for wide rows), spring swing back, 2% lift. The overlay face must match the row's padding so nothing jumps on pickup. Dragging a group folds all groups; a folded area opens while it holds the dragged project. Board cards change status by column and fly with `layoutId`. Every move goes through `actions.move` (toast + Undo when the parent changes). Keyboard: focus a row, Space, arrows, Space.
 - Later: tiny optional sounds on committed actions only (capture, complete, file, drop, delete, undo), preloaded with Web Audio, with an on/off and volume setting.
-- 120fps: WebKit caps at 60fps. `src-tauri/src/high_refresh.rs` flips WebKit's private "prefer 60fps" flag behind an experimental Settings switch with a live fps readout. Animations must look right at both 60 and 120.
+- 120fps: WebKit caps pages at 60fps (the plugin notes that macOS 26 may no longer apply the cap; check with the fps readout). `src-tauri/src/high_refresh.rs` uses `tauri-plugin-macos-fps` to flip WebKit's private "prefer 60fps" flag behind an experimental Settings switch with a live fps readout. Animations must look right at both 60 and 120.
 
 ## Vocabulary (fixed, never use synonyms in UI or code)
 
@@ -121,14 +124,14 @@ data/
 
 M1 file format + Rust core + 10k-file benchmark → M2 app shell + tokens → M3 Unsorted (start using the app here) → M4 hierarchy lists → M5 drag and drop + Board → M6 notes editor (plain text + preview first). v1 is only Unsorted, the hierarchy and notes. Budget: a few weekends.
 
-Status: M1–M5 are built (core, shell, Unsorted flow, create / edit / delete with Undo, Settings, motion pass, drag and drop in the list, board and sidebar). Next: M6 the markdown editor with preview, then sounds. Not yet draggable: the Docs tree.
+Status: M1–M6 are built (core, shell, Unsorted flow, create / edit / delete with Undo, Settings, motion pass, drag and drop, rich text editor), plus area and milestone pages with List/Board and a release workflow. Next: sounds, then branding (both need decisions). Not yet draggable: the Docs tree.
 
 ## Backlog (after v1)
 
-- List and Board views at every level (area, project, milestone). Maybe a timeline view later.
-- Make animations snappier overall (shorter springs, less settle time).
-- CI/CD: build the app for macOS, Windows and Linux and publish installers to GitHub Releases.
-- Order after M6: rich text editing, then sounds, then branding.
+- Timeline view (maybe).
+- Sounds, then branding.
+- Code signing for releases (Apple Developer ID + notarization, a Windows certificate).
+- Drag and drop in the Docs tree and on the area page.
 
 ## Working with me
 
