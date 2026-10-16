@@ -50,7 +50,7 @@ fn titles(items: &[&task_core::Item]) -> Vec<String> {
     items.iter().map(|i| i.title.clone()).collect()
 }
 
-const TASKS: &str = "tasks/Home/Renovate the house";
+const TASKS: &str = "areas/Home/Renovate the house";
 
 // ---------------------------------------------------------------------------
 // Loading
@@ -67,7 +67,12 @@ fn sample_data_loads_with_no_issues() {
     assert_eq!(count(Kind::Project), 3);
     assert_eq!(count(Kind::Milestone), 3);
     assert_eq!(count(Kind::Task), 10);
-    assert_eq!(count(Kind::Note), 5);
+    assert_eq!(count(Kind::Page), 5);
+    assert_eq!(
+        lib.children(None, true).len(),
+        0,
+        "every page belongs to something"
+    );
 
     // Areas in their saved order, not alphabetical.
     assert_eq!(
@@ -92,14 +97,21 @@ fn sample_data_loads_with_no_issues() {
     assert_eq!(sink.status.as_deref(), Some("doing"));
     assert_eq!(sink.due.as_deref(), Some("2026-10-17"));
 
-    // Notes nest.
+    // Pages belong to an area or a project, and nest.
+    let tech = by_title(&lib, "Technology");
+    assert_eq!(titles(&lib.children(Some(&tech.id), true)), ["Homelab"]);
+    assert_eq!(
+        titles(&lib.children(Some(&reno.id), true)),
+        ["Kitchen measurements"]
+    );
     let lab = by_title(&lib, "Homelab");
     assert!(lab.is_folder);
+    assert_eq!(lab.parent.as_deref(), Some(tech.id.as_str()));
     assert_eq!(titles(&lib.children(Some(&lab.id), true)), ["Network", "Backups"]);
-    assert_eq!(
-        titles(&lib.children(None, true)),
-        ["Homelab", "Kitchen measurements", "Recipes to try"]
-    );
+    // The Pages folder is not an item, and a project's pages don't count as
+    // its milestones or tasks.
+    assert!(lib.items.iter().all(|i| i.title != "Pages"));
+    assert_eq!(lib.children(Some(&reno.id), false).len(), 2);
 }
 
 #[test]
@@ -179,7 +191,7 @@ fn bad_files_become_issues_not_errors() {
         "---\nid: B1\nno closing fence\n",
     )
     .unwrap();
-    fs::write(root.join("tasks/Home/Loose task.md"), "").unwrap(); // tasks don't go in areas
+    fs::write(root.join("areas/Home/Loose task.md"), "").unwrap(); // tasks don't go in areas
     fs::write(reno.join("Stray task.md"), "").unwrap(); // project now mixes milestones and tasks
     fs::create_dir_all(reno.join("Replace the sink/Too deep")).unwrap();
 
@@ -238,7 +250,14 @@ fn creating_follows_the_hierarchy_rules() {
     not_allowed(ops::create(&lib, Kind::Milestone, Some(&bath), "Tiling", "")); // project has loose tasks
     not_allowed(ops::create(&lib, Kind::Task, Some(&home), "In an area", ""));
     not_allowed(ops::create(&lib, Kind::Task, None, "Nowhere", ""));
-    not_allowed(ops::create(&lib, Kind::Note, Some(&home), "Note in area", ""));
+    not_allowed(ops::create(&lib, Kind::Page, None, "Loose page", "")); // pages belong somewhere
+    not_allowed(ops::create(
+        &lib,
+        Kind::Page,
+        Some(&sink),
+        "Page in milestone",
+        "",
+    ));
     assert!(matches!(
         ops::create(&lib, Kind::Task, Some(&sink), "install NEW sink", ""),
         Err(Error::NameTaken(_))
@@ -264,22 +283,26 @@ fn creating_follows_the_hierarchy_rules() {
 }
 
 #[test]
-fn a_note_becomes_a_folder_when_it_gets_a_subpage() {
+fn a_page_becomes_a_folder_when_it_gets_a_subpage() {
     let (_dir, root) = sample();
     let lib = load(&root);
     let kitchen = by_title(&lib, "Kitchen measurements").id.clone();
 
     ops::create(
         &lib,
-        Kind::Note,
+        Kind::Page,
         Some(&kitchen),
         "Appliances",
         "Fridge: 36 in wide.\n",
     )
     .unwrap();
 
-    assert!(root.join("notes/Kitchen measurements/_index.md").is_file());
-    assert!(!root.join("notes/Kitchen measurements.md").exists());
+    assert!(root
+        .join("areas/Home/Renovate the house/Pages/Kitchen measurements/_index.md")
+        .is_file());
+    assert!(!root
+        .join("areas/Home/Renovate the house/Pages/Kitchen measurements.md")
+        .exists());
     let lib = load(&root);
     let parent = lib.get(&kitchen).unwrap();
     assert!(parent.is_folder, "same id, now a folder");
@@ -385,7 +408,7 @@ fn reordering_writes_only_the_moved_file() {
 #[test]
 fn reordering_gives_keys_to_files_that_have_none() {
     let (_dir, root) = sample();
-    let folder = root.join("tasks/Home/Redo the bathroom");
+    let folder = root.join("areas/Home/Redo the bathroom");
     for name in ["Order mirror", "Remove vanity"] {
         fs::write(
             folder.join(format!("{name}.md")),
@@ -416,7 +439,7 @@ fn moves_that_break_the_rules_are_refused() {
     let home = by_title(&lib, "Home").id.clone();
 
     let refused = |r: task_core::Result<()>| assert!(matches!(r, Err(Error::NotAllowed(_))), "{r:?}");
-    refused(ops::move_item(&lib, &lab, Some(&network), None)); // a note into its own subpage
+    refused(ops::move_item(&lib, &lab, Some(&network), None)); // a page into its own subpage
     refused(ops::move_item(&lib, "TSKTILE001", Some(&reno), None)); // task into a project with milestones
     refused(ops::move_item(&lib, &reno, Some(&reno), None)); // project into itself
     refused(ops::move_item(&lib, &home, Some(&reno), None)); // area into a project
@@ -671,12 +694,12 @@ fn pages_can_have_an_emoji_icon() {
     ops::set_field(&lib, &page, "icon", Some("🌿")).unwrap();
     let lib = load(&root);
     assert_eq!(by_title(&lib, "Homelab").icon.as_deref(), Some("🌿"));
-    let text = fs::read_to_string(root.join("notes/Homelab/_index.md")).unwrap();
+    let text = fs::read_to_string(root.join("areas/Technology/Pages/Homelab/_index.md")).unwrap();
     assert!(text.contains("icon: 🌿"), "stored in the frontmatter: {text}");
 
     // Emoji made of several characters joined together are fine.
     ops::set_field(&lib, &page, "icon", Some("👩‍💻")).unwrap();
-    // Words, spaces and non-notes are not.
+    // Words, spaces and non-pages are not.
     assert!(ops::set_field(&lib, &page, "icon", Some("a long word")).is_err());
     assert!(ops::set_field(&lib, &task, "icon", Some("🌿")).is_err());
 
@@ -684,6 +707,98 @@ fn pages_can_have_an_emoji_icon() {
     ops::set_field(&lib, &page, "icon", None).unwrap();
     let lib = load(&root);
     assert_eq!(by_title(&lib, "Homelab").icon, None);
-    let text = fs::read_to_string(root.join("notes/Homelab/_index.md")).unwrap();
+    let text = fs::read_to_string(root.join("areas/Technology/Pages/Homelab/_index.md")).unwrap();
     assert!(!text.contains("icon:"));
+}
+
+// ---------------------------------------------------------------------------
+// Pages in areas and projects
+// ---------------------------------------------------------------------------
+
+#[test]
+fn pages_live_in_a_pages_folder_of_their_area_or_project() {
+    let (_dir, root) = sample();
+    let lib = load(&root);
+    let home = by_title(&lib, "Home").id.clone();
+    let bath = by_title(&lib, "Redo the bathroom").id.clone();
+
+    // A page in an area goes in its Pages folder (created on first use).
+    let plan = ops::create(&lib, Kind::Page, Some(&home), "Floor plan", "").unwrap();
+    assert!(root.join("areas/Home/Pages/Floor plan.md").is_file());
+    // A page in a project without milestones doesn't make it "mixed".
+    ops::create(&lib, Kind::Page, Some(&bath), "Tile ideas", "").unwrap();
+    assert!(root
+        .join("areas/Home/Redo the bathroom/Pages/Tile ideas.md")
+        .is_file());
+
+    let lib = load(&root);
+    assert!(lib.issues.is_empty(), "{:#?}", lib.issues);
+    assert_eq!(titles(&lib.children(Some(&home), true)), ["Floor plan"]);
+    assert_eq!(titles(&lib.children(Some(&bath), false)), ["Pick tile"]);
+    // A task can still go in the project, and a milestone can't (it has tasks).
+    ops::create(&lib, Kind::Task, Some(&bath), "Order grout", "").unwrap();
+
+    // Moving the only page out removes the now-empty Pages folder.
+    ops::move_item(&lib, &plan, Some(&bath), None).unwrap();
+    assert!(!root.join("areas/Home/Pages").exists());
+    assert!(root
+        .join("areas/Home/Redo the bathroom/Pages/Floor plan.md")
+        .is_file());
+    let lib = load(&root);
+    assert_eq!(
+        titles(&lib.children(Some(&bath), true)),
+        ["Tile ideas", "Floor plan"]
+    );
+}
+
+#[test]
+fn projects_and_milestones_cant_be_called_pages() {
+    let (_dir, root) = sample();
+    let lib = load(&root);
+    let home = by_title(&lib, "Home").id.clone();
+    let reno = by_title(&lib, "Renovate the house").id.clone();
+
+    let invalid = |r: task_core::Result<String>| assert!(matches!(r, Err(Error::InvalidName(_))), "{r:?}");
+    invalid(ops::create(&lib, Kind::Project, Some(&home), "Pages", ""));
+    invalid(ops::create(&lib, Kind::Milestone, Some(&reno), "pages", ""));
+    assert!(matches!(
+        ops::rename(&lib, &reno, "Pages"),
+        Err(Error::InvalidName(_))
+    ));
+    // A page or task called Pages is fine: it never sits next to a Pages folder.
+    let lab = by_title(&lib, "Homelab").id.clone();
+    ops::create(&lib, Kind::Page, Some(&lab), "Pages", "").unwrap();
+}
+
+#[test]
+fn an_old_data_folder_moves_to_the_new_layout() {
+    let (_dir, root) = sample();
+    // Put the sample back the way older versions stored it: tasks/ and notes/.
+    fs::rename(root.join("areas"), root.join("tasks")).unwrap();
+    fs::create_dir(root.join("notes")).unwrap();
+    fs::rename(
+        root.join("tasks/Technology/Pages/Homelab"),
+        root.join("notes/Homelab"),
+    )
+    .unwrap();
+    fs::remove_dir(root.join("tasks/Technology/Pages")).unwrap();
+    fs::write(root.join("notes/.DS_Store"), "").unwrap();
+
+    assert!(task_core::migrate::migrate_layout(&root).unwrap());
+    assert!(!root.join("tasks").exists());
+    assert!(!root.join("notes").exists());
+
+    let lib = load(&root);
+    assert!(lib.issues.is_empty(), "{:#?}", lib.issues);
+    let reference = by_title(&lib, "Reference");
+    assert_eq!(reference.kind, Kind::Area);
+    assert_eq!(titles(&lib.children(Some(&reference.id), true)), ["Homelab"]);
+    // Subpages came along.
+    let lab = by_title(&lib, "Homelab");
+    assert_eq!(titles(&lib.children(Some(&lab.id), true)), ["Network", "Backups"]);
+    // Everything else is where it was.
+    assert_eq!(lib.items.iter().filter(|i| i.kind == Kind::Task).count(), 10);
+
+    // Running it again does nothing.
+    assert!(!task_core::migrate::migrate_layout(&root).unwrap());
 }

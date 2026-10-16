@@ -8,7 +8,7 @@
 //! ```
 //!
 //! It builds a fake data folder in a temp directory (areas → projects →
-//! milestones → tasks, plus notes with long bodies), then times `Library::load`.
+//! milestones → tasks, plus pages with long bodies), then times `Library::load`.
 //! The numbers include the operating system's file cache being warm, which is
 //! the normal case for an app you open more than once.
 
@@ -68,7 +68,7 @@ fn main() {
 }
 
 /// Writes `tasks` task files, spread as 10 areas × 10 projects × N milestones,
-/// plus one note with a 20 KB body for every 10 tasks. Returns (files, folders).
+/// plus one page with a 20 KB body for every 10 tasks (in the first area). Returns (files, folders).
 fn generate(root: &Path, tasks: usize) -> (usize, usize) {
     let per_milestone = 10;
     let milestones_total = tasks.div_ceil(per_milestone);
@@ -86,7 +86,7 @@ fn generate(root: &Path, tasks: usize) -> (usize, usize) {
     };
 
     'areas: for a in 0..10 {
-        let area = root.join(format!("tasks/Area {a}"));
+        let area = root.join(format!("areas/Area {a}"));
         index(&area, &next_id(), None);
         (files, folders) = (files + 1, folders + 1);
         for p in 0..10 {
@@ -114,11 +114,12 @@ fn generate(root: &Path, tasks: usize) -> (usize, usize) {
         }
     }
 
-    fs::create_dir_all(root.join("notes")).unwrap();
+    let pages = root.join("areas/Area 0/Pages");
+    fs::create_dir_all(&pages).unwrap();
     folders += 1;
     for i in 0..tasks / 10 {
         let text = format!("---\nid: {}\ncreated: 2026-10-16\n---\n{long_body}\n", next_id());
-        fs::write(root.join(format!("notes/Note {i}.md")), text).unwrap();
+        fs::write(pages.join(format!("Page {i}.md")), text).unwrap();
         files += 1;
     }
     (files, folders)

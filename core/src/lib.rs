@@ -6,6 +6,7 @@
 //! How the pieces fit:
 //!
 //! - `library`     loads the data folder into memory (frontmatter only) → `Library`
+//! - `migrate`     moves an older data folder (tasks/ + notes/) to the current layout
 //! - `issues`      problems found while loading, shown instead of crashing
 //! - `fix`         writes ids for files that are missing one
 //! - `search`      find text inside items (titles are searched by the app)
@@ -26,7 +27,7 @@
 //!     // ids were written; load again so the library matches the files
 //! }
 //! let lib = Library::load("/Users/me/Tasks")?;
-//! let home = lib.children(None, false)[0];
+//! let home = lib.children(None, false)[0]; // the first area
 //! ops::create(&lib, Kind::Project, Some(&home.id), "Paint the fence", "")?;
 //! # Ok::<(), Box<dyn std::error::Error>>(())
 //! ```
@@ -38,6 +39,7 @@ pub mod fsutil;
 pub mod id;
 pub mod issues;
 pub mod library;
+pub mod migrate;
 pub mod model;
 pub mod names;
 pub mod ops;

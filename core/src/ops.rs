@@ -15,17 +15,19 @@ use crate::error::{Error, Result};
 use crate::frontmatter::{self, Frontmatter};
 use crate::fsutil::{self, title_taken, write_atomic};
 use crate::id;
-use crate::library::{is_date, Library, INDEX_FILE, NOTES_DIR, TASKS_DIR};
+use crate::library::{has_pages, is_date, Library, AREAS_DIR, INDEX_FILE, PAGES_DIR};
 use crate::model::{is_icon, Item, Kind, MILESTONE_COLORS};
 use crate::names::check_title;
 use crate::order;
 
 /// Creates a new item and returns its id.
 ///
-/// `parent` is the id of the item to create it in, or `None` for a new area or a
-/// top-level note. `body` is the text under the frontmatter (often empty).
+/// `parent` is the id of the item to create it in, or `None` for a new area.
+/// A page's parent is an area, a project or another page. `body` is the text
+/// under the frontmatter (often empty).
 pub fn create(lib: &Library, kind: Kind, parent: Option<&str>, title: &str, body: &str) -> Result<String> {
     check_title(title)?;
+    check_reserved(kind, title)?;
 
     // Where does it go?
     let dir_rel = match parent {
@@ -33,7 +35,7 @@ pub fn create(lib: &Library, kind: Kind, parent: Option<&str>, title: &str, body
         Some(parent_id) => {
             let parent = find(lib, parent_id)?;
             check_parent(lib, kind, parent, None)?;
-            folder_for_children(lib, parent)?
+            folder_for_children(lib, parent, kind)?
         }
     };
     let dir = lib.abs(&dir_rel);
@@ -44,7 +46,7 @@ pub fn create(lib: &Library, kind: Kind, parent: Option<&str>, title: &str, body
 
     // Frontmatter for the new item.
     let new_id = id::new_unique_id(|candidate| lib.get(candidate).is_some());
-    let siblings = lib.children(parent, kind.is_note());
+    let siblings = lib.children(parent, kind.is_page());
     let mut fm = Frontmatter::default();
     fm.set("id", Some(&new_id));
     if let Some(status) = kind.default_status() {
@@ -57,15 +59,15 @@ pub fn create(lib: &Library, kind: Kind, parent: Option<&str>, title: &str, body
     }
     let text = frontmatter::join(&fm, body);
 
-    // Areas, projects and milestones are folders; tasks and notes are files.
-    // (A note becomes a folder later, when it gets its first subpage.)
+    // Areas, projects and milestones are folders; tasks and pages are files.
+    // (A page becomes a folder later, when it gets its first subpage.)
     match kind {
         Kind::Area | Kind::Project | Kind::Milestone => {
             let folder = dir.join(title);
             fs::create_dir(&folder)?;
             write_atomic(&folder.join(INDEX_FILE), &text)?;
         }
-        Kind::Task | Kind::Note => {
+        Kind::Task | Kind::Page => {
             write_atomic(&dir.join(format!("{title}.md")), &text)?;
         }
     }
@@ -76,6 +78,7 @@ pub fn create(lib: &Library, kind: Kind, parent: Option<&str>, title: &str, body
 pub fn rename(lib: &Library, id: &str, new_title: &str) -> Result<()> {
     check_title(new_title)?;
     let item = find(lib, id)?;
+    check_reserved(item.kind, new_title)?;
     if item.title == new_title {
         return Ok(());
     }
@@ -98,7 +101,7 @@ pub fn rename(lib: &Library, id: &str, new_title: &str) -> Result<()> {
 
 /// Moves an item, and/or changes its position among its siblings.
 ///
-/// - `new_parent`: where it goes (`None` = top level, for areas and notes).
+/// - `new_parent`: where it goes (`None` = top level, for areas).
 ///   Pass its current parent to just reorder.
 /// - `before`: id of the sibling to place it in front of, or `None` for the end.
 pub fn move_item(lib: &Library, id: &str, new_parent: Option<&str>, before: Option<&str>) -> Result<()> {
@@ -114,7 +117,7 @@ pub fn move_item(lib: &Library, id: &str, new_parent: Option<&str>, before: Opti
             Some(parent_id) => {
                 let parent = find(lib, parent_id)?;
                 check_parent(lib, item.kind, parent, Some(id))?;
-                folder_for_children(lib, parent)?
+                folder_for_children(lib, parent, item.kind)?
             }
         };
         let dir = lib.abs(&dir_rel);
@@ -124,6 +127,7 @@ pub fn move_item(lib: &Library, id: &str, new_parent: Option<&str>, before: Opti
         }
         let name = item.path.rsplit('/').next().expect("paths have a name");
         fs::rename(lib.abs(&item.path), dir.join(name))?;
+        remove_if_empty_pages_folder(lib, &item.path);
 
         let new_path = format!("{dir_rel}/{name}");
         if item.is_folder {
@@ -135,7 +139,7 @@ pub fn move_item(lib: &Library, id: &str, new_parent: Option<&str>, before: Opti
 
     // 2. Work out the new order key from its new neighbours.
     let mut siblings: Vec<&Item> = lib
-        .children(new_parent, item.kind.is_note())
+        .children(new_parent, item.kind.is_page())
         .into_iter()
         .filter(|s| s.id != id)
         .collect();
@@ -176,8 +180,8 @@ pub fn set_field(lib: &Library, id: &str, field: &str, value: Option<&str>) -> R
         ("due", None) => true,
         ("color", Some(v)) => item.kind == Kind::Milestone && MILESTONE_COLORS.contains(&v),
         ("color", None) => item.kind == Kind::Milestone,
-        ("icon", Some(v)) => item.kind == Kind::Note && is_icon(v),
-        ("icon", None) => item.kind == Kind::Note,
+        ("icon", Some(v)) => item.kind == Kind::Page && is_icon(v),
+        ("icon", None) => item.kind == Kind::Page,
         _ => return Err(Error::NotAllowed(format!("\"{field}\" can't be changed here"))),
     };
     if !ok {
@@ -224,6 +228,7 @@ pub fn trash(lib: &Library, id: &str) -> Result<String> {
 
     fs::create_dir_all(lib.abs(".trash"))?;
     fs::rename(lib.abs(&item.path), lib.abs(&trash_rel))?;
+    remove_if_empty_pages_folder(lib, &item.path);
     Ok(trash_rel)
 }
 
@@ -241,15 +246,6 @@ pub fn restore(lib: &Library, trash_rel: &str, original_rel: &str) -> Result<()>
     Ok(())
 }
 
-/// Deletes things that have sat in `.trash` for more than `keep_days` days.
-/// Returns how many it removed.
-///
-/// Every trashed entry's name starts with the time it was deleted
-/// (`20261016-134501-Paint the walls.md`, see `trash` above). We go by that
-/// stamp rather than the file's modified time, because moving a file to the
-/// trash doesn't change its modified time: a note you wrote last year and
-/// deleted today would look a year old. Anything without a stamp (something
-/// you put there by hand) is left alone.
 /// How long deleted things stay in `.trash` before they're gone for good.
 pub const TRASH_KEEP_DAYS: i64 = 30;
 
@@ -259,6 +255,15 @@ pub fn empty_old_trash_now(root: &Path) -> Result<usize> {
     empty_old_trash(root, chrono::Local::now().date_naive(), TRASH_KEEP_DAYS)
 }
 
+/// Deletes things that have sat in `.trash` for more than `keep_days` days.
+/// Returns how many it removed.
+///
+/// Every trashed entry's name starts with the time it was deleted
+/// (`20261016-134501-Paint the walls.md`, see `trash` above). We go by that
+/// stamp rather than the file's modified time, because moving a file to the
+/// trash doesn't change its modified time: a note you wrote last year and
+/// deleted today would look a year old. Anything without a stamp (something
+/// you put there by hand) is left alone.
 pub fn empty_old_trash(root: &Path, today: chrono::NaiveDate, keep_days: i64) -> Result<usize> {
     let trash = root.join(".trash");
     let Ok(entries) = fs::read_dir(&trash) else {
@@ -300,8 +305,10 @@ fn find<'a>(lib: &'a Library, id: &str) -> Result<&'a Item> {
 /// Where top-level items of this kind live.
 fn top_level_dir(kind: Kind) -> Result<&'static str> {
     match kind {
-        Kind::Area => Ok(TASKS_DIR),
-        Kind::Note => Ok(NOTES_DIR),
+        Kind::Area => Ok(AREAS_DIR),
+        Kind::Page => Err(Error::NotAllowed(
+            "Choose an area or project for this page".into(),
+        )),
         Kind::Project => Err(Error::NotAllowed("Choose an area for this project".into())),
         Kind::Milestone => Err(Error::NotAllowed("Choose a project for this milestone".into())),
         Kind::Task => Err(Error::NotAllowed(
@@ -313,10 +320,11 @@ fn top_level_dir(kind: Kind) -> Result<&'static str> {
 /// The hierarchy rules: can an item of `kind` go inside `parent`?
 ///
 /// `moving` is the id of the item being moved (it's ignored when checking the
-/// parent's other children, and a note can't move inside itself).
+/// parent's other children, and a page can't move inside itself).
 fn check_parent(lib: &Library, kind: Kind, parent: &Item, moving: Option<&str>) -> Result<()> {
     let not_allowed = |msg: &str| Err(Error::NotAllowed(msg.to_owned()));
-    // The parent's other children (task-side only; notes don't mix kinds).
+    // The parent's other children, not counting pages (pages never mix with
+    // milestones or tasks: they sit in their own Pages folder).
     let others = || {
         lib.children(Some(&parent.id), false)
             .into_iter()
@@ -348,21 +356,27 @@ fn check_parent(lib: &Library, kind: Kind, parent: &Item, moving: Option<&str>) 
         }
         (Kind::Task, _) => not_allowed("A task goes inside a milestone or a project"),
 
-        (Kind::Note, Kind::Note) => match moving {
+        // Pages belong to an area or a project, or sit under another page.
+        (Kind::Page, Kind::Area | Kind::Project) => Ok(()),
+        (Kind::Page, Kind::Page) => match moving {
             Some(moving_id) if lib.is_within(&parent.id, moving_id) => {
-                not_allowed("A note can't go inside itself")
+                not_allowed("A page can't go inside itself")
             }
             _ => Ok(()),
         },
-        (Kind::Note, _) => not_allowed("A note goes inside another note"),
+        (Kind::Page, _) => not_allowed("A page goes inside an area, a project or another page"),
     }
 }
 
-/// The folder that children of `parent` are stored in.
+/// The folder that a child of `kind` inside `parent` is stored in.
 ///
-/// A note stored as a single file (`Homelab.md`) is turned into a folder
-/// (`Homelab/_index.md`) the first time it gets a subpage.
-fn folder_for_children(lib: &Library, parent: &Item) -> Result<String> {
+/// - Pages of an area or project go in its `Pages` folder.
+/// - A page stored as a single file (`Homelab.md`) is turned into a folder
+///   (`Homelab/_index.md`) the first time it gets a subpage.
+fn folder_for_children(lib: &Library, parent: &Item, kind: Kind) -> Result<String> {
+    if kind == Kind::Page && has_pages(parent.kind) {
+        return Ok(format!("{}/{PAGES_DIR}", parent.path));
+    }
     if parent.is_folder {
         return Ok(parent.path.clone());
     }
@@ -374,6 +388,32 @@ fn folder_for_children(lib: &Library, parent: &Item) -> Result<String> {
     fs::create_dir(&folder)?;
     fs::rename(lib.abs(&parent.path), folder.join(INDEX_FILE))?;
     Ok(folder_rel)
+}
+
+/// "Pages" is the folder that holds an area's or project's pages, so no
+/// project or milestone can use that name (it would sit in the same folder).
+/// Areas, tasks and pages never sit next to a Pages folder, so they can.
+fn check_reserved(kind: Kind, title: &str) -> Result<()> {
+    if matches!(kind, Kind::Project | Kind::Milestone) && title.eq_ignore_ascii_case(PAGES_DIR) {
+        return Err(Error::InvalidName(format!(
+            "\"{PAGES_DIR}\" is reserved for pages. Choose another name for this {}",
+            kind.name()
+        )));
+    }
+    Ok(())
+}
+
+/// After moving the last page out of a `Pages` folder, remove the empty folder
+/// so the data folder stays tidy. `old_rel` is where the page used to be.
+/// Failing to remove it is fine (it just stays empty), so errors are ignored.
+fn remove_if_empty_pages_folder(lib: &Library, old_rel: &str) {
+    let Some((dir_rel, _name)) = old_rel.rsplit_once('/') else {
+        return;
+    };
+    if dir_rel.rsplit('/').next() == Some(PAGES_DIR) {
+        // remove_dir only removes EMPTY folders, so this can't delete anything.
+        let _ = fs::remove_dir(lib.abs(dir_rel));
+    }
 }
 
 /// An order key after the last sibling.
