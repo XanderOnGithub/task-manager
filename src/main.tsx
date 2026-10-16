@@ -12,10 +12,13 @@ import { MotionConfig } from 'motion/react'
 import App from './App.tsx'
 import { spring } from './lib/motion'
 import { applyTheme } from './lib/theme'
+import { listenForTyping } from './lib/sounds'
 import { ToastProvider } from './components/Toasts'
 
 // Apply the saved theme before the first paint, so there's no flash.
 applyTheme()
+// Keyboard sounds while typing, if turned on (Settings → Sounds → Fun).
+listenForTyping()
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
