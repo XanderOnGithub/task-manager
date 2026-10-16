@@ -34,7 +34,15 @@ brand/          the Moss mark (icon.svg), the moss° wordmarks (wordmark.py draw
 - `cargo run --release -p task-core --example bench`: loading benchmark
 - `cargo clippy --workspace --all-targets` and `cargo fmt --all`: lint and format Rust
 - `pnpm lint` and `pnpm build`: lint and type-check the front end
-- Release: bump `version` in `src-tauri/tauri.conf.json`, then `git tag vX.Y.Z && git push origin vX.Y.Z`. `.github/workflows/release.yml` builds macOS (Apple silicon + Intel), Windows and Linux installers into a draft GitHub Release. Builds aren't code-signed yet.
+- Releases: see Branches and releases below. Builds aren't code-signed yet.
+
+## Branches and releases
+
+Moss is in alpha (`"stage": "alpha"` in package.json; Settings shows "Alpha 0.1.0").
+- Never commit to `main` directly. Work happens on `feature/…`, `fix/…` or `refactor/…` branches, each merged by pull request into the current release branch (now `release/alpha-0.1`).
+- When the release branch is ready, a pull request from it into `main` ships it. `.github/workflows/release.yml` runs on every push to `main`: if the version in `src-tauri/tauri.conf.json` isn't released yet, it builds macOS (Apple silicon + Intel), Windows and Linux installers and publishes "Moss alpha X.Y.Z" with notes from the PRs. Otherwise it does nothing.
+- Next version: branch `release/alpha-0.2` from `main` and bump `version` in tauri.conf.json, package.json and both Cargo.toml files on it.
+- CI (`ci.yml`) runs on every pull request and on pushes to `main` and `release/**`.
 
 ## Rules for the code
 
@@ -60,6 +68,7 @@ brand/          the Moss mark (icon.svg), the moss° wordmarks (wordmark.py draw
 - Navigation: one sidebar tree, areas → projects → pages (`AreaTree.tsx`, one DndContext for all three; page rows in `PageTree.tsx`, page drag logic in `lib/pageDrag.ts`). Above it, three overviews: Unsorted, Tasks (every project, List/Board) and Pages (every area and project with its pages). `App.tsx` keeps what's open as an overview or an item id; opening anything unfolds the sidebar down to it.
 - Task views: `ScopeView.tsx` shows everything (scope null, the Tasks overview), an area, project or milestone (breadcrumb, List/Board). List: `AreaList.tsx` (projects with their open tasks) or `ProjectList.tsx` (a project's milestones/tasks, or a milestone's tasks), then the area's or project's pages (`PageSection`). Board: `Board.tsx` for any of them. `tasksUnder()` in `lib/items.ts` collects the tasks inside anything (null = all).
 - Pages: `Pages.tsx` (PageView, PagesOverview, PageSection; word count in the corner, Settings → Word count). Type `:name` for emoji (`editor/emojiShortcodes.ts`, gemoji). Shift+Enter always adds a line break (our key handler; the preset's is left out). Text: `MarkdownEditor.tsx` (Milkdown) for pages and every description. Rich text on screen, plain markdown on disk ("-" bullets, no `<br />`), saved only after a real edit. Styles in `styles/editor.css`. Loaded lazily.
+- First launch: `Onboarding.tsx` (welcome, then the data folder: Documents/Moss or any folder, optionally with the example). The example is `sample-data/`, bundled as an app resource (`example/`) and copied only into an empty folder (`core/src/example.rs`). Dev builds skip it unless started with `MOSS_ONBOARDING=1`.
 - Toasts: `useToast()`; ⌘Z runs the visible toast's Undo. ⌘N opens Quick capture. ⌘\ hides the sidebar (remembered via `lib/prefs.ts`).
 - Search: `CommandPalette.tsx` (⌘K). Items by title (matched in the UI), actions (go to, theme, sounds, sidebar, plus typed: add to Unsorted, new task in the open project, new page in the open area or project), and text matches from `core/src/search.rs` via `search_text`.
 - Editor menus: `components/editor/` (selection toolbar, "/" block menu with /page). `/page` creates a subpage and writes a relative link `[Name](Name.md)`; clicking it opens the page.

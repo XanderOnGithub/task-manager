@@ -58,15 +58,25 @@ On macOS, Settings includes an opt-in native refresh-rate switch for ProMotion
 displays. It uses `tauri-plugin-macos-fps` to unlock rendering above 60fps; the
 switch remains off by default to avoid unnecessary battery use.
 
-## Releases
+## Branches and releases
 
-Bump `version` in `src-tauri/tauri.conf.json`, then push a tag:
+Moss is in **alpha**. Nothing is pushed to `main` directly:
 
-```sh
-git tag v0.2.0 && git push origin v0.2.0
+```
+feature/…  fix/…  refactor/…   →  pull request into the current release branch
+release/alpha-0.1              →  pull request into main when it's ready to ship
+main                           →  every merge with a new version is released
 ```
 
-GitHub Actions (`.github/workflows/release.yml`) builds installers for macOS
-(Apple silicon and Intel), Windows and Linux and puts them in a draft release.
-Review it on GitHub and press Publish. The builds aren't code-signed yet, so
-macOS asks you to right-click → Open the first time and Windows SmartScreen warns.
+When a new version lands on `main`, GitHub Actions (`.github/workflows/release.yml`)
+builds installers for macOS (Apple silicon and Intel), Windows and Linux and
+publishes them as a GitHub Release named after the version ("Moss alpha 0.1.0"),
+with notes made from the merged pull requests. Pushes to `main` that don't
+change the version build nothing.
+
+To start the next version, branch `release/alpha-0.2` from `main` and bump
+`version` in `src-tauri/tauri.conf.json`, `package.json` and both `Cargo.toml`
+files there. The stage (`alpha`) is `"stage"` in `package.json`.
+
+The builds aren't code-signed yet, so macOS asks you to right-click → Open the
+first time and Windows SmartScreen warns.

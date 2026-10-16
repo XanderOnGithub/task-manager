@@ -85,6 +85,10 @@ export interface Trashed {
 
 export const getDataFolder = () => invoke<string | null>('get_data_folder')
 export const setDataFolder = (path: string) => invoke<void>('set_data_folder', { path })
+/** First launch: where Moss suggests keeping files (Documents/Moss). `display` writes the home folder as "~". */
+export const suggestedDataFolder = () => invoke<{ path: string; display: string }>('suggested_data_folder')
+/** First launch: makes the folder, adds the example if asked (empty folders only), and opens it. True if the example was added. */
+export const startDataFolder = (path: string, example: boolean) => invoke<boolean>('start_data_folder', { path, example })
 export const loadLibrary = () => invoke<Snapshot>('load_library')
 
 export const createItem = (kind: Kind, parent: string | null, title: string) =>

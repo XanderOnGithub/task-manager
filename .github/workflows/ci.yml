@@ -1,9 +1,10 @@
-# Runs on every push and pull request. If this fails, the PR shows a red X.
+# Runs on every pull request, and on pushes to main and release branches.
+# If this fails, the PR shows a red X.
 name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, 'release/**']
   pull_request:
 
 jobs:

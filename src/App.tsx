@@ -33,7 +33,8 @@ import { ScopeView, type Layout } from './components/ScopeView'
 import { DetailsPanel } from './components/DetailsPanel'
 import { UnsortedView } from './components/Unsorted'
 import { PagesOverview, PageView } from './components/Pages'
-import { ChooseFolder, QuickCapture, Settings } from './components/Dialogs'
+import { QuickCapture, Settings } from './components/Dialogs'
+import { Onboarding } from './components/Onboarding'
 import { Panel } from './components/ui'
 
 /** Matches --spacing-sidebar in tokens.css. */
@@ -224,7 +225,6 @@ export default function App() {
     void actions.setStatus(task, NEXT_STATUS[(task.status as TaskStatus | null) ?? 'todo'])
 
   const content = () => {
-    if (needsFolder) return <ChooseFolder onChosen={reload} />
     if (error || !snapshot) {
       return (
         <Panel label="Loading" className="flex-1 items-center justify-center text-fg-3">
@@ -273,6 +273,9 @@ export default function App() {
       </>
     )
   }
+
+  // First launch: no folder yet, so the welcome screens fill the window.
+  if (needsFolder) return <Onboarding onDone={reload} />
 
   return (
     // On a Mac the background is see-through so the blur behind the window
