@@ -24,13 +24,13 @@ export function MossMark({ className = '' }: { className?: string }) {
 
 /**
  * The full wordmark, "moss°": the mark's m, then o, s, s drawn with the same
- * round stroke, the leaf, a small ring for the degree sign, all on the soil
- * line. Same drawing as brand/wordmark-*.svg (made by brand/wordmark.py), flat
- * and in theme colors.
+ * round stroke, the leaf, and a small ring for the degree sign. Same drawing
+ * as brand/wordmark-*.svg (made by brand/wordmark.py), flat and in theme
+ * colors.
  */
 export function MossWordmark({ className = '' }: { className?: string }) {
   return (
-    <svg viewBox="-41.3 39.9 714 213.8" className={className} role="img" aria-label="Moss">
+    <svg viewBox="-26 39.9 698.7 198.1" className={className} role="img" aria-label="Moss">
       <g fill="none" stroke="var(--color-brand-moss)" strokeWidth="40">
         <path
           strokeLinejoin="round"
@@ -47,7 +47,6 @@ export function MossWordmark({ className = '' }: { className?: string }) {
         fill="var(--color-brand-leaf)"
       />
       <circle cx="643.7" cy="84.9" r="15" fill="none" stroke="var(--color-brand-leaf)" strokeWidth="12" />
-      <rect x="-35.3" y="223" width="660" height="22.6" rx="11.3" fill="var(--color-brand-earth)" />
     </svg>
   )
 }

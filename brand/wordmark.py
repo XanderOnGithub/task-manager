@@ -37,7 +37,8 @@ leaf = f'<path transform="translate({(722-294)*k:.1f} {base + (392-682)*k:.1f}) 
 bar_y = base + (666 - 682) * k
 bar_h = 52 * k
 x0, x1 = -W / 2 - 16 * k * 2.2, right + 8
-vb = (x0 - 6, dcy - deg_r - 30, dcx + deg_r + deg_w / 2 + 8 - (x0 - 6), bar_y + bar_h + 8 - (dcy - deg_r - 30))
+left = -W / 2 - 6
+vb = (left, dcy - deg_r - 30, dcx + deg_r + deg_w / 2 + 8 - left, base + 8 - (dcy - deg_r - 30))
 
 def svg(moss_top, moss_mid, moss_bot, leaf_a, leaf_b, earth_a, earth_b, deg, title=True, height=56):
     w = vb[2] / vb[3] * height
@@ -48,7 +49,6 @@ def svg(moss_top, moss_mid, moss_bot, leaf_a, leaf_b, earth_a, earth_b, deg, tit
       <stop offset="0" stop-color="{moss_top}"/><stop offset="0.5" stop-color="{moss_mid}"/><stop offset="1" stop-color="{moss_bot}"/>
     </linearGradient>
     <linearGradient id="leaf" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="{leaf_a}"/><stop offset="1" stop-color="{leaf_b}"/></linearGradient>
-    <linearGradient id="earth" x1="0" y1="{bar_y:.0f}" x2="0" y2="{bar_y + bar_h:.0f}" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="{earth_a}"/><stop offset="1" stop-color="{earth_b}"/></linearGradient>
   </defs>
   <!-- m o s s: the icon's m, and letters drawn with the same stroke -->
   <path d="{mp} {op}" fill="none" stroke="url(#moss)" stroke-width="{W}" stroke-linejoin="round"/>
@@ -57,8 +57,6 @@ def svg(moss_top, moss_mid, moss_bot, leaf_a, leaf_b, earth_a, earth_b, deg, tit
   {leaf.replace('{leaf}', 'url(#leaf)')}
   <!-- the degree sign -->
   <circle cx="{dcx:.1f}" cy="{dcy:.1f}" r="{deg_r}" fill="none" stroke="{deg}" stroke-width="{deg_w}"/>
-  <!-- the ground -->
-  <rect x="{x0:.1f}" y="{bar_y:.1f}" width="{x1 - x0:.1f}" height="{bar_h:.1f}" rx="{bar_h/2:.1f}" fill="url(#earth)"/>
 </svg>
 '''
 dark = svg('#C8E1BD', '#8FB996', '#557F5C', '#9CC59F', '#D6ECCB', '#A3896F', '#584637', '#9CC59F')

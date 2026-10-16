@@ -1,11 +1,10 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="-41.3 39.9 714.0 213.8" width="187" height="56">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-26.0 39.9 698.7 198.1" width="197" height="56">
   <title>Moss</title>
   <defs>
     <linearGradient id="moss" x1="0" y1="81" x2="0" y2="230" gradientUnits="userSpaceOnUse">
       <stop offset="0" stop-color="#8FB996"/><stop offset="0.5" stop-color="#5E8A65"/><stop offset="1" stop-color="#3F6447"/>
     </linearGradient>
     <linearGradient id="leaf" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#6E9B73"/><stop offset="1" stop-color="#A9CDA0"/></linearGradient>
-    <linearGradient id="earth" x1="0" y1="223" x2="0" y2="246" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#A3896F"/><stop offset="1" stop-color="#6B5644"/></linearGradient>
   </defs>
   <!-- m o s s: the icon's m, and letters drawn with the same stroke -->
   <path d="M 0.0 230 V 148.3 A 47.4 47.4 0 0 1 94.8 148.3 V 230 M 94.8 148.3 A 47.4 47.4 0 0 1 189.6 148.3 V 230 M 247.6 155.4 A 54.6 54.6 0 1 1 356.7 155.4 A 54.6 54.6 0 1 1 247.6 155.4 Z" fill="none" stroke="url(#moss)" stroke-width="40" stroke-linejoin="round"/>
@@ -14,6 +13,4 @@
   <path transform="translate(186.1 103.9) rotate(-42) scale(0.4348)" d="M -6 0 C 30 -46 92 -62 148 -50 C 122 4 58 28 -6 0 Z" fill="url(#leaf)"/>
   <!-- the degree sign -->
   <circle cx="643.7" cy="84.9" r="15" fill="none" stroke="#6E9B73" stroke-width="12"/>
-  <!-- the ground -->
-  <rect x="-35.3" y="223.0" width="660.0" height="22.6" rx="11.3" fill="url(#earth)"/>
 </svg>
