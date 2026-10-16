@@ -619,3 +619,31 @@ fn the_watcher_reports_outside_changes() {
         }
     }
 }
+
+#[test]
+fn old_trash_is_emptied_and_recent_trash_kept() {
+    let (_dir, root) = sample();
+    let trash = root.join(".trash");
+    fs::create_dir_all(trash.join("20260901-100000-Old project")).unwrap();
+    fs::write(
+        trash.join("20260901-100000-Old project/_index.md"),
+        "---\nid: x\n---\n",
+    )
+    .unwrap();
+    fs::write(trash.join("20260910-120000-Old task.md"), "old").unwrap();
+    fs::write(trash.join("20261010-090000-Recent task.md"), "recent").unwrap();
+    fs::write(trash.join("put here by hand.md"), "mine").unwrap();
+
+    let today = chrono::NaiveDate::from_ymd_opt(2026, 10, 16).unwrap();
+    let removed = ops::empty_old_trash(&root, today, 30).unwrap();
+
+    assert_eq!(removed, 2);
+    assert!(!trash.join("20260901-100000-Old project").exists());
+    assert!(!trash.join("20260910-120000-Old task.md").exists());
+    assert!(trash.join("20261010-090000-Recent task.md").exists());
+    // No date stamp: not ours to delete.
+    assert!(trash.join("put here by hand.md").exists());
+    // A folder without .trash is fine too.
+    let (_empty, other) = sample();
+    assert_eq!(ops::empty_old_trash(&other, today, 30).unwrap(), 0);
+}

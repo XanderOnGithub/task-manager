@@ -298,6 +298,14 @@ fn open_folder(app: &AppHandle, data: &mut Data, root: PathBuf) {
     data.watcher = None;
     data.library = None;
 
+    // Things deleted more than 30 days ago leave the hidden .trash folder for
+    // good. (Before the watcher starts, so this doesn't trigger a reload.)
+    match ops::empty_old_trash_now(&root) {
+        Ok(0) => {}
+        Ok(n) => eprintln!("Emptied {n} old item(s) from the trash"),
+        Err(e) => eprintln!("Couldn't empty old trash: {e}"),
+    }
+
     let handle = app.clone();
     match watch::watch(&root, move |paths| {
         // Forget the cached library, then tell the UI to load again.

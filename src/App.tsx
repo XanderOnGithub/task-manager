@@ -6,6 +6,9 @@ import { AnimatePresence, motion } from 'motion/react'
 import { spring } from './lib/motion'
 import { childrenOf, type Item, type TaskStatus } from './lib/api'
 import { trailOf } from './lib/items'
+import { isMac } from './lib/platform'
+import { readPref, writePref } from './lib/prefs'
+import { PanelLeft } from 'lucide-react'
 import { useActions } from './lib/useActions'
 import { useLibrary } from './lib/useLibrary'
 import { Sidebar, type Section } from './components/Sidebar'
@@ -16,6 +19,9 @@ import { DocsView } from './components/Docs'
 import { ChooseFolder, QuickCapture, Settings } from './components/Dialogs'
 import { InlineAdd } from './components/controls'
 import { Panel } from './components/ui'
+
+/** Matches --spacing-sidebar in tokens.css. */
+const SIDEBAR_WIDTH = 244
 
 const NEXT_STATUS: Record<TaskStatus, TaskStatus> = { todo: 'doing', doing: 'done', done: 'todo' }
 
@@ -32,6 +38,12 @@ export default function App() {
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
   const [shownArea, setShownArea] = useState<string | undefined>()
   const [dialog, setDialog] = useState<'capture' | 'settings' | null>(null)
+  const [sidebarOpen, setSidebarOpen] = useState(() => readPref('sidebarOpen', true))
+  const toggleSidebar = () =>
+    setSidebarOpen((open) => {
+      writePref('sidebarOpen', !open)
+      return !open
+    })
 
   // ⌘N opens Quick capture from anywhere.
   useEffect(() => {
@@ -39,6 +51,14 @@ export default function App() {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'n') {
         e.preventDefault()
         setDialog('capture')
+      }
+      // ⌘\ hides or shows the sidebar.
+      if ((e.metaKey || e.ctrlKey) && e.key === '\\') {
+        e.preventDefault()
+        setSidebarOpen((open) => {
+          writePref('sidebarOpen', !open)
+          return !open
+        })
       }
     }
     window.addEventListener('keydown', onKey)
@@ -157,27 +177,67 @@ export default function App() {
 
   return (
     <div className="flex h-full bg-window">
-      <Sidebar
-        items={items}
-        unsortedCount={snapshot?.unsorted.length ?? 0}
-        section={section}
-        onSection={setSection}
-        projectId={project?.id ?? null}
-        areaId={scope?.kind === 'area' ? scope.id : null}
-        onOpen={openScope}
-        expanded={expanded}
-        onToggleArea={toggleArea}
-        onQuickCapture={() => setDialog('capture')}
-        onSettings={() => setDialog('settings')}
-        onAddArea={(title) => actions.create('area', null, title)}
-        onAddProject={async (areaId, title) => {
-          const id = await actions.create('project', areaId, title)
-          if (id) openScope(id)
-        }}
-        actions={actions}
-      />
+      {/* The sidebar slides shut to zero width. Its contents keep their size
+          and get clipped, so nothing reflows while it moves. */}
+      <motion.div
+        initial={false}
+        animate={{ width: sidebarOpen ? SIDEBAR_WIDTH : 0, opacity: sidebarOpen ? 1 : 0 }}
+        transition={spring.smooth}
+        className="flex shrink-0 overflow-hidden"
+        inert={!sidebarOpen}
+      >
+        <Sidebar
+          onToggleSidebar={toggleSidebar}
+          items={items}
+          unsortedCount={snapshot?.unsorted.length ?? 0}
+          section={section}
+          onSection={setSection}
+          projectId={project?.id ?? null}
+          areaId={scope?.kind === 'area' ? scope.id : null}
+          onOpen={openScope}
+          expanded={expanded}
+          onToggleArea={toggleArea}
+          onQuickCapture={() => setDialog('capture')}
+          onSettings={() => setDialog('settings')}
+          onAddArea={(title) => actions.create('area', null, title)}
+          onAddProject={async (areaId, title) => {
+            const id = await actions.create('project', areaId, title)
+            if (id) openScope(id)
+          }}
+          actions={actions}
+        />
 
-      <main className="flex min-w-0 flex-1 py-2 pr-2">
+      </motion.div>
+
+      {/* With the sidebar hidden, a button to bring it back sits in the
+          top-left corner (after the traffic lights on a Mac), and the first
+          panel's header makes room for it. */}
+      <AnimatePresence>
+        {!sidebarOpen && (
+          <motion.button
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={spring.snappy}
+            onClick={toggleSidebar}
+            aria-label="Show sidebar"
+            title="Show sidebar (⌘\)"
+            className={`fixed top-[19px] z-20 flex rounded-md p-1 text-fg-3 transition-colors duration-100 hover:bg-hover hover:text-fg-2 ${
+              isMac ? 'left-[84px]' : 'left-4'
+            }`}
+          >
+            <PanelLeft size={16} strokeWidth={1.75} aria-hidden="true" />
+          </motion.button>
+        )}
+      </AnimatePresence>
+
+      <main
+        className={`flex min-w-0 flex-1 py-2 pr-2 transition-[padding] duration-150 ease-snappy ${
+          sidebarOpen
+            ? ''
+            : `pl-2 ${isMac ? '[&>div>section:first-child>header]:pl-[112px]' : '[&>div>section:first-child>header]:pl-12'}`
+        }`}
+      >
         {/* Switching sections fades the new one in quickly. */}
         <motion.div
           key={needsFolder ? 'folder' : section}

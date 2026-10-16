@@ -8,7 +8,7 @@
 //! - `library`     loads the data folder into memory (frontmatter only) → `Library`
 //! - `issues`      problems found while loading, shown instead of crashing
 //! - `fix`         writes ids for files that are missing one
-//! - `ops`         create / rename / move / set field / body / trash
+//! - `ops`         create / rename / move / set field / body / trash (and emptying old trash)
 //! - `unsorted`    the `unsorted.md` capture list
 //! - `watch`       notices changes made outside the app
 //! - `frontmatter` reads and writes the `---` block at the top of a file

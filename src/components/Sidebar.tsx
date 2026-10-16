@@ -30,6 +30,7 @@ interface Props {
   onToggleArea: (id: string) => void
   onQuickCapture: () => void
   onSettings: () => void
+  onToggleSidebar: () => void
   onAddArea: (title: string) => Promise<unknown>
   onAddProject: (areaId: string, title: string) => Promise<unknown>
   actions: Actions
@@ -54,8 +55,9 @@ export function Sidebar(props: Props) {
         </span>
         <span data-tauri-drag-region className="flex-1 self-stretch" />
         <button
-          aria-label="Toggle sidebar"
-          title="Toggle sidebar"
+          onClick={props.onToggleSidebar}
+          aria-label="Hide sidebar"
+          title="Hide sidebar (⌘\)"
           className="flex rounded-md p-1 text-fg-3 transition-colors duration-100 hover:bg-hover hover:text-fg-2"
         >
           <PanelLeft {...icon} />

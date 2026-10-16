@@ -2,10 +2,8 @@
 // Pages are edited as rich text and saved as markdown (MarkdownEditor.tsx).
 
 import { useState } from 'react'
-import { motion } from 'motion/react'
-import { spring } from '../lib/motion'
-import { Collapse } from './motion'
-import { ChevronDown, FileText } from 'lucide-react'
+import { FileText } from 'lucide-react'
+import { NoteTree } from './NoteTree'
 import { childrenOf, type Item } from '../lib/api'
 import type { Actions } from '../lib/useActions'
 import { BodyEditor, EditableTitle, InlineAdd, Menu } from './controls'
@@ -43,7 +41,7 @@ export function DocsView({
           <span className="flex-1">Docs</span>
         </PanelHeader>
         <div className="flex flex-1 flex-col gap-1 overflow-y-auto p-2">
-          <NoteTree items={items} parent={null} depth={0} openId={note?.id ?? null} onOpen={onOpen} />
+          <NoteTree items={items} openId={note?.id ?? null} onOpen={onOpen} actions={actions} />
           <InlineAdd
             label="Add a page"
             onAdd={async (title) => {
@@ -125,70 +123,5 @@ export function DocsView({
         </Panel>
       )}
     </>
-  )
-}
-
-function NoteTree({
-  items,
-  parent,
-  depth,
-  openId,
-  onOpen,
-}: {
-  items: Item[]
-  parent: string | null
-  depth: number
-  openId: string | null
-  onOpen: (id: string) => void
-}) {
-  const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
-  return (
-    <ul className="flex flex-col gap-0.5">
-      {childrenOf(items, parent, true).map((note) => {
-        const hasChildren = items.some((i) => i.parent === note.id)
-        const open = !collapsed.has(note.id)
-        return (
-          <li key={note.id}>
-            <div
-              className={`flex h-[30px] items-center gap-1 rounded-control pr-2 transition-colors duration-100 ${
-                note.id === openId ? 'bg-selected font-medium' : 'hover:bg-hover'
-              }`}
-              style={{ paddingLeft: 4 + depth * 16 }}
-            >
-              {hasChildren ? (
-                <button
-                  onClick={() =>
-                    setCollapsed((c) => {
-                      const next = new Set(c)
-                      if (next.has(note.id)) next.delete(note.id)
-                      else next.add(note.id)
-                      return next
-                    })
-                  }
-                  aria-label={open ? `Collapse ${note.title}` : `Expand ${note.title}`}
-                  aria-expanded={open}
-                  className="flex rounded p-0.5 text-fg-3"
-                >
-                  <motion.span initial={false} animate={{ rotate: open ? 0 : -90 }} transition={spring.snappy} className="flex">
-                    <ChevronDown size={13} strokeWidth={2} aria-hidden="true" />
-                  </motion.span>
-                </button>
-              ) : (
-                <span className="w-[17px]" />
-              )}
-              <button onClick={() => onOpen(note.id)} className="flex h-full min-w-0 flex-1 items-center gap-2 text-left">
-                <FileText size={15} strokeWidth={1.75} className="shrink-0 text-fg-2" aria-hidden="true" />
-                <span className="truncate">{note.title}</span>
-              </button>
-            </div>
-            {hasChildren && (
-              <Collapse open={open}>
-                <NoteTree items={items} parent={note.id} depth={depth + 1} openId={openId} onOpen={onOpen} />
-              </Collapse>
-            )}
-          </li>
-        )
-      })}
-    </ul>
   )
 }

@@ -59,7 +59,8 @@ brand/          the Moss mark (icon.svg), README wordmarks, icon-1024.png (sourc
 - `src/components/controls.tsx`: InlineAdd, EditableTitle, Menu, Segmented, Modal, BodyEditor, DateField. `ui.tsx`: Panel, chips, status icon, due date, progress.
 - Tasks pages: `ScopeView.tsx` shows an area, project or milestone (breadcrumb, List/Board). List: `AreaList.tsx` (projects with their open tasks) or `ProjectList.tsx` (a project's milestones/tasks, or a milestone's tasks). Board: `Board.tsx` for any of the three. `tasksUnder()` in `lib/items.ts` collects the tasks inside anything.
 - Text: `MarkdownEditor.tsx` (Milkdown) for note pages and every description. Rich text on screen, plain markdown on disk ("-" bullets, no `<br />`), saved only after a real edit. Styles in `styles/editor.css`. Loaded lazily.
-- Toasts: `useToast()`; ⌘Z runs the visible toast's Undo. ⌘N opens Quick capture.
+- Toasts: `useToast()`; ⌘Z runs the visible toast's Undo. ⌘N opens Quick capture. ⌘\\ hides the sidebar (remembered via `lib/prefs.ts`).
+- Docs tree: `NoteTree.tsx`. Drop zones on a page: top quarter = above, middle = subpage, bottom quarter = below.
 
 ## Motion
 
@@ -126,14 +127,14 @@ data/
 
 M1 file format + Rust core + 10k-file benchmark → M2 app shell + tokens → M3 Unsorted (start using the app here) → M4 hierarchy lists → M5 drag and drop + Board → M6 notes editor (plain text + preview first). v1 is only Unsorted, the hierarchy and notes. Budget: a few weekends.
 
-Status: M1–M6 are built (core, shell, Unsorted flow, create / edit / delete with Undo, Settings, motion pass, drag and drop, rich text editor), plus area and milestone pages with List/Board and a release workflow. Branding done (Moss). Next: sounds. Not yet draggable: the Docs tree.
+Status: M1–M6 are built (core, shell, Unsorted flow, create / edit / delete with Undo, Settings, motion pass, drag and drop, rich text editor), plus area and milestone pages with List/Board and a release workflow. Branding done (Moss). Sidebar hides with ⌘\\; trash older than 30 days is emptied on open; Docs pages drag (above / into / below). Next: sounds.
 
 ## Backlog (after v1)
 
 - Timeline view (maybe).
 - Sounds.
 - Code signing for releases (Apple Developer ID + notarization, a Windows certificate).
-- Drag and drop in the Docs tree and on the area page.
+- Drag and drop on the area page.
 
 ## Working with me
 

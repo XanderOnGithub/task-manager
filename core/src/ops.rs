@@ -239,6 +239,53 @@ pub fn restore(lib: &Library, trash_rel: &str, original_rel: &str) -> Result<()>
     Ok(())
 }
 
+/// Deletes things that have sat in `.trash` for more than `keep_days` days.
+/// Returns how many it removed.
+///
+/// Every trashed entry's name starts with the time it was deleted
+/// (`20261016-134501-Paint the walls.md`, see `trash` above). We go by that
+/// stamp rather than the file's modified time, because moving a file to the
+/// trash doesn't change its modified time: a note you wrote last year and
+/// deleted today would look a year old. Anything without a stamp (something
+/// you put there by hand) is left alone.
+/// How long deleted things stay in `.trash` before they're gone for good.
+pub const TRASH_KEEP_DAYS: i64 = 30;
+
+/// `empty_old_trash` for today, with the usual 30 days. The app calls this
+/// whenever it opens a folder.
+pub fn empty_old_trash_now(root: &Path) -> Result<usize> {
+    empty_old_trash(root, chrono::Local::now().date_naive(), TRASH_KEEP_DAYS)
+}
+
+pub fn empty_old_trash(root: &Path, today: chrono::NaiveDate, keep_days: i64) -> Result<usize> {
+    let trash = root.join(".trash");
+    let Ok(entries) = fs::read_dir(&trash) else {
+        return Ok(0); // no trash folder yet: nothing to do
+    };
+    let mut removed = 0;
+    for entry in entries {
+        let entry = entry?;
+        let name = entry.file_name().to_string_lossy().into_owned();
+        // The first 8 characters are the date: YYYYMMDD.
+        let Some(deleted_on) = name
+            .get(..8)
+            .and_then(|d| chrono::NaiveDate::parse_from_str(d, "%Y%m%d").ok())
+        else {
+            continue;
+        };
+        if (today - deleted_on).num_days() > keep_days {
+            let path = entry.path();
+            if entry.file_type()?.is_dir() {
+                fs::remove_dir_all(&path)?;
+            } else {
+                fs::remove_file(&path)?;
+            }
+            removed += 1;
+        }
+    }
+    Ok(removed)
+}
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
