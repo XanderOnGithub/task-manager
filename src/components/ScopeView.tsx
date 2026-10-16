@@ -101,7 +101,7 @@ function OneScopeView(props: Props & { scope: Item }) {
         <LayoutSwitch layout={layout} onLayout={onLayout} />
         {scope.kind === 'project' && (
           <Menu
-            label="Project status"
+            label={`Project status: ${statusLabel(scope.status)}`}
             trigger={
               <span className="flex h-6 shrink-0 items-center gap-1.5 rounded-full bg-raised px-2.5 text-meta whitespace-nowrap text-fg-2 transition-colors duration-100 hover:text-fg">
                 <span className={`size-[7px] rounded-full ${scope.status === 'active' ? 'bg-accent' : 'bg-fg-3'}`} />

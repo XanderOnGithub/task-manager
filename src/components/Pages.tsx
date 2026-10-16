@@ -66,9 +66,9 @@ export function PageView({
           ]}
         />
       </PanelHeader>
-      <div className="flex flex-1 justify-center overflow-y-auto px-7 py-8">
+      <div className="flex flex-1 justify-center overflow-y-auto px-12 py-8">
         <div className="flex w-full max-w-[720px] flex-col gap-4">
-          <div className="group/title flex flex-col gap-1">
+          <div className="group/title flex items-center">
             <PageIconPicker page={page} onChange={(icon) => void actions.setIcon(page, icon)} />
             <EditableTitle
               key={`${page.id}:${renaming}`}

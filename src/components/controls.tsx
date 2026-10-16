@@ -1,6 +1,7 @@
 // Interactive building blocks: inline inputs, menus, modals, segmented controls.
 
-import { lazy, Suspense, useEffect, useId, useRef, useState, type ReactNode } from 'react'
+import { lazy, Suspense, useEffect, useId, useRef, useState, type CSSProperties, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 import { motion } from 'motion/react'
 import { spring } from '../lib/motion'
 import { Ellipsis, Plus, X, type LucideIcon } from 'lucide-react'
@@ -144,31 +145,57 @@ export function Menu({
   trigger?: ReactNode
   align?: 'left' | 'right'
 }) {
-  const [open, setOpen] = useState(false)
+  // Where the dropdown sits, worked out from the button when it opens. The
+  // dropdown is drawn on top of the whole window (a portal), so scrolling
+  // lists and folded groups can't clip it.
+  const [place, setPlace] = useState<CSSProperties | null>(null)
+  const open = place !== null
   const root = useRef<HTMLDivElement>(null)
+  const button = useRef<HTMLButtonElement>(null)
+  const dropdown = useRef<HTMLDivElement>(null)
 
-  // Close on outside click or Escape.
+  const toggle = () => {
+    if (open || !button.current) return setPlace(null)
+    const r = button.current.getBoundingClientRect()
+    // Below the button, unless that would run off the bottom of the window.
+    const below = r.bottom + 4 + 40 + items.length * 31 < window.innerHeight
+    setPlace({
+      position: 'fixed',
+      ...(below ? { top: r.bottom + 4 } : { bottom: window.innerHeight - r.top + 4 }),
+      ...(align === 'right' ? { right: window.innerWidth - r.right } : { left: r.left }),
+    })
+  }
+
+  // Close on outside click, Escape, or when anything scrolls (it would drift
+  // away from its button otherwise).
   useEffect(() => {
     if (!open) return
+    const close = () => setPlace(null)
     const onDown = (e: MouseEvent) => {
-      if (!root.current?.contains(e.target as Node)) setOpen(false)
+      const t = e.target as Node
+      if (!root.current?.contains(t) && !dropdown.current?.contains(t)) close()
     }
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false)
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && close()
     document.addEventListener('mousedown', onDown)
     document.addEventListener('keydown', onKey)
+    window.addEventListener('scroll', close, true)
+    window.addEventListener('resize', close)
     return () => {
       document.removeEventListener('mousedown', onDown)
       document.removeEventListener('keydown', onKey)
+      window.removeEventListener('scroll', close, true)
+      window.removeEventListener('resize', close)
     }
   }, [open])
 
   return (
     <div ref={root} className="relative">
       <button
-        aria-label={trigger ? undefined : label}
+        ref={button}
+        aria-label={label}
         aria-haspopup="menu"
         aria-expanded={open}
-        onClick={() => setOpen((o) => !o)}
+        onClick={toggle}
         className={
           trigger
             ? 'flex'
@@ -177,38 +204,40 @@ export function Menu({
       >
         {trigger ?? <Ellipsis {...icon} strokeWidth={2} />}
       </button>
-      {open && (
-        <div
-          role="menu"
-          className={`absolute top-full z-40 mt-1 flex w-52 origin-top animate-menu-in flex-col gap-px rounded-[10px] border border-border-menu bg-menu p-[5px] shadow-menu ${
-            align === 'right' ? 'right-0' : 'left-0'
-          }`}
-        >
-          {items.map((item, i) =>
-            item === 'divider' ? (
-              <div key={`d${i}`} className="mx-1.5 my-1 h-px bg-border" />
-            ) : (
-              <button
-                key={item.label}
-                role="menuitem"
-                onClick={() => {
-                  setOpen(false)
-                  item.onSelect()
-                }}
-                className={`flex h-[30px] items-center gap-2.5 rounded-md px-2.5 text-left transition-colors duration-100 hover:bg-hover ${
-                  item.danger ? 'text-danger' : 'text-fg'
-                }`}
-              >
-                {item.Icon && (
-                  <item.Icon size={15} strokeWidth={1.75} aria-hidden="true" className={item.danger ? '' : 'text-fg-2'} />
-                )}
-                <span className="flex-1">{item.label}</span>
-                {item.shortcut && <kbd className="font-mono text-label font-normal text-fg-3">{item.shortcut}</kbd>}
-              </button>
-            ),
-          )}
-        </div>
-      )}
+      {place &&
+        createPortal(
+          <div
+            ref={dropdown}
+            role="menu"
+            style={place}
+            className="z-50 flex w-52 origin-top animate-menu-in flex-col gap-px rounded-[10px] border border-border-menu bg-menu p-[5px] shadow-menu"
+          >
+            {items.map((item, i) =>
+              item === 'divider' ? (
+                <div key={`d${i}`} className="mx-1.5 my-1 h-px bg-border" />
+              ) : (
+                <button
+                  key={item.label}
+                  role="menuitem"
+                  onClick={() => {
+                    setPlace(null)
+                    item.onSelect()
+                  }}
+                  className={`flex h-[30px] items-center gap-2.5 rounded-md px-2.5 text-left transition-colors duration-100 hover:bg-hover ${
+                    item.danger ? 'text-danger' : 'text-fg'
+                  }`}
+                >
+                  {item.Icon && (
+                    <item.Icon size={15} strokeWidth={1.75} aria-hidden="true" className={item.danger ? '' : 'text-fg-2'} />
+                  )}
+                  <span className="flex-1">{item.label}</span>
+                  {item.shortcut && <kbd className="font-mono text-label font-normal text-fg-3">{item.shortcut}</kbd>}
+                </button>
+              ),
+            )}
+          </div>,
+          document.body,
+        )}
     </div>
   )
 }

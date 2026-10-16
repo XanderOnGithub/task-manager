@@ -212,6 +212,7 @@ function SortableArea({
   adding,
   setAdding,
   onAdd,
+  actions,
 }: Props & { area: Item; projects: Item[]; open: boolean }) {
   const sortable = useSortable({ id: area.id, data: { type: 'area' }, transition: SLIDE })
   const style: CSSProperties = { transform: CSS.Translate.toString(sortable.transform), transition: sortable.transition }
@@ -278,6 +279,7 @@ function SortableArea({
               adding={adding}
               setAdding={setAdding}
               onAdd={onAdd}
+              actions={actions}
             />
           ))}
         </SortableContext>
@@ -292,6 +294,7 @@ function SortableArea({
           onOpen={onOpen}
           collapsed={collapsedPages}
           onToggle={onTogglePage}
+          tools={{ actions, adding, setAdding, onAdd }}
         />
         {addingHere === 'page' && (
           <AddRow label="Page name" indent={26} onAdd={(title) => onAdd('page', area.id, title)} onDone={() => setAdding(null)} />
@@ -314,7 +317,11 @@ function SortableProject({
   adding,
   setAdding,
   onAdd,
-}: Pick<Props, 'items' | 'openId' | 'onOpen' | 'onToggle' | 'collapsedPages' | 'onTogglePage' | 'adding' | 'setAdding' | 'onAdd'> & {
+  actions,
+}: Pick<
+  Props,
+  'items' | 'openId' | 'onOpen' | 'onToggle' | 'collapsedPages' | 'onTogglePage' | 'adding' | 'setAdding' | 'onAdd' | 'actions'
+> & {
   project: Item
   active: boolean
   showPages: boolean
@@ -383,6 +390,7 @@ function SortableProject({
           onOpen={onOpen}
           collapsed={collapsedPages}
           onToggle={onTogglePage}
+          tools={{ actions, adding, setAdding, onAdd }}
         />
         {adding?.kind === 'page' && adding.parent === project.id && (
           <AddRow label="Page name" indent={42} onAdd={(title) => onAdd('page', project.id, title)} onDone={() => setAdding(null)} />
