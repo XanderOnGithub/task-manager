@@ -2,6 +2,7 @@
   "name": "moss",
   "private": true,
   "version": "0.1.0",
+  "stage": "alpha",
   "type": "module",
   "scripts": {
     "dev": "vite",
