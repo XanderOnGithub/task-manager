@@ -123,6 +123,13 @@ M1 file format + Rust core + 10k-file benchmark → M2 app shell + tokens → M3
 
 Status: M1–M5 are built (core, shell, Unsorted flow, create / edit / delete with Undo, Settings, motion pass, drag and drop in the list, board and sidebar). Next: M6 the markdown editor with preview, then sounds. Not yet draggable: the Docs tree.
 
+## Backlog (after v1)
+
+- List and Board views at every level (area, project, milestone). Maybe a timeline view later.
+- Make animations snappier overall (shorter springs, less settle time).
+- CI/CD: build the app for macOS, Windows and Linux and publish installers to GitHub Releases.
+- Order after M6: rich text editing, then sounds, then branding.
+
 ## Working with me
 
 - I don't know Rust yet. Keep the Rust core small and heavily commented so I can learn from it.
