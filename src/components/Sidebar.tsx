@@ -47,7 +47,7 @@ export function Sidebar(props: Props) {
   const [adding, setAdding] = useState<Adding>(null)
 
   return (
-    <nav aria-label="Sidebar" className="flex w-sidebar shrink-0 flex-col gap-3.5 pt-3.5 pr-2.5 pb-3 pl-3">
+    <nav aria-label="Sidebar" className="flex w-sidebar shrink-0 flex-col gap-3.5 pt-2.5 pr-2.5 pb-2.5 pl-3">
       {/* Top row: the traffic lights (on a Mac), the app's name, and a drag
           handle for the window. The name doesn't take clicks, so dragging
           there moves the window. */}
@@ -55,7 +55,7 @@ export function Sidebar(props: Props) {
         <span
           className={`pointer-events-none flex items-center gap-1.5 select-none ${isMac ? 'pl-20' : 'pl-1'}`}
         >
-          <MossWordmark className="-my-1 h-[23px] w-auto" />
+          <MossWordmark className=" h-[15px] w-auto" />
         </span>
         <span data-tauri-drag-region className="flex-1 self-stretch" />
         <button
