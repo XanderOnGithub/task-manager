@@ -10,7 +10,7 @@ import { CSS } from '@dnd-kit/utilities'
 import { motion } from 'motion/react'
 import { ChevronDown, Folder, Plus, Target } from 'lucide-react'
 import { childrenOf, type Item } from '../lib/api'
-import { collisionFor, dropSettle, useDragSensors } from '../lib/drag'
+import { collisionFor, dropSettle, SLIDE, useDragSensors } from '../lib/drag'
 import { taskCounts } from '../lib/items'
 import { spring } from '../lib/motion'
 import type { Actions } from '../lib/useActions'
@@ -20,7 +20,6 @@ import { Lifted } from './Lifted'
 import { Collapse } from './motion'
 
 const ROOT = 'areas'
-const SLIDE = { duration: 220, easing: 'cubic-bezier(0.2, 0, 0, 1)' }
 
 interface Props {
   items: Item[]
@@ -151,7 +150,7 @@ function SortableArea({
   return (
     <div ref={sortable.setNodeRef} style={style} className="flex flex-col gap-0.5">
       <div
-        className={`group relative flex rounded-control transition-colors duration-150 ${
+        className={`group relative flex rounded-control transition-colors duration-100 ${
           sortable.isDragging ? 'bg-hover [&>*]:invisible' : ''
         }`}
       >
@@ -161,7 +160,7 @@ function SortableArea({
           {...sortable.listeners}
           onClick={() => onToggleArea(area.id)}
           aria-expanded={open}
-          className="flex h-7 flex-1 items-center gap-1.5 rounded-control px-2 text-left text-fg transition-colors duration-150 hover:bg-hover"
+          className="flex h-7 flex-1 items-center gap-1.5 rounded-control px-2 text-left text-fg transition-colors duration-100 hover:bg-hover"
         >
           <motion.span initial={false} animate={{ rotate: open ? 0 : -90 }} transition={spring.snappy} className="flex">
             <ChevronDown size={14} strokeWidth={2} className="text-fg-3" aria-hidden="true" />
@@ -174,7 +173,7 @@ function SortableArea({
             onClick={() => setAdding(area.id)}
             aria-label={`Add a project to ${area.title}`}
             title={`Add a project to ${area.title}`}
-            className="flex rounded-md p-0.5 text-fg-3 opacity-0 transition-opacity duration-150 group-hover:opacity-100 hover:bg-hover hover:text-fg-2 focus-visible:opacity-100"
+            className="flex rounded-md p-0.5 text-fg-3 opacity-0 transition-opacity duration-100 group-hover:opacity-100 hover:bg-hover hover:text-fg-2 focus-visible:opacity-100"
           >
             <Plus size={14} strokeWidth={2} aria-hidden="true" />
           </button>
@@ -235,7 +234,7 @@ function SortableProject({
       {...sortable.listeners}
       onClick={() => onProject(project.id)}
       aria-current={active ? 'true' : undefined}
-      className={`relative flex h-7 shrink-0 items-center gap-2 rounded-control pr-2 pl-[34px] text-left transition-colors duration-150 ${
+      className={`relative flex h-7 shrink-0 items-center gap-2 rounded-control pr-2 pl-[34px] text-left transition-colors duration-100 ${
         sortable.isDragging
           ? 'bg-hover [&>*]:invisible'
           : active
@@ -250,7 +249,7 @@ function SortableProject({
       <Target
         size={15}
         strokeWidth={1.75}
-        className={`relative transition-colors duration-150 ${active ? 'text-accent' : ''}`}
+        className={`relative transition-colors duration-100 ${active ? 'text-accent' : ''}`}
         aria-hidden="true"
       />
       <span className="relative flex-1 truncate">{project.title}</span>

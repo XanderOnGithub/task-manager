@@ -1,6 +1,6 @@
 // Interactive building blocks: inline inputs, menus, modals, segmented controls.
 
-import { useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
+import { lazy, Suspense, useEffect, useId, useRef, useState, type ReactNode } from 'react'
 import { motion } from 'motion/react'
 import { spring } from '../lib/motion'
 import { Ellipsis, Plus, X, type LucideIcon } from 'lucide-react'
@@ -43,7 +43,7 @@ export function InlineAdd({
 
   return (
     <label
-      className={`group flex h-8 items-center gap-2 rounded-control border border-dashed border-transparent px-2 text-placeholder transition-colors duration-150 focus-within:border-border-dashed focus-within:text-fg-3 hover:text-fg-3 ${className}`}
+      className={`group flex h-8 items-center gap-2 rounded-control border border-dashed border-transparent px-2 text-placeholder transition-colors duration-100 focus-within:border-border-dashed focus-within:text-fg-3 hover:text-fg-3 ${className}`}
     >
       <Plus size={15} strokeWidth={1.75} aria-hidden="true" />
       <input
@@ -98,7 +98,7 @@ export function EditableTitle({
       <button
         onClick={() => setDraft(value)}
         title="Rename"
-        className={`-mx-1 rounded-control px-1 text-left transition-colors duration-150 hover:bg-hover ${className}`}
+        className={`-mx-1 rounded-control px-1 text-left transition-colors duration-100 hover:bg-hover ${className}`}
       >
         {value}
       </button>
@@ -172,7 +172,7 @@ export function Menu({
         className={
           trigger
             ? 'flex'
-            : `flex rounded-md p-1.5 transition-colors duration-150 ${open ? 'bg-hover text-fg-2' : 'text-fg-3 hover:bg-hover hover:text-fg-2'}`
+            : `flex rounded-md p-1.5 transition-colors duration-100 ${open ? 'bg-hover text-fg-2' : 'text-fg-3 hover:bg-hover hover:text-fg-2'}`
         }
       >
         {trigger ?? <Ellipsis {...icon} strokeWidth={2} />}
@@ -242,7 +242,7 @@ export function Segmented<T extends string>({
             role="radio"
             aria-checked={on}
             onClick={() => onChange(option.value)}
-            className={`relative flex items-center gap-1.5 rounded-md transition-colors duration-150 ${
+            className={`relative flex items-center gap-1.5 rounded-md transition-colors duration-100 ${
               size === 'sm' ? 'h-6 px-2.5 text-meta' : 'h-[26px] px-3 text-[12.5px] font-medium'
             } ${on ? 'text-fg' : 'text-fg-2 hover:text-fg'}`}
           >
@@ -306,6 +306,9 @@ export function Modal({
 // Plain text for now; a markdown preview comes with the notes editor (M6).
 // ---------------------------------------------------------------------------
 
+// The editor is a big chunk of code; load it the first time something is opened.
+const MarkdownEditor = lazy(() => import('./MarkdownEditor').then((m) => ({ default: m.MarkdownEditor })))
+
 export function BodyEditor({
   item,
   onSave,
@@ -321,40 +324,21 @@ export function BodyEditor({
   className?: string
 }) {
   const body = useBody(item.id, item)
-  // Once you type, your draft wins until you open a different item.
-  const [draft, setDraft] = useState<{ id: string; text: string } | null>(null)
-  const value = draft?.id === item.id ? draft.text : (body ?? '').replace(/\n$/, '')
-  const ref = useRef<HTMLTextAreaElement>(null)
-
-  // Grow with the text instead of scrolling inside a small box.
-  useLayoutEffect(() => {
-    const el = ref.current
-    if (!el) return
-    el.style.height = 'auto'
-    el.style.height = `${el.scrollHeight}px`
-  }, [value])
-
-  // Reads the field itself, not state, so the last keystrokes are never lost.
-  const save = (current: string) => {
-    if (draft?.id !== item.id) return
-    const text = current.trim() ? `${current.replace(/\s+$/, '')}\n` : ''
-    if (text !== (body ?? '')) void onSave(text)
-  }
-
+  // Nothing until the text has loaded, so the editor never starts empty and
+  // then jumps. One editor per item (the key), so undo history doesn't mix.
+  const loading = <div className={className} aria-busy="true" />
+  if (body === null) return loading
   return (
-    <textarea
-      ref={ref}
-      value={value}
-      disabled={body === null && draft?.id !== item.id}
-      onChange={(e) => setDraft({ id: item.id, text: e.target.value })}
-      onBlur={(e) => save(e.currentTarget.value)}
+    <Suspense fallback={loading}>
+      <MarkdownEditor
+      key={item.id}
+      value={body}
+      onSave={onSave}
       placeholder={placeholder}
-      aria-label="Description"
-      rows={1}
-      className={`w-full resize-none overflow-hidden bg-transparent leading-relaxed outline-none placeholder:text-placeholder ${
-        tone === 'muted' ? 'text-fg-2' : 'text-fg'
-      } ${className}`}
-    />
+      label={tone === 'muted' ? 'Description' : 'Page text'}
+        className={`${tone === 'muted' ? 'text-fg-2' : 'text-fg'} ${className}`}
+      />
+    </Suspense>
   )
 }
 
@@ -388,7 +372,7 @@ export function DateField({
     return (
       <button
         onClick={() => setEditing(true)}
-        className="-mx-1.5 h-7 rounded-control px-1.5 text-placeholder transition-colors duration-150 hover:bg-hover hover:text-fg-3"
+        className="-mx-1.5 h-7 rounded-control px-1.5 text-placeholder transition-colors duration-100 hover:bg-hover hover:text-fg-3"
       >
         Add a due date
       </button>
@@ -406,14 +390,14 @@ export function DateField({
         }}
         onBlur={() => setEditing(false)}
         aria-label={label}
-        className="-mx-1.5 h-7 rounded-control bg-transparent px-1.5 text-[12.5px] text-fg outline-none transition-colors duration-150 hover:bg-hover focus:bg-hover"
+        className="-mx-1.5 h-7 rounded-control bg-transparent px-1.5 text-[12.5px] text-fg outline-none transition-colors duration-100 hover:bg-hover focus:bg-hover"
       />
       {value && (
         <button
           onClick={() => onChange(null)}
           aria-label={`Clear ${label.toLowerCase()}`}
           title="Clear"
-          className="flex rounded-md p-1 text-fg-3 transition-colors duration-150 hover:bg-hover hover:text-fg-2"
+          className="flex rounded-md p-1 text-fg-3 transition-colors duration-100 hover:bg-hover hover:text-fg-2"
         >
           <X size={13} strokeWidth={2} aria-hidden="true" />
         </button>
@@ -444,7 +428,7 @@ export function Switch({
       aria-label={label}
       disabled={disabled}
       onClick={() => onChange(!checked)}
-      className={`flex h-[18px] w-8 shrink-0 items-center rounded-full p-0.5 transition-colors duration-200 disabled:opacity-50 ${
+      className={`flex h-[18px] w-8 shrink-0 items-center rounded-full p-0.5 transition-colors duration-150 disabled:opacity-50 ${
         checked ? 'justify-end bg-accent' : 'justify-start bg-border-strong'
       }`}
     >

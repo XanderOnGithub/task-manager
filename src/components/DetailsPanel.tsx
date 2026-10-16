@@ -46,7 +46,7 @@ export function DetailsPanel({ items, item, parent, onSelect, actions }: Props) 
           onClick={() => onSelect(null)}
           aria-label="Close details"
           title="Close"
-          className="-mr-1 flex rounded-md p-1.5 text-fg-3 transition-colors duration-150 hover:bg-hover hover:text-fg-2"
+          className="-mr-1 flex rounded-md p-1.5 text-fg-3 transition-colors duration-100 hover:bg-hover hover:text-fg-2"
         >
           <X size={16} strokeWidth={1.75} aria-hidden="true" />
         </button>
@@ -112,7 +112,7 @@ export function DetailsPanel({ items, item, parent, onSelect, actions }: Props) 
               <button
                 key={task.id}
                 onClick={() => onSelect(task.id)}
-                className="flex h-[30px] items-center gap-2.5 rounded-control px-1.5 text-left transition-colors duration-150 hover:bg-hover"
+                className="flex h-[30px] items-center gap-2.5 rounded-control px-1.5 text-left transition-colors duration-100 hover:bg-hover"
               >
                 <StatusIcon status={task.status} size={15} />
                 <TaskTitle title={task.title} done={task.status === 'done'} className="text-[12.5px]" />
@@ -150,7 +150,7 @@ function ColorPicker({ value, onChange }: { value: MilestoneColor | null; onChan
             title={name}
             onClick={() => onChange(color)}
             style={{ '--ms': `var(--color-ms-${color})` } as CSSProperties}
-            className={`size-[18px] rounded-[5px] border border-[color-mix(in_srgb,var(--ms)_70%,transparent)] bg-[color-mix(in_srgb,var(--ms)_30%,transparent)] transition-transform duration-150 ease-pop hover:scale-110 ${
+            className={`size-[18px] rounded-[5px] border border-[color-mix(in_srgb,var(--ms)_70%,transparent)] bg-[color-mix(in_srgb,var(--ms)_30%,transparent)] transition-transform duration-100 ease-pop hover:scale-110 ${
               on ? 'ring-2 ring-(--ms) ring-offset-2 ring-offset-panel' : ''
             }`}
           />

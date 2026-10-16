@@ -84,7 +84,7 @@ export function ProjectView(props: Props) {
         <Menu
           label="Project status"
           trigger={
-            <span className="flex h-6 items-center gap-1.5 rounded-full bg-raised px-2.5 text-meta text-fg-2 transition-colors duration-150 hover:text-fg">
+            <span className="flex h-6 items-center gap-1.5 rounded-full bg-raised px-2.5 text-meta text-fg-2 transition-colors duration-100 hover:text-fg">
               <span className={`size-[7px] rounded-full ${project.status === 'active' ? 'bg-accent' : 'bg-fg-3'}`} />
               {statusLabel(project.status)}
             </span>
@@ -96,7 +96,7 @@ export function ProjectView(props: Props) {
         />
         <button
           onClick={addTask}
-          className="flex h-7 items-center gap-1.5 rounded-row bg-accent px-3 font-medium text-on-accent transition-[filter,transform] duration-150 hover:brightness-110 active:scale-[0.97]"
+          className="flex h-7 items-center gap-1.5 rounded-row bg-accent px-3 font-medium text-on-accent transition-[filter,transform] duration-100 hover:brightness-110 active:scale-[0.97]"
         >
           <Plus size={14} strokeWidth={2} aria-hidden="true" />
           Task

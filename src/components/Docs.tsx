@@ -1,5 +1,5 @@
 // Docs: the notes tree on the left, the open page on the right.
-// Plain-text editing for now; the markdown editor comes in M6.
+// Pages are edited as rich text and saved as markdown (MarkdownEditor.tsx).
 
 import { useState } from 'react'
 import { motion } from 'motion/react'
@@ -99,7 +99,7 @@ export function DocsView({
                     <button
                       key={sub.id}
                       onClick={() => onOpen(sub.id)}
-                      className="flex h-8 items-center gap-2 rounded-control px-2 text-left transition-colors duration-150 hover:bg-hover"
+                      className="flex h-8 items-center gap-2 rounded-control px-2 text-left transition-colors duration-100 hover:bg-hover"
                     >
                       <FileText size={15} strokeWidth={1.75} className="text-fg-2" aria-hidden="true" />
                       {sub.title}
@@ -150,7 +150,7 @@ function NoteTree({
         return (
           <li key={note.id}>
             <div
-              className={`flex h-[30px] items-center gap-1 rounded-control pr-2 transition-colors duration-150 ${
+              className={`flex h-[30px] items-center gap-1 rounded-control pr-2 transition-colors duration-100 ${
                 note.id === openId ? 'bg-selected font-medium' : 'hover:bg-hover'
               }`}
               style={{ paddingLeft: 4 + depth * 16 }}

@@ -12,7 +12,7 @@ import { CSS } from '@dnd-kit/utilities'
 import { AnimatePresence, motion } from 'motion/react'
 import { ChevronDown } from 'lucide-react'
 import { childrenOf, type Item } from '../lib/api'
-import { collisionFor, dropSettle, useDragSensors } from '../lib/drag'
+import { collisionFor, dropSettle, SLIDE, useDragSensors } from '../lib/drag'
 import { statusLabel } from '../lib/items'
 import { spring } from '../lib/motion'
 import type { Actions } from '../lib/useActions'
@@ -33,8 +33,6 @@ interface Props {
   actions: Actions
 }
 
-/** Siblings slide aside with the same feel as the rest of the app. */
-const SLIDE = { duration: 220, easing: 'cubic-bezier(0.2, 0, 0, 1)' }
 
 export function ProjectList({ items, project, collapsed, onToggle, selectedId, onSelect, onCycleStatus, actions }: Props) {
   const byId = useMemo(() => new Map(items.map((i) => [i.id, i])), [items])
@@ -198,7 +196,7 @@ function SortableMilestone({
         {...sortable.attributes}
         {...sortable.listeners}
         aria-label={`${milestone.title}, milestone. Press space to move.`}
-        className={`flex h-row items-center gap-1 rounded-row pr-2 pl-0.5 transition-colors duration-150 ${
+        className={`flex h-row items-center gap-1 rounded-row pr-2 pl-0.5 transition-colors duration-100 ${
           sortable.isDragging ? 'bg-hover [&>*]:invisible' : selected ? 'bg-selected' : 'hover:bg-hover'
         }`}
       >
@@ -276,7 +274,7 @@ function SortableTask({
       {...sortable.listeners}
       aria-label={`${task.title}, task. Press space to move.`}
       // While it's being dragged, its slot stays as a soft empty space.
-      className={`group flex h-row items-center gap-2.5 rounded-row pr-2.5 transition-colors duration-150 ${
+      className={`group flex h-row items-center gap-2.5 rounded-row pr-2.5 transition-colors duration-100 ${
         indent ? 'pl-7' : 'pl-2.5'
       } ${sortable.isDragging ? 'bg-hover [&>*]:invisible' : selected ? 'bg-selected' : 'hover:bg-hover'}`}
     >
@@ -284,7 +282,7 @@ function SortableTask({
         onClick={() => onCycleStatus(task)}
         aria-label={`Status: ${statusLabel(task.status)}. Change status`}
         title="Change status"
-        className="-m-1 rounded-full p-1 transition-transform duration-150 ease-pop active:scale-90"
+        className="-m-1 rounded-full p-1 transition-transform duration-100 ease-pop active:scale-90"
       >
         <StatusIcon status={task.status} />
       </button>

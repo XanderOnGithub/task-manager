@@ -137,7 +137,7 @@ function Column({
   return (
     <div
       ref={droppable.setNodeRef}
-      className={`flex flex-col gap-2 rounded-[10px] p-2.5 transition-colors duration-200 ${
+      className={`flex flex-col gap-2 rounded-[10px] p-2.5 transition-colors duration-150 ${
         droppable.isOver ? 'bg-hover' : 'bg-column'
       }`}
     >
@@ -208,7 +208,7 @@ function CardFace({
 }) {
   return (
     <div
-      className={`flex flex-col gap-2.5 rounded-card border bg-card p-3 shadow-card transition-colors duration-150 ${
+      className={`flex flex-col gap-2.5 rounded-card border bg-card p-3 shadow-card transition-colors duration-100 ${
         lifted || selected ? 'border-border-strong' : task.status === 'doing' ? 'border-doing/45' : 'border-border'
       }`}
     >
@@ -216,7 +216,7 @@ function CardFace({
         <button
           onClick={() => onCycleStatus?.(task)}
           aria-label={`Status: ${statusLabel(task.status)}. Change status`}
-          className="mt-px rounded-full transition-transform duration-150 ease-pop active:scale-90"
+          className="mt-px rounded-full transition-transform duration-100 ease-pop active:scale-90"
         >
           <StatusIcon status={task.status} />
         </button>

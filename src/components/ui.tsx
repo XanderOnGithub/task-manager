@@ -71,7 +71,7 @@ export function StatusIcon({ status, size = 16 }: { status: Status | null; size?
         fill="none"
         stroke="currentColor"
         strokeWidth="1.8"
-        className="transition-colors duration-200"
+        className="transition-colors duration-150"
       />
       <motion.path
         d="M12 6.5a5.5 5.5 0 0 1 0 11z"
@@ -114,7 +114,7 @@ export function TaskTitle({ title, done, className = '' }: { title: string; done
   // The outer span truncates long titles; the inner one is only as wide as the
   // text, so the line stops where the words stop.
   return (
-    <span className={`min-w-0 flex-1 truncate transition-colors duration-200 ${done ? 'text-fg-3' : 'text-fg'} ${className}`}>
+    <span className={`min-w-0 flex-1 truncate transition-colors duration-150 ${done ? 'text-fg-3' : 'text-fg'} ${className}`}>
       <motion.span
         initial={false}
         animate={{ backgroundSize: done ? '100% 1px' : '0% 1px' }}

@@ -82,7 +82,7 @@ export function Settings({
           <div className="flex gap-2">
             <button
               onClick={() => void change()}
-              className="flex h-7 items-center gap-1.5 rounded-control bg-raised px-3 transition-colors duration-150 hover:bg-hover"
+              className="flex h-7 items-center gap-1.5 rounded-control bg-raised px-3 transition-colors duration-100 hover:bg-hover"
             >
               <FolderOpen size={14} strokeWidth={1.75} aria-hidden="true" />
               Choose folder

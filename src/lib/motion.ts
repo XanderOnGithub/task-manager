@@ -15,12 +15,12 @@ import type { Transition } from 'motion/react'
 
 export const spring = {
   /** Default for most UI: hovers that move, selections, small changes. */
-  snappy: { type: 'spring', visualDuration: 0.2, bounce: 0 },
+  snappy: { type: 'spring', visualDuration: 0.14, bounce: 0 },
   /** Things that change size: opening a folder, a panel sliding in. */
-  smooth: { type: 'spring', visualDuration: 0.32, bounce: 0 },
+  smooth: { type: 'spring', visualDuration: 0.22, bounce: 0 },
   /** A little overshoot for completing a task or dropping a card. */
-  pop: { type: 'spring', visualDuration: 0.34, bounce: 0.38 },
+  pop: { type: 'spring', visualDuration: 0.26, bounce: 0.32 },
 } satisfies Record<string, Transition>
 
 /** Delay between rows when a group opens. Enough to read as a flow, never a wait. */
-export const STAGGER = 0.015
+export const STAGGER = 0.01

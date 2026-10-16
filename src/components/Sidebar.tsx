@@ -41,7 +41,7 @@ export function Sidebar(props: Props) {
         <button
           aria-label="Toggle sidebar"
           title="Toggle sidebar"
-          className="flex rounded-md p-1 text-fg-3 transition-colors duration-150 hover:bg-hover hover:text-fg-2"
+          className="flex rounded-md p-1 text-fg-3 transition-colors duration-100 hover:bg-hover hover:text-fg-2"
         >
           <PanelLeft {...icon} />
         </button>
@@ -49,7 +49,7 @@ export function Sidebar(props: Props) {
 
       <button
         onClick={props.onQuickCapture}
-        className="flex h-8 items-center gap-2 rounded-row border border-border bg-field px-2.5 text-left text-fg-2 transition-colors duration-150 hover:text-fg"
+        className="flex h-8 items-center gap-2 rounded-row border border-border bg-field px-2.5 text-left text-fg-2 transition-colors duration-100 hover:text-fg"
       >
         <Plus size={15} strokeWidth={1.75} aria-hidden="true" />
         <span className="flex-1">Quick capture</span>
@@ -109,7 +109,7 @@ function AddButton({ label, onClick }: { label: string; onClick: () => void }) {
       onClick={onClick}
       aria-label={label}
       title={label}
-      className="flex rounded-md p-0.5 text-fg-3 opacity-0 transition-opacity duration-150 group-hover:opacity-100 hover:bg-hover hover:text-fg-2 focus-visible:opacity-100"
+      className="flex rounded-md p-0.5 text-fg-3 opacity-0 transition-opacity duration-100 group-hover:opacity-100 hover:bg-hover hover:text-fg-2 focus-visible:opacity-100"
     >
       <Plus size={14} strokeWidth={2} aria-hidden="true" />
     </button>
@@ -131,7 +131,7 @@ function NavItem({
     <button
       onClick={onClick}
       aria-current={active ? 'page' : undefined}
-      className={`relative flex h-[30px] w-full items-center gap-2.5 rounded-control px-2.5 text-left transition-colors duration-150 ${
+      className={`relative flex h-[30px] w-full items-center gap-2.5 rounded-control px-2.5 text-left transition-colors duration-100 ${
         active ? 'font-medium text-fg' : 'text-fg-2 hover:bg-hover hover:text-fg'
       }`}
     >

@@ -83,14 +83,14 @@ export function UnsortedView({ entries, items, actions }: { entries: UnsortedEnt
                     animate={{ opacity: 1, height: 'auto', x: 0 }}
                     exit={{ opacity: 0, x: 40, height: 0, marginTop: -4 }}
                     transition={spring.smooth}
-                    className={`flex flex-col overflow-hidden rounded-[10px] border transition-colors duration-150 ${
+                    className={`flex flex-col overflow-hidden rounded-[10px] border transition-colors duration-100 ${
                       isOpen ? 'border-border-strong bg-field' : 'border-transparent'
                     }`}
                   >
                     <button
                       onClick={() => open(isOpen ? undefined : entry)}
                       aria-expanded={isOpen}
-                      className={`flex h-10 items-center gap-2.5 px-3 text-left transition-colors duration-150 ${
+                      className={`flex h-10 items-center gap-2.5 px-3 text-left transition-colors duration-100 ${
                         isOpen ? '' : 'rounded-[10px] hover:bg-hover'
                       }`}
                     >
@@ -118,7 +118,7 @@ export function UnsortedView({ entries, items, actions }: { entries: UnsortedEnt
                             onClick={() => void actions.removeEntry(entry)}
                             aria-label="Delete"
                             title="Delete"
-                            className="flex rounded-md p-1.5 text-fg-3 transition-colors duration-150 hover:bg-hover hover:text-danger"
+                            className="flex rounded-md p-1.5 text-fg-3 transition-colors duration-100 hover:bg-hover hover:text-danger"
                           >
                             <Trash2 size={15} strokeWidth={1.75} aria-hidden="true" />
                           </button>
