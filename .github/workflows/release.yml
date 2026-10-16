@@ -45,7 +45,7 @@ jobs:
       release_id: ${{ steps.check.outputs.release_id }}
       tag: ${{ steps.version.outputs.tag }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - id: version
         name: Read the version
@@ -73,8 +73,12 @@ jobs:
           for id in $(gh api "repos/$GITHUB_REPOSITORY/releases" --jq ".[] | select(.draft and .tag_name == \"$TAG\") | .id"); do
             gh api -X DELETE "repos/$GITHUB_REPOSITORY/releases/$id"
           done
-          gh release create "$TAG" --draft --target "$GITHUB_SHA" --title "$TITLE" --generate-notes
-          id=$(gh api "repos/$GITHUB_REPOSITORY/releases" --jq ".[] | select(.draft and .tag_name == \"$TAG\") | .id" | head -1)
+          # Take the id from the reply: looking the new draft up in the release
+          # list right away can come back empty, and then nothing gets uploaded.
+          id=$(gh api -X POST "repos/$GITHUB_REPOSITORY/releases" \
+            -f tag_name="$TAG" -f target_commitish="$GITHUB_SHA" -f name="$TITLE" \
+            -F draft=true -F generate_release_notes=true --jq .id)
+          if [ -z "$id" ]; then echo "Couldn't create the draft release"; exit 1; fi
           echo "release=true" >> "$GITHUB_OUTPUT"
           echo "release_id=$id" >> "$GITHUB_OUTPUT"
 
@@ -105,10 +109,10 @@ jobs:
             rust-targets: ''
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: pnpm
