@@ -9,6 +9,7 @@ import { getHighRefresh, setDataFolder, setHighRefresh, type HighRefresh } from 
 import { useFrameRate } from '../lib/useFrameRate'
 import { useTheme, type Theme } from '../lib/theme'
 import { useToast } from '../lib/toast'
+import { usePref } from '../lib/prefs'
 import { Modal, Segmented, Switch } from './controls'
 import { Panel } from './ui'
 import { play, setSoundSettings, SOUND_INFO, soundSettings, type SoundName, type SoundSettings } from '../lib/sounds'
@@ -113,6 +114,8 @@ export function Settings({
                 Plain markdown files. Point any folder sync at it to use it on another computer.
               </p>
             </div>
+
+            <WordCountSetting />
 
             <HighRefreshSetting />
 
@@ -289,6 +292,22 @@ function SoundRow({
         <span className="truncate text-label font-normal text-fg-3">{when}</span>
       </div>
       <Switch label={label} checked={on} onChange={onToggle} />
+    </div>
+  )
+}
+
+/** Pages: the word and character count in the bottom-right corner. */
+function WordCountSetting() {
+  const [on, setOn] = usePref('wordCount', true)
+  return (
+    <div className="flex items-center gap-3">
+      <div className="flex flex-1 flex-col gap-0.5">
+        <span className="text-meta text-fg-2">Word count</span>
+        <span className="text-meta font-normal text-fg-3">
+          Words and characters in the corner of a page. Select text to count just that.
+        </span>
+      </div>
+      <Switch label="Word count" checked={on} onChange={setOn} />
     </div>
   )
 }

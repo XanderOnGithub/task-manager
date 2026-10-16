@@ -8,6 +8,7 @@ import { Ellipsis, Plus, X, type LucideIcon } from 'lucide-react'
 import type { Item } from '../lib/api'
 import { icon } from '../lib/items'
 import { useBody } from '../lib/useBody'
+import type { TextStats } from './MarkdownEditor'
 
 // ---------------------------------------------------------------------------
 // Inline add: a quiet "+ Add a task" row that turns into a text field.
@@ -348,6 +349,7 @@ export function BodyEditor({
   className = '',
   onCreatePage,
   onOpenPage,
+  onStats,
 }: {
   item: Item
   onSave: (body: string) => Promise<unknown>
@@ -358,6 +360,8 @@ export function BodyEditor({
   /** Pages only: "/page" makes a subpage (see MarkdownEditor). */
   onCreatePage?: (title: string) => Promise<string | null>
   onOpenPage?: (href: string) => void
+  /** Pages only: word and character counts as you type. */
+  onStats?: (stats: TextStats) => void
 }) {
   const body = useBody(item.id, item)
   // Nothing until the text has loaded, so the editor never starts empty and
@@ -375,6 +379,7 @@ export function BodyEditor({
         className={`${tone === 'muted' ? 'text-fg-2' : 'text-fg'} ${className}`}
         onCreatePage={onCreatePage}
         onOpenPage={onOpenPage}
+        onStats={onStats}
       />
     </Suspense>
   )

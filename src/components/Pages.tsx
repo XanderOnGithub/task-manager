@@ -15,8 +15,10 @@ import { AnimatePresence } from 'motion/react'
 import { ArrowUpRight, Folder, Target } from 'lucide-react'
 import { childrenOf, type Item } from '../lib/api'
 import { trailOf } from '../lib/items'
+import { usePref } from '../lib/prefs'
 import type { Actions } from '../lib/useActions'
 import { BodyEditor, EditableTitle, InlineAdd, Menu } from './controls'
+import type { TextStats } from './MarkdownEditor'
 import { PageIconPicker } from './EmojiPicker'
 import { itemMenu } from './itemMenu'
 import { Collapse, ListRow } from './motion'
@@ -41,11 +43,13 @@ export function PageView({
 }) {
   const [renaming, setRenaming] = useState(0)
   const [addingSub, setAddingSub] = useState(false)
+  const [stats, setStats] = useState<TextStats | null>(null)
+  const [showCount] = usePref('wordCount', true)
   // Breadcrumb: the area, project and parent pages, top first.
   const trail = trailOf(items, page.id).slice(0, -1)
 
   return (
-    <Panel label="Page" className="flex-1 animate-fade-in">
+    <Panel label="Page" className="relative flex-1 animate-fade-in">
       <PanelHeader>
         <nav aria-label="Breadcrumb" className="flex min-w-0 flex-1 items-center gap-1.5 text-fg-3">
           {trail.map((p) => (
@@ -82,6 +86,7 @@ export function PageView({
             item={page}
             onSave={(body) => actions.writeBody(page, body)}
             placeholder="Start writing, or type / for blocks"
+            onStats={showCount ? setStats : undefined}
             tone="normal"
             className="min-h-[200px] text-[14px]"
             // "/page": a subpage of this page, linked by its file name
@@ -113,7 +118,23 @@ export function PageView({
           )}
         </div>
       </div>
+      {showCount && stats && <WordCount stats={stats} />}
     </Panel>
+  )
+}
+
+/** The quiet count in the page's bottom-right corner. With text selected, it counts the selection. */
+function WordCount({ stats }: { stats: TextStats }) {
+  const plural = (n: number, word: string) => `${n.toLocaleString()} ${word}${n === 1 ? '' : 's'}`
+  const shown = stats.selection ?? stats
+  return (
+    <div
+      aria-live="polite"
+      className="pointer-events-none absolute right-3 bottom-3 rounded-control bg-panel/90 px-2 py-1 text-meta font-normal text-fg-3 tabular-nums"
+    >
+      {plural(shown.words, 'word')} · {plural(shown.characters, 'character')}
+      {stats.selection && ' selected'}
+    </div>
   )
 }
 

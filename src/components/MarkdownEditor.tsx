@@ -102,6 +102,19 @@ function normalize(markdown: string) {
   return text ? `${text}\n` : ''
 }
 
+/** Word and character counts for the whole text, and for the selection if there is one. */
+export interface TextStats {
+  words: number
+  characters: number
+  selection: { words: number; characters: number } | null
+}
+
+/** Counts words (runs of non-space) and characters (everything but line breaks) between two positions. */
+function countText(doc: EditorView['state']['doc'], from: number, to: number) {
+  const text = doc.textBetween(from, to, '\n', '\n')
+  return { words: text.match(/\S+/g)?.length ?? 0, characters: [...text.replace(/\n/g, '')].length }
+}
+
 export function MarkdownEditor({
   value,
   onSave,
@@ -110,6 +123,7 @@ export function MarkdownEditor({
   className = '',
   onCreatePage,
   onOpenPage,
+  onStats,
 }: {
   /** The saved markdown. Mount with `key={item.id}` so each item gets its own editor. */
   value: string
@@ -121,6 +135,8 @@ export function MarkdownEditor({
   onCreatePage?: (title: string) => Promise<string | null>
   /** Opens a page link (a relative "Name.md" link written by /page). */
   onOpenPage?: (href: string) => void
+  /** Called as the text or selection changes, with fresh counts. */
+  onStats?: (stats: TextStats) => void
 }) {
   const root = useRef<HTMLDivElement>(null)
   const editor = useRef<Editor | null>(null)
@@ -130,6 +146,8 @@ export function MarkdownEditor({
   const timer = useRef(0)
   const save = useRef(onSave)
   save.current = onSave
+  const reportStats = useRef(onStats)
+  reportStats.current = onStats
 
   // Menus. The editor reports changes through `bridge`; React draws the menus.
   const [toolbar, setToolbar] = useState<ToolbarState | null>(null)
@@ -159,6 +177,12 @@ export function MarkdownEditor({
       const { state } = view
       const sel = state.selection
       const focused = view.hasFocus()
+
+      // Counts for the word count in the corner (pages only).
+      if (reportStats.current) {
+        const all = countText(state.doc, 0, state.doc.content.size)
+        reportStats.current({ ...all, selection: sel.empty ? null : countText(state.doc, sel.from, sel.to) })
+      }
 
       // Format toolbar: shows while text is selected (not inside code blocks).
       if (focused && !sel.empty && sel instanceof TextSelection && !sel.$from.parent.type.spec.code) {
