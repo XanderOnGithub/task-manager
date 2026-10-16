@@ -88,16 +88,13 @@ export function Board({ items, scope, selectedId, onSelect, onCycleStatus, actio
       onDragEnd={(e) => void onDragEnd(e)}
       onDragCancel={() => drag.end(false)}
     >
-      {/* The whole board scrolls as one (not each column), so a card can fly
-          across columns without being clipped. Columns fill the height. */}
+      {/* Columns fill the height and each scrolls its own cards, so the
+          board never gets taller than the window. They share the width
+          between a readable minimum (the board scrolls sideways below it)
+          and a maximum (on a wide screen they stop growing and sit left). */}
       <LayoutGroup>
-        {/* The outer box scrolls; the grid inside is at least as tall as it
-            and grows with the longest column, so every column's background
-            always reaches the bottom of its cards. Columns never get
-            narrower than a readable card; past that the board scrolls
-            sideways instead of squashing them. */}
-        <div className="flex min-h-0 flex-1 overflow-auto">
-          <div className="grid min-h-full flex-1 grid-cols-[repeat(3,minmax(12.5rem,1fr))] gap-3 p-4">
+        <div className="flex min-h-0 flex-1 overflow-x-auto">
+          <div className="flex min-h-0 flex-1 gap-3 p-4">
             {COLUMNS.map((column) => (
               <Column key={column.status} {...column} count={tasks.filter(({ task }) => statusOf(task) === column.status).length}>
                 {tasks
@@ -154,16 +151,20 @@ function Column({
   return (
     <div
       ref={droppable.setNodeRef}
-      className={`flex min-w-0 flex-col gap-2 rounded-[10px] p-2.5 transition-colors duration-150 ${
+      className={`flex min-h-0 max-w-[22rem] min-w-[12.5rem] flex-1 basis-0 flex-col gap-2 rounded-[10px] py-2.5 transition-colors duration-150 ${
         droppable.isOver ? 'bg-hover' : 'bg-column'
       }`}
     >
-      <div className="flex h-[26px] shrink-0 items-center gap-2 px-1">
+      <div className="mx-2.5 flex h-[26px] shrink-0 items-center gap-2 px-1">
         <span className={`size-2 rounded-full ${dot}`} />
         <span className="font-semibold">{label}</span>
         <span className="text-meta font-normal text-fg-3">{count}</span>
       </div>
-      {children}
+      {/* The column's own scroll. layoutScroll lets cards that change
+          column measure their start correctly even when it's scrolled. */}
+      <motion.div layoutScroll className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto px-2.5 pb-0.5">
+        {children}
+      </motion.div>
     </div>
   )
 }
