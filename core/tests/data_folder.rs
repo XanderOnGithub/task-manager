@@ -802,3 +802,19 @@ fn an_old_data_folder_moves_to_the_new_layout() {
     // Running it again does nothing.
     assert!(!task_core::migrate::migrate_layout(&root).unwrap());
 }
+
+#[test]
+fn tasks_can_be_later_or_waiting() {
+    let (_dir, root) = sample();
+    let lib = load(&root);
+    // The two optional lanes are ordinary statuses on disk.
+    ops::set_field(&lib, "TSKINSTL01", "status", Some("waiting")).unwrap();
+    ops::set_field(&lib, "TSKTILE001", "status", Some("later")).unwrap();
+    let lib = load(&root);
+    assert!(lib.issues.is_empty(), "{:#?}", lib.issues);
+    assert_eq!(lib.get("TSKINSTL01").unwrap().status.as_deref(), Some("waiting"));
+    assert_eq!(lib.get("TSKTILE001").unwrap().status.as_deref(), Some("later"));
+    // Still task-only: a milestone can't wait.
+    let sink = by_title(&lib, "Replace the sink").id.clone();
+    assert!(ops::set_field(&lib, &sink, "status", Some("waiting")).is_err());
+}

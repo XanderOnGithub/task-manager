@@ -14,7 +14,7 @@ import { icon } from '../lib/items'
 import { isMac } from '../lib/platform'
 import type { Actions } from '../lib/useActions'
 import { AreaTree, type Adding } from './AreaTree'
-import { MossMark } from './Brand'
+import { MossWordmark } from './Brand'
 import { SectionLabel } from './ui'
 
 /** The overviews at the top of the sidebar. */
@@ -55,8 +55,7 @@ export function Sidebar(props: Props) {
         <span
           className={`pointer-events-none flex items-center gap-1.5 select-none ${isMac ? 'pl-20' : 'pl-1'}`}
         >
-          <MossMark className="h-[15px] w-auto" />
-          <span className="text-[14px] leading-none font-semibold tracking-tight text-fg">moss</span>
+          <MossWordmark className="-my-1 h-[23px] w-auto" />
         </span>
         <span data-tauri-drag-region className="flex-1 self-stretch" />
         <button

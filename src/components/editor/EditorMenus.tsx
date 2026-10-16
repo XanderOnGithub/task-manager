@@ -3,6 +3,7 @@
 //   code, link.
 // - SlashMenu: appears under the caret after typing "/". Arrow keys move,
 //   Enter picks, Escape closes; typing filters it.
+// - EmojiMenu: the same, after typing ":" and part of an emoji's name.
 // Both pop from where you're typing, and the highlight slides between items.
 
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
@@ -11,6 +12,7 @@ import { motion } from 'motion/react'
 import { Bold, Code, CornerDownLeft, Italic, Link, Strikethrough, Trash2 } from 'lucide-react'
 import { spring } from '../../lib/motion'
 import type { Block } from './blocks'
+import type { Shortcode } from './emojiShortcodes'
 
 export interface ToolbarState {
   /** Middle of the selection, top edge (viewport px). */
@@ -290,6 +292,63 @@ export function SlashMenu({
           ))}
         </div>
       )}
+    </motion.div>,
+    document.body,
+  )
+}
+
+// ---------------------------------------------------------------------------
+// ":name" emoji menu
+// ---------------------------------------------------------------------------
+
+export function EmojiMenu({
+  state,
+  matches,
+  index,
+  onHover,
+  onPick,
+}: {
+  state: SlashState
+  matches: Shortcode[]
+  index: number
+  onHover: (index: number) => void
+  onPick: (emoji: string) => void
+}) {
+  const id = useId()
+  const below = window.innerHeight - state.bottom > 300
+  return createPortal(
+    <motion.div
+      {...pop}
+      initial={{ opacity: 0, scale: 0.96, y: below ? -4 : 4 }}
+      // Keep the editor focused while clicking a choice.
+      onMouseDown={(e) => e.preventDefault()}
+      style={{
+        left: Math.min(state.x - 8, window.innerWidth - 236),
+        top: below ? state.bottom + 6 : undefined,
+        bottom: below ? undefined : window.innerHeight - state.top + 6,
+        originX: 0,
+        originY: below ? 0 : 1,
+      }}
+      className="fixed z-50 w-[220px] overflow-hidden rounded-card border border-border-menu bg-menu shadow-menu"
+    >
+      <div role="listbox" aria-label="Insert an emoji" className="flex flex-col p-1">
+        {matches.map((match, i) => (
+          <button
+            key={match.name}
+            role="option"
+            aria-selected={i === index}
+            onMouseMove={() => i !== index && onHover(i)}
+            onClick={() => onPick(match.emoji)}
+            className="relative flex h-8 shrink-0 items-center gap-2.5 rounded-control px-2 text-left"
+          >
+            {i === index && (
+              <motion.span layoutId={`emoji-${id}`} transition={spring.snappy} className="absolute inset-0 rounded-control bg-hover" />
+            )}
+            <span className="relative w-5 text-center text-[17px] leading-none">{match.emoji}</span>
+            <span className="relative min-w-0 truncate text-fg-2">:{match.name}:</span>
+          </button>
+        ))}
+      </div>
     </motion.div>,
     document.body,
   )

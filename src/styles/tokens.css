@@ -59,6 +59,7 @@
   /* Colors: dark theme ----------------------------------------------------- */
   --color-wall: #0C0D10;                       /* behind the window, mockups only */
   --color-window: rgba(24, 25, 29, 0.62);      /* vibrancy tint: sidebar and background */
+  --color-window-solid: #18191D;              /* the same, opaque: for systems without a blur behind the window */
   --color-window-edge: rgba(255, 255, 255, 0.09);
   --color-panel: #16171A;                      /* solid content panels */
   --color-raised: #212227;                     /* segmented controls, pills */
@@ -90,6 +91,11 @@
   --color-doing: #E0A458;
   --color-doing-soft: rgba(224, 164, 88, 0.16);
   --color-done: var(--color-accent);
+  /* Optional lanes: Later is a dashed gray ring, Waiting a muted lavender one
+     (kept clear of amber, sage and the red of overdue dates). */
+  --color-later: var(--color-fg-3);
+  --color-waiting: #A49ED3;
+  --color-waiting-soft: rgba(164, 158, 211, 0.16);
 
   --color-due: var(--color-fg-3);
   --color-due-soon: #B99873;                   /* amber blended 45% toward gray */
@@ -140,6 +146,7 @@
 
     --color-wall: #D9DDE5;
     --color-window: rgba(244, 244, 247, 0.32);  /* lighter than dark's tint: macOS's light material is already pale, so more white hides the blur */
+    --color-window-solid: #F4F4F7;
     --color-window-edge: rgba(0, 0, 0, 0.10);
     --color-panel: #FFFFFF;
     --color-raised: #F1F1F4;
@@ -170,6 +177,8 @@
 
     --color-doing: #A86A1E;
     --color-doing-soft: rgba(168, 106, 30, 0.12);
+    --color-waiting: #6A64A3;
+    --color-waiting-soft: rgba(106, 100, 163, 0.12);
     --color-due-soon: #8C6A44;
     --color-overdue: #965551;
     --color-danger: #965551;
@@ -187,6 +196,7 @@
 
   --color-wall: #D9DDE5;
   --color-window: rgba(244, 244, 247, 0.32);
+  --color-window-solid: #F4F4F7;
   --color-window-edge: rgba(0, 0, 0, 0.10);
   --color-panel: #FFFFFF;
   --color-raised: #F1F1F4;
@@ -217,6 +227,8 @@
 
   --color-doing: #A86A1E;
   --color-doing-soft: rgba(168, 106, 30, 0.12);
+  --color-waiting: #6A64A3;
+  --color-waiting-soft: rgba(106, 100, 163, 0.12);
   --color-due-soon: #8C6A44;
   --color-overdue: #965551;
   --color-danger: #965551;

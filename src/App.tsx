@@ -6,6 +6,7 @@ import { AnimatePresence, motion } from 'motion/react'
 import { spring } from './lib/motion'
 import { childrenOf, type Item, type TaskStatus } from './lib/api'
 import { trailOf } from './lib/items'
+import { NEXT_STATUS } from './lib/lanes'
 import { isMac } from './lib/platform'
 import { readPref, writePref } from './lib/prefs'
 import {
@@ -38,7 +39,6 @@ import { Panel } from './components/ui'
 /** Matches --spacing-sidebar in tokens.css. */
 const SIDEBAR_WIDTH = 244
 
-const NEXT_STATUS: Record<TaskStatus, TaskStatus> = { todo: 'doing', doing: 'done', done: 'todo' }
 
 export default function App() {
   const { snapshot, error, needsFolder, byId, reload } = useLibrary()
@@ -275,7 +275,9 @@ export default function App() {
   }
 
   return (
-    <div className="flex h-full bg-window">
+    // On a Mac the background is see-through so the blur behind the window
+    // shows; other systems draw no blur, so they get the same color, solid.
+    <div className={`flex h-full ${isMac ? 'bg-window' : 'bg-window-solid'}`}>
       {/* The sidebar slides shut to zero width. Its contents keep their size
           and get clipped, so nothing reflows while it moves. */}
       <motion.div

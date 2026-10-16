@@ -1,5 +1,6 @@
-// The page icon: a big emoji above the page title, and the picker that sets it.
-// Pages without an icon show "Add icon" when you hover the title area.
+// The page icon: an emoji just left of the page title, and the picker that sets it.
+// Pages without an icon show a small "Add icon" button in the margin to the
+// left of the title when you hover it, so the title never moves.
 
 import { useEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
@@ -34,7 +35,7 @@ export function PageIconPicker({ page, onChange }: { page: Item; onChange: (icon
   }
 
   return (
-    <div ref={box} className="relative flex">
+    <div ref={box} className="relative flex shrink-0 items-center">
       {page.icon ? (
         <motion.button
           // A new emoji pops in; changing pages doesn't animate.
@@ -47,19 +48,21 @@ export function PageIconPicker({ page, onChange }: { page: Item; onChange: (icon
           onClick={() => setOpen((o) => !o)}
           aria-label="Change icon"
           title="Change icon"
-          className="-ml-1 flex size-14 items-center justify-center rounded-card text-[42px] leading-none transition-colors duration-100 hover:bg-hover"
+          className="-ml-1 mr-1.5 flex size-9 items-center justify-center rounded-control text-[24px] leading-none transition-colors duration-100 hover:bg-hover"
         >
           {page.icon}
         </motion.button>
       ) : (
+        // Sits in the margin, so the root takes no width and the title stays put.
         <button
           onClick={() => setOpen((o) => !o)}
-          className={`-ml-1.5 flex h-7 items-center gap-1.5 rounded-control px-1.5 text-meta text-fg-3 transition-[opacity,color,background-color] duration-100 hover:bg-hover hover:text-fg-2 focus-visible:opacity-100 ${
+          aria-label="Add icon"
+          title="Add icon"
+          className={`absolute top-1/2 right-full mr-1.5 flex size-7 -translate-y-1/2 items-center justify-center rounded-control text-fg-3 transition-[opacity,color,background-color] duration-100 hover:bg-hover hover:text-fg-2 focus-visible:opacity-100 ${
             open ? 'opacity-100' : 'opacity-0 group-hover/title:opacity-100'
           }`}
         >
-          <SmilePlus size={15} strokeWidth={1.75} aria-hidden="true" />
-          Add icon
+          <SmilePlus size={16} strokeWidth={1.75} aria-hidden="true" />
         </button>
       )}
 
@@ -90,7 +93,7 @@ function Picker({
       exit={{ opacity: 0, scale: 0.98, transition: { duration: 0.08 } }}
       transition={spring.snappy}
       style={{ originX: 0, originY: 0 }}
-      className="absolute top-full left-0 z-30 mt-1.5 flex w-[328px] flex-col overflow-hidden rounded-card border border-border-menu bg-menu shadow-menu"
+      className="absolute top-full left-0 z-30 mt-2 flex w-[328px] flex-col overflow-hidden rounded-card border border-border-menu bg-menu shadow-menu"
     >
       <div className="flex items-center gap-2 border-b border-border p-2">
         <input

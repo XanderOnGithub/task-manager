@@ -1,41 +1,16 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 298.2 112" width="298" height="112">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-26.0 39.9 698.7 198.1" width="197" height="56">
   <title>Moss</title>
   <defs>
-    <linearGradient id="bg" x1="0" y1="100" x2="0" y2="924" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#29332C"/>
-      <stop offset="1" stop-color="#111512"/>
+    <linearGradient id="moss" x1="0" y1="81" x2="0" y2="230" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#C8E1BD"/><stop offset="0.5" stop-color="#8FB996"/><stop offset="1" stop-color="#557F5C"/>
     </linearGradient>
-    <radialGradient id="glow" cx="512" cy="470" r="440" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#8FB996" stop-opacity="0.2"/>
-      <stop offset="1" stop-color="#8FB996" stop-opacity="0"/>
-    </radialGradient>
-    <linearGradient id="moss" x1="0" y1="330" x2="0" y2="690" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#C8E1BD"/>
-      <stop offset="0.5" stop-color="#8FB996"/>
-      <stop offset="1" stop-color="#557F5C"/>
-    </linearGradient>
-    <linearGradient id="leaf" x1="0" y1="1" x2="1" y2="0">
-      <stop offset="0" stop-color="#9CC59F"/>
-      <stop offset="1" stop-color="#D6ECCB"/>
-    </linearGradient>
-    <linearGradient id="earth" x1="0" y1="664" x2="0" y2="722" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#A3896F"/>
-      <stop offset="1" stop-color="#584637"/>
-    </linearGradient>
+    <linearGradient id="leaf" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#9CC59F"/><stop offset="1" stop-color="#D6ECCB"/></linearGradient>
   </defs>
-  <g transform="scale(0.135922) translate(-100 -100)">
-  <rect x="100" y="100" width="824" height="824" rx="186" fill="url(#bg)"/>
-  <rect x="100" y="100" width="824" height="824" rx="186" fill="url(#glow)"/>
-  <rect x="100.5" y="100.5" width="823" height="823" rx="185.5" fill="none" stroke="#fff" stroke-opacity="0.07"/>
-  <!-- the m: two moss mounds growing out of the ground -->
-  <path d="M 294 682 V 494 A 109 109 0 0 1 512 494 V 682 M 512 494 A 109 109 0 0 1 730 494 V 682"
-        fill="none" stroke="url(#moss)" stroke-width="92" stroke-linejoin="round"/>
-  <!-- a leaf sprouting from the right mound -->
-  <g transform="translate(722 392) rotate(-42)">
-    <path d="M -6 0 C 30 -46 92 -62 148 -50 C 122 4 58 28 -6 0 Z" fill="url(#leaf)"/>
-  </g>
-  <!-- the ground -->
-  <rect x="232" y="666" width="560" height="52" rx="26" fill="url(#earth)"/>
-</g>
-  <path transform="translate(134 72.96) scale(0.064)" fill="#ECEEEA" d="M70 -530V0H200V-300C200 -387 236 -437 304 -437C359 -437 387 -389 387 -300V0H505V-300C505 -389 541 -437 609 -437C665 -437 693 -390 693 -300V0H823V-341C823 -472 756 -542 648 -542C572 -542 517 -505 491 -433C468 -502 414 -542 339 -542C269 -542 216 -507 190 -445L187 -530Z M1177.0 12C1335.0 12 1439.0 -97 1439.0 -265C1439.0 -433 1335.0 -542 1177.0 -542C1019.0 -542 915.0 -433 915.0 -265C915.0 -97 1019.0 12 1177.0 12ZM1048.0 -265C1048.0 -374 1095.0 -437 1177.0 -437C1259.0 -437 1306.0 -374 1306.0 -265C1306.0 -156 1259.0 -93 1177.0 -93C1095.0 -93 1048.0 -156 1048.0 -265Z M1843.0 -361 1974.0 -367C1957.0 -475 1868.0 -543 1743.0 -543C1602.0 -543 1515.0 -479 1515.0 -375C1515.0 -275 1604.0 -242 1734.0 -216C1788.0 -204 1846.0 -196 1847.0 -145C1847.0 -102 1794.0 -86 1752.0 -86C1685.0 -86 1644.0 -120 1634.0 -175L1503.0 -168C1511.0 -56 1609.0 12 1754.0 12C1878.0 12 1980.0 -37 1980.0 -142C1980.0 -244 1899.0 -282 1755.0 -306C1703.0 -315 1650.0 -334 1649.0 -377C1648.0 -419 1687.0 -445 1736.0 -445C1786.0 -445 1834.0 -413 1843.0 -361Z M2385.0 -361 2516.0 -367C2499.0 -475 2410.0 -543 2285.0 -543C2144.0 -543 2057.0 -479 2057.0 -375C2057.0 -275 2146.0 -242 2276.0 -216C2330.0 -204 2388.0 -196 2389.0 -145C2389.0 -102 2336.0 -86 2294.0 -86C2227.0 -86 2186.0 -120 2176.0 -175L2045.0 -168C2053.0 -56 2151.0 12 2296.0 12C2420.0 12 2522.0 -37 2522.0 -142C2522.0 -244 2441.0 -282 2297.0 -306C2245.0 -315 2192.0 -334 2191.0 -377C2190.0 -419 2229.0 -445 2278.0 -445C2328.0 -445 2376.0 -413 2385.0 -361Z"/>
+  <!-- m o s s: the icon's m, and letters drawn with the same stroke -->
+  <path d="M 0.0 230 V 148.3 A 47.4 47.4 0 0 1 94.8 148.3 V 230 M 94.8 148.3 A 47.4 47.4 0 0 1 189.6 148.3 V 230 M 247.6 155.4 A 54.6 54.6 0 1 1 356.7 155.4 A 54.6 54.6 0 1 1 247.6 155.4 Z" fill="none" stroke="url(#moss)" stroke-width="40" stroke-linejoin="round"/>
+  <path d="M 472.0 113.7 A 31.0 27.3 0 1 0 445.7 155.4 A 31.0 27.3 0 1 1 419.4 197.2 M 592.0 113.7 A 31.0 27.3 0 1 0 565.7 155.4 A 31.0 27.3 0 1 1 539.4 197.2" fill="none" stroke="url(#moss)" stroke-width="40" stroke-linecap="round"/>
+  <!-- the leaf, as on the icon -->
+  <path transform="translate(186.1 103.9) rotate(-42) scale(0.4348)" d="M -6 0 C 30 -46 92 -62 148 -50 C 122 4 58 28 -6 0 Z" fill="url(#leaf)"/>
+  <!-- the degree sign -->
+  <circle cx="643.7" cy="84.9" r="15" fill="none" stroke="#9CC59F" stroke-width="12"/>
 </svg>

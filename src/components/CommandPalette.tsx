@@ -187,7 +187,9 @@ export function CommandPalette({
           <kbd className="font-mono text-label font-normal text-fg-3">esc</kbd>
         </div>
 
-        <div ref={list} role="listbox" aria-label="Results" className="flex max-h-[min(380px,60vh)] flex-col overflow-y-auto p-1.5">
+        {/* Never scrolls sideways: the sliding highlight can poke out for a
+            frame while it moves between rows of different heights. */}
+        <div ref={list} role="listbox" aria-label="Results" className="flex max-h-[min(380px,60vh)] flex-col overflow-x-hidden overflow-y-auto p-1.5">
           {groups.map((group) => (
             <div key={group.label} className="flex flex-col">
               <div className="px-2.5 pt-2 pb-1 text-label tracking-label text-fg-3 uppercase">{group.label}</div>
