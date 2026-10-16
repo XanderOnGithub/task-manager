@@ -47,7 +47,7 @@ export function Sidebar(props: Props) {
           there moves the window. */}
       <div data-tauri-drag-region className="flex h-5 items-center">
         <span
-          className={`pointer-events-none flex items-center gap-1.5 select-none ${isMac ? 'pl-[62px]' : 'pl-1'}`}
+          className={`pointer-events-none flex items-center gap-1.5 select-none ${isMac ? 'pl-20' : 'pl-1'}`}
         >
           <MossMark className="h-[15px] w-auto" />
           <span className="text-[14px] leading-none font-semibold tracking-tight text-fg">moss</span>
