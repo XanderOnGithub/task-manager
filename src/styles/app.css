@@ -1,0 +1,12 @@
+/* The one stylesheet the app imports. Order matters: Tailwind first, then our
+   theme, then page defaults and motion. */
+@import "tailwindcss";
+
+/* Only look for class names in the front end, not in Rust or the sample data. */
+@source not "../../core";
+@source not "../../src-tauri";
+@source not "../../sample-data";
+
+@import "./tokens.css";
+@import "./base.css";
+@import "./motion.css";

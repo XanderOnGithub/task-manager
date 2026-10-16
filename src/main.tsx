@@ -7,8 +7,7 @@ import '@fontsource/geist-sans/500.css'
 import '@fontsource/geist-sans/600.css'
 import '@fontsource/geist-mono/400.css'
 
-import './styles/tokens.css'
-import './styles/base.css'
+import './styles/app.css'
 import App from './App.tsx'
 
 createRoot(document.getElementById('root')!).render(

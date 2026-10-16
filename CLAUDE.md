@@ -9,7 +9,7 @@ Local-first desktop app for tasks and notes: capture first into Unsorted, then s
   - Unsorted flow: nothing open → Create as → choose destination (task / note / project) → moved with undo
   - Picks: icons, type scale, color tokens
 - Read the canvas before building or changing any screen. If code and canvas disagree, ask which one is right; don't silently pick.
-- All colors, radii and fonts come from `src/styles/tokens.css`. Never hard-code a hex value in a component. If the canvas changes a value, change it in tokens.css.
+- All colors, radii, type sizes and fonts come from `src/styles/tokens.css`. Never hard-code a color in a component (no hex, no `bg-[#...]`). If the canvas changes a value, change it in tokens.css.
 
 ## Repo layout
 
@@ -22,7 +22,7 @@ src-tauri/      the desktop app: Tauri commands that call into core
   src/lib.rs    every command the UI can call
 src/            React front end
   lib/api.ts    typed wrappers for the commands. Keep in sync with src-tauri/src/lib.rs
-  styles/       tokens.css (design tokens) and base.css
+  styles/       app.css (entry), tokens.css (Tailwind theme), base.css, motion.css
 sample-data/    the renovation example from the mockups; dev builds open a copy of it
 ```
 
@@ -40,6 +40,16 @@ sample-data/    the renovation example from the mockups; dev builds open a copy 
 - Writes don't update the in-memory library. The app drops its cache and reloads; files are the single source of truth.
 - Problems in the data folder become `Issue`s, never crashes. Only id-related issues are fixed automatically.
 - Every change to core behavior gets a test in `core/tests/data_folder.rs` or next to the code.
+
+## Styling
+
+- Tailwind v4. Style in JSX with classes; the theme in `tokens.css` defines every class name.
+- Colors: `bg-panel`, `bg-raised`, `bg-card`, `bg-hover`, `bg-selected`, `text-fg`, `text-fg-2`, `text-fg-3`, `border-border`, `text-accent`, `bg-accent text-on-accent`, status `text-todo|doing|done`, dates `text-due|due-soon|overdue`, `text-danger`. Tailwind's default palette is switched off.
+- Type: `text-title`, `text-heading`, `text-body`, `text-meta`, `text-label` (each sets size, line height and weight). Mono: `font-mono`.
+- Shape: `rounded-window|panel|card|row|control|chip`; sizes `h-row`, `w-sidebar`, `w-details`; shadows `shadow-window|menu|seg|card`.
+- Milestone chips: `milestone-chip` (+ `milestone-chip-header`) with `style={{ '--ms': 'var(--color-ms-teal)' }}`.
+- Motion: transitions in Tailwind with `ease-snappy` or `ease-pop`; keyframe animations live in `motion.css` as `animate-*`. Reduce motion is handled globally.
+- Repeated class lists become small components (`<Chip>`, `<Row>`), not `@apply`.
 
 ## Vocabulary (fixed, never use synonyms in UI or code)
 

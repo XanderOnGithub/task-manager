@@ -2,7 +2,7 @@
 // It loads the data folder and lists what it found. Replace it with the real
 // app shell in M2 (sidebar, panels; see the design canvas linked in CLAUDE.md).
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useState, type CSSProperties } from 'react'
 import { Layers } from 'lucide-react'
 import { childrenOf, loadLibrary, onDataChanged, type Snapshot } from './lib/api'
 
@@ -29,50 +29,52 @@ export default function App() {
   }, [reload])
 
   const count = (kind: string) => snapshot?.items.filter((i) => i.kind === kind).length ?? 0
+  const milestones = snapshot?.items.filter((i) => i.kind === 'milestone') ?? []
 
   return (
-    <main style={{ padding: '48px 32px', height: '100%' }}>
-      <div
-        data-tauri-drag-region
-        style={{ position: 'fixed', inset: '0 0 auto 0', height: 40 }}
-      />
-      <section
-        style={{
-          maxWidth: 560,
-          padding: 24,
-          borderRadius: 'var(--radius-panel)',
-          border: '1px solid var(--border)',
-          background: 'var(--bg-panel)',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 16,
-        }}
-      >
-        <h1 style={{ margin: 0, font: 'var(--text-title)', letterSpacing: 'var(--tracking-tight)' }}>
-          Task Manager
-        </h1>
+    <main className="h-full px-8 py-12">
+      <div data-tauri-drag-region className="fixed inset-x-0 top-0 h-10" />
 
-        {error && <p style={{ margin: 0, color: 'var(--danger)' }}>{error}</p>}
+      <section className="flex max-w-[560px] animate-fade-in flex-col gap-4 rounded-panel border border-border bg-panel p-6">
+        <h1 className="text-title">Task Manager</h1>
+
+        {error && <p className="text-danger">{error}</p>}
 
         {snapshot && (
           <>
-            <p style={{ margin: 0, color: 'var(--text-2)' }}>
+            <p className="text-fg-2">
               {count('area')} areas · {count('project')} projects · {count('milestone')} milestones ·{' '}
               {count('task')} tasks · {count('note')} notes
             </p>
-            <p style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+
+            <p className="flex items-center gap-2">
               <Layers size={16} strokeWidth={1.75} />
               Unsorted: {snapshot.unsorted.length}
             </p>
-            <ul style={{ margin: 0, paddingLeft: 18, color: 'var(--text-2)' }}>
+
+            <ul className="list-disc pl-5 text-fg-2">
               {childrenOf(snapshot.items, null).map((area) => (
                 <li key={area.id}>{area.title}</li>
               ))}
             </ul>
+
+            <div className="flex flex-wrap gap-2">
+              {milestones.map((m) => (
+                <span
+                  key={m.id}
+                  className="milestone-chip"
+                  style={{ '--ms': `var(--color-ms-${m.color ?? 'sand'})` } as CSSProperties}
+                >
+                  {m.title}
+                </span>
+              ))}
+            </div>
+
             {snapshot.issues.length > 0 && (
-              <p style={{ margin: 0, color: 'var(--due-soon)' }}>{snapshot.issues.length} issues found</p>
+              <p className="text-due-soon">{snapshot.issues.length} issues found</p>
             )}
-            <p style={{ margin: 0, font: 'var(--text-mono)', color: 'var(--text-3)' }}>{snapshot.dataFolder}</p>
+
+            <p className="font-mono text-meta font-normal text-fg-3">{snapshot.dataFolder}</p>
           </>
         )}
       </section>
