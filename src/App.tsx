@@ -27,7 +27,8 @@ export default function App() {
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [noteId, setNoteId] = useState<string | null>(null)
   const [layout, setLayout] = useState<ProjectLayout>('list')
-  const [toggledAreas, setToggledAreas] = useState<Set<string>>(new Set())
+  const [expanded, setExpanded] = useState<Set<string>>(new Set())
+  const [shownArea, setShownArea] = useState<string | undefined>()
   const [dialog, setDialog] = useState<'capture' | 'settings' | null>(null)
 
   // ⌘N opens Quick capture from anywhere.
@@ -54,13 +55,15 @@ export default function App() {
   const area = project?.parent ? byId.get(project.parent) : undefined
   const selected = selectedId ? byId.get(selectedId) : undefined
 
-  // The open project's area starts expanded; clicking an area flips it.
-  const expanded = new Set(
-    items.filter((i) => i.kind === 'area' && (i.id === area?.id) !== toggledAreas.has(i.id)).map((i) => i.id),
-  )
+  // Areas you open stay open. The open project's area opens whenever the open
+  // project changes (or moves to another area), so you can always see it.
+  if (area?.id !== shownArea) {
+    setShownArea(area?.id)
+    if (area && !expanded.has(area.id)) setExpanded(new Set(expanded).add(area.id))
+  }
 
   const toggleArea = (id: string) =>
-    setToggledAreas((prev) => {
+    setExpanded((prev) => {
       const next = new Set(prev)
       if (next.has(id)) next.delete(id)
       else next.add(id)
@@ -162,6 +165,7 @@ export default function App() {
           const id = await actions.create('project', areaId, title)
           if (id) openProject(id)
         }}
+        actions={actions}
       />
 
       <main className="flex min-w-0 flex-1 py-2 pr-2">

@@ -1,18 +1,17 @@
-// The middle panel in Tasks: one project, as a list grouped by milestone or as
-// a board grouped by status.
+// The middle panel in Tasks: one project, as a list grouped by milestone
+// (ProjectList.tsx) or as a board grouped by status (Board.tsx).
 
 import { useState } from 'react'
-import { AnimatePresence, LayoutGroup, motion } from 'motion/react'
-import { Calendar, ChevronDown, List, Plus, SquareKanban } from 'lucide-react'
-import { childrenOf, type Item, type ProjectStatus, type TaskStatus } from '../lib/api'
+import { Calendar, List, Plus, SquareKanban } from 'lucide-react'
+import { childrenOf, type Item, type ProjectStatus } from '../lib/api'
 import { dueLabel } from '../lib/dates'
 import { statusLabel, taskCounts } from '../lib/items'
 import type { Actions } from '../lib/useActions'
-import { BodyEditor, EditableTitle, InlineAdd, Menu, Segmented } from './controls'
+import { Board } from './Board'
+import { BodyEditor, EditableTitle, Menu, Segmented } from './controls'
 import { itemMenu } from './itemMenu'
-import { spring } from '../lib/motion'
-import { Collapse, ListRow } from './motion'
-import { DueDate, MilestoneChip, Panel, PanelHeader, Progress, StatusIcon, TaskTitle } from './ui'
+import { ProjectList } from './ProjectList'
+import { Panel, PanelHeader } from './ui'
 
 export type ProjectLayout = 'list' | 'board'
 
@@ -32,9 +31,7 @@ const PROJECT_STATUSES: ProjectStatus[] = ['active', 'paused', 'done', 'dropped'
 
 export function ProjectView(props: Props) {
   const { items, project, area, layout, onLayout, selectedId, onSelect, onCycleStatus, actions } = props
-  const children = childrenOf(items, project.id)
-  const milestones = children.filter((c) => c.kind === 'milestone')
-  const looseTasks = children.filter((c) => c.kind === 'task')
+  const milestones = childrenOf(items, project.id).filter((c) => c.kind === 'milestone')
   const { done, total } = taskCounts(items, project.id)
   const [renaming, setRenaming] = useState(0)
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
@@ -99,7 +96,7 @@ export function ProjectView(props: Props) {
         />
         <button
           onClick={addTask}
-          className="flex h-7 items-center gap-1.5 rounded-row bg-accent px-3 font-medium text-on-accent transition-[filter] duration-150 hover:brightness-110"
+          className="flex h-7 items-center gap-1.5 rounded-row bg-accent px-3 font-medium text-on-accent transition-[filter,transform] duration-150 hover:brightness-110 active:scale-[0.97]"
         >
           <Plus size={14} strokeWidth={2} aria-hidden="true" />
           Task
@@ -129,255 +126,27 @@ export function ProjectView(props: Props) {
             </div>
           </div>
 
-          <AnimatePresence initial={false}>
-            {milestones.map((milestone) => (
-              <ListRow key={milestone.id}>
-                <MilestoneGroup
-                  milestone={milestone}
-                  tasks={childrenOf(items, milestone.id)}
-                  collapsed={collapsed.has(milestone.id)}
-                  onToggle={() => toggle(milestone.id)}
-                  selectedId={selectedId}
-                  onSelect={onSelect}
-                  onCycleStatus={onCycleStatus}
-                  actions={actions}
-                />
-              </ListRow>
-            ))}
-          </AnimatePresence>
-
-          {milestones.length === 0 && (
-            <div className="flex flex-col gap-0.5">
-              <AnimatePresence initial={false}>
-                {looseTasks.map((task) => (
-                  <ListRow key={task.id}>
-                    <TaskRow
-                      task={task}
-                      selected={task.id === selectedId}
-                      onSelect={onSelect}
-                      onCycleStatus={onCycleStatus}
-                      indent={false}
-                    />
-                  </ListRow>
-                ))}
-              </AnimatePresence>
-              <InlineAdd
-                id={`add-task-${project.id}`}
-                label="Add a task"
-                onAdd={(title) => actions.create('task', project.id, title)}
-              />
-            </div>
-          )}
-
-          {/* A project holds milestones or loose tasks, never both. */}
-          {looseTasks.length === 0 && (
-            <InlineAdd
-              label="Add a milestone"
-              onAdd={(title) => actions.create('milestone', project.id, title)}
-              className={milestones.length === 0 ? '-mt-5' : ''}
-            />
-          )}
+          <ProjectList
+            items={items}
+            project={project}
+            collapsed={collapsed}
+            onToggle={toggle}
+            selectedId={selectedId}
+            onSelect={onSelect}
+            onCycleStatus={onCycleStatus}
+            actions={actions}
+          />
         </div>
       ) : (
-        <Board items={items} project={project} selectedId={selectedId} onSelect={onSelect} onCycleStatus={onCycleStatus} />
+        <Board
+          items={items}
+          project={project}
+          selectedId={selectedId}
+          onSelect={onSelect}
+          onCycleStatus={onCycleStatus}
+          actions={actions}
+        />
       )}
     </Panel>
-  )
-}
-
-function MilestoneGroup({
-  milestone,
-  tasks,
-  collapsed,
-  onToggle,
-  selectedId,
-  onSelect,
-  onCycleStatus,
-  actions,
-}: {
-  milestone: Item
-  tasks: Item[]
-  collapsed: boolean
-  onToggle: () => void
-  selectedId: string | null
-  onSelect: (id: string) => void
-  onCycleStatus: (task: Item) => void
-  actions: Actions
-}) {
-  const done = tasks.filter((t) => t.status === 'done').length
-  const selected = milestone.id === selectedId
-  return (
-    <div className="flex flex-col gap-0.5">
-      <div
-        className={`flex h-row items-center gap-1 rounded-row pr-2 pl-0.5 transition-colors duration-150 ${
-          selected ? 'bg-selected' : 'hover:bg-hover'
-        }`}
-      >
-        <button
-          onClick={onToggle}
-          aria-label={collapsed ? `Expand ${milestone.title}` : `Collapse ${milestone.title}`}
-          aria-expanded={!collapsed}
-          className="flex rounded-md p-1 text-fg-3 hover:text-fg-2"
-        >
-          <motion.span initial={false} animate={{ rotate: collapsed ? -90 : 0 }} transition={spring.snappy} className="flex">
-            <ChevronDown size={14} strokeWidth={2} aria-hidden="true" />
-          </motion.span>
-        </button>
-        <button onClick={() => onSelect(milestone.id)} className="flex h-full flex-1 items-center gap-2 text-left">
-          <MilestoneChip title={milestone.title} color={milestone.color} header />
-          {milestone.status === 'done' && <StatusIcon status="done" size={14} />}
-          <span className="text-meta font-normal text-fg-3">{`${done} / ${tasks.length}`}</span>
-          <DueDate item={milestone} />
-          <Progress done={done} total={tasks.length} className="ml-1.5 max-w-[120px] flex-1" />
-        </button>
-      </div>
-      <Collapse open={!collapsed} className="flex flex-col gap-0.5">
-        <AnimatePresence initial={false}>
-          {tasks.map((task) => (
-            <ListRow key={task.id}>
-              <TaskRow
-                task={task}
-                selected={task.id === selectedId}
-                onSelect={onSelect}
-                onCycleStatus={onCycleStatus}
-                indent
-              />
-            </ListRow>
-          ))}
-        </AnimatePresence>
-        <InlineAdd
-          id={`add-task-${milestone.id}`}
-          label="Add a task"
-          onAdd={(title) => actions.create('task', milestone.id, title)}
-          className="ml-[22px]"
-        />
-      </Collapse>
-    </div>
-  )
-}
-
-function TaskRow({
-  task,
-  selected,
-  onSelect,
-  onCycleStatus,
-  indent,
-}: {
-  task: Item
-  selected: boolean
-  onSelect: (id: string) => void
-  onCycleStatus: (task: Item) => void
-  indent: boolean
-}) {
-  const done = task.status === 'done'
-  return (
-    <div
-      className={`group flex h-row items-center gap-2.5 rounded-row pr-2.5 transition-colors duration-150 ${
-        indent ? 'pl-7' : 'pl-2.5'
-      } ${selected ? 'bg-selected' : 'hover:bg-hover'}`}
-    >
-      <button
-        onClick={() => onCycleStatus(task)}
-        aria-label={`Status: ${statusLabel(task.status)}. Change status`}
-        title="Change status"
-        className="-m-1 rounded-full p-1 transition-transform duration-150 ease-pop active:scale-90"
-      >
-        <StatusIcon status={task.status} />
-      </button>
-      <button onClick={() => onSelect(task.id)} className="flex h-full min-w-0 flex-1 items-center gap-2.5 text-left">
-        <TaskTitle title={task.title} done={done} />
-        <DueDate item={task} />
-      </button>
-    </div>
-  )
-}
-
-// ---------------------------------------------------------------------------
-// Board
-// ---------------------------------------------------------------------------
-
-const COLUMNS: { status: TaskStatus; label: string; dot: string }[] = [
-  { status: 'todo', label: 'Todo', dot: 'bg-todo' },
-  { status: 'doing', label: 'Doing', dot: 'bg-doing' },
-  { status: 'done', label: 'Done', dot: 'bg-done' },
-]
-
-function Board({
-  items,
-  project,
-  selectedId,
-  onSelect,
-  onCycleStatus,
-}: {
-  items: Item[]
-  project: Item
-  selectedId: string | null
-  onSelect: (id: string) => void
-  onCycleStatus: (task: Item) => void
-}) {
-  // Every task in the project, in list order, with its milestone (if any).
-  const tasks: { task: Item; milestone: Item | null }[] = []
-  for (const child of childrenOf(items, project.id)) {
-    if (child.kind === 'task') tasks.push({ task: child, milestone: null })
-    else for (const task of childrenOf(items, child.id)) tasks.push({ task, milestone: child })
-  }
-
-  // LayoutGroup + layoutId: when a card's status changes, it flies from its old
-  // column to its new one instead of disappearing and reappearing.
-  return (
-    <LayoutGroup>
-    {/* The whole board scrolls as one (not each column), so a card can fly
-        across columns without being clipped. Columns fill the height. */}
-    <div className="grid min-h-0 flex-1 grid-cols-3 gap-3 overflow-y-auto p-4 [grid-auto-rows:minmax(100%,max-content)]">
-      {COLUMNS.map((column) => {
-        const cards = tasks.filter(({ task }) => task.status === column.status)
-        return (
-          <div key={column.status} className="flex flex-col gap-2 rounded-[10px] bg-column p-2.5">
-            <div className="flex h-[26px] shrink-0 items-center gap-2 px-1">
-              <span className={`size-2 rounded-full ${column.dot}`} />
-              <span className="font-semibold">{column.label}</span>
-              <span className="text-meta font-normal text-fg-3">{cards.length}</span>
-            </div>
-            {cards.map(({ task, milestone }) => (
-              <motion.div
-                key={task.id}
-                layoutId={task.id}
-                transition={spring.smooth}
-                className={`relative z-10 flex shrink-0 flex-col gap-2.5 rounded-card border bg-card p-3 shadow-card transition-colors duration-150 ${
-                  task.id === selectedId
-                    ? 'border-border-strong'
-                    : task.status === 'doing'
-                      ? 'border-doing/45'
-                      : 'border-border'
-                }`}
-              >
-                <div className="flex items-start gap-2.5">
-                  <button
-                    onClick={() => onCycleStatus(task)}
-                    aria-label={`Status: ${statusLabel(task.status)}. Change status`}
-                    className="mt-px rounded-full transition-transform duration-150 ease-pop active:scale-90"
-                  >
-                    <StatusIcon status={task.status} />
-                  </button>
-                  <button
-                    onClick={() => onSelect(task.id)}
-                    className={`flex-1 text-left leading-snug ${task.status === 'done' ? 'text-fg-2' : 'text-fg'}`}
-                  >
-                    {task.title}
-                  </button>
-                </div>
-                {(milestone || task.due) && (
-                  <div className="flex items-center gap-2">
-                    {milestone && <MilestoneChip title={milestone.title} color={milestone.color} />}
-                    <DueDate item={task} className="ml-auto" />
-                  </div>
-                )}
-              </motion.div>
-            ))}
-          </div>
-        )
-      })}
-    </div>
-    </LayoutGroup>
   )
 }

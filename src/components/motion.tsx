@@ -15,10 +15,17 @@ export function Collapse({ open, children, className = '' }: { open: boolean; ch
       {open && (
         <motion.div
           key="content"
-          initial={{ height: 0, opacity: 0 }}
-          animate={{ height: 'auto', opacity: 1, transition: { ...spring.smooth, staggerChildren: STAGGER } }}
-          exit={{ height: 0, opacity: 0, transition: spring.smooth }}
-          className={`overflow-hidden ${className}`}
+          // Clip only while opening or closing, so dragged rows inside can
+          // move freely once it's open.
+          initial={{ height: 0, opacity: 0, overflow: 'hidden' }}
+          animate={{
+            height: 'auto',
+            opacity: 1,
+            transition: { ...spring.smooth, staggerChildren: STAGGER },
+            transitionEnd: { overflow: 'visible' },
+          }}
+          exit={{ height: 0, opacity: 0, overflow: 'hidden', transition: spring.smooth }}
+          className={className}
         >
           {children}
         </motion.div>
@@ -28,19 +35,21 @@ export function Collapse({ open, children, className = '' }: { open: boolean; ch
 }
 
 /**
- * A row that animates in and out of a list (adding a task, filing an item,
- * deleting). Put these inside <AnimatePresence initial={false}> with a stable
- * `key`. Neighbours slide to fill the gap because of `layout`.
+ * A row that animates in and out of a list (adding a task, deleting, moving it
+ * to another group while dragging). Put these inside
+ * <AnimatePresence initial={false}> with a stable `key`. Neighbours follow
+ * because the height opens and closes. (No `layout` here: dragging moves rows
+ * with its own transforms, and the two would fight.)
  */
 export function ListRow({ children, className = '' }: { children: ReactNode; className?: string }) {
   return (
     <motion.div
-      layout="position"
-      initial={{ height: 0, opacity: 0 }}
-      animate={{ height: 'auto', opacity: 1 }}
-      exit={{ height: 0, opacity: 0 }}
+      // Clip only while entering or leaving, so drag transforms aren't cut off.
+      initial={{ height: 0, opacity: 0, overflow: 'hidden' }}
+      animate={{ height: 'auto', opacity: 1, transitionEnd: { overflow: 'visible' } }}
+      exit={{ height: 0, opacity: 0, overflow: 'hidden' }}
       transition={spring.smooth}
-      className={`overflow-hidden ${className}`}
+      className={className}
     >
       {children}
     </motion.div>

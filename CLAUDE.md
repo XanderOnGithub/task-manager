@@ -65,7 +65,8 @@ The app should feel smooth and considered, never gamified. Library: Motion (`mot
 - Nothing animates on first render (`initial={false}`), only on changes.
 - Building blocks: `Collapse` (open/close by height, staggered rows), `ListRow` (rows entering and leaving a list), `StatusIcon` (ring, half fill, pop, check draws), `TaskTitle` (strikethrough sweep), `layoutId` for shared highlights (segmented thumb, sidebar selection) and board cards moving between columns.
 - Reduce motion is respected through `<MotionConfig reducedMotion="user">` in main.tsx and a rule in motion.css.
-- Planned: drag and drop with dnd-kit (we draw the dragged card ourselves) and a velocity-based tilt: the card leans with movement up to about 6°, smoothed by a spring, scales about 2% on pickup, springs into place on drop. Later: tiny optional sounds on committed actions only (capture, complete, file, drop, delete, undo), preloaded with Web Audio, with an on/off and volume setting.
+- Drag and drop: dnd-kit. Shared pieces in `src/lib/drag.ts` (sensors, collision, drop settle, click swallowing) and `src/lib/useTwoLevelDrag.ts` (groups holding items: milestones/tasks in `ProjectList.tsx`, areas/projects in `AreaTree.tsx`). We draw the held item ourselves in `<DragOverlay>` with `Lifted`: velocity tilt up to ~6° (less for wide rows), spring swing back, 2% lift. The overlay face must match the row's padding so nothing jumps on pickup. Dragging a group folds all groups; a folded area opens while it holds the dragged project. Board cards change status by column and fly with `layoutId`. Every move goes through `actions.move` (toast + Undo when the parent changes). Keyboard: focus a row, Space, arrows, Space.
+- Later: tiny optional sounds on committed actions only (capture, complete, file, drop, delete, undo), preloaded with Web Audio, with an on/off and volume setting.
 - 120fps: WebKit caps at 60fps. `src-tauri/src/high_refresh.rs` flips WebKit's private "prefer 60fps" flag behind an experimental Settings switch with a live fps readout. Animations must look right at both 60 and 120.
 
 ## Vocabulary (fixed, never use synonyms in UI or code)
@@ -120,7 +121,7 @@ data/
 
 M1 file format + Rust core + 10k-file benchmark → M2 app shell + tokens → M3 Unsorted (start using the app here) → M4 hierarchy lists → M5 drag and drop + Board → M6 notes editor (plain text + preview first). v1 is only Unsorted, the hierarchy and notes. Budget: a few weekends.
 
-Status: M1–M4 are built (core, shell, Unsorted flow, create / edit / delete with Undo, Settings with the data folder picker, plain-text page editing). Motion pass done. Next: M5 drag and drop with dnd-kit + the tilt (reorder and move in the list, board and sidebar; `move_item` already exists in core), then M6 the markdown editor with preview, then sounds.
+Status: M1–M5 are built (core, shell, Unsorted flow, create / edit / delete with Undo, Settings, motion pass, drag and drop in the list, board and sidebar). Next: M6 the markdown editor with preview, then sounds. Not yet draggable: the Docs tree.
 
 ## Working with me
 

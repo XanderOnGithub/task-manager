@@ -4,22 +4,11 @@
 import { useState, type ReactNode } from 'react'
 import { motion } from 'motion/react'
 import { spring } from '../lib/motion'
-import { Collapse } from './motion'
-import {
-  BookOpen,
-  ChevronDown,
-  Folder,
-  Layers,
-  ListChecks,
-  PanelLeft,
-  Plus,
-  Settings,
-  Target,
-  type LucideIcon,
-} from 'lucide-react'
-import { childrenOf, type Item } from '../lib/api'
-import { icon, taskCounts } from '../lib/items'
-import { InlineAdd } from './controls'
+import { BookOpen, Layers, ListChecks, PanelLeft, Plus, Settings, type LucideIcon } from 'lucide-react'
+import type { Item } from '../lib/api'
+import { icon } from '../lib/items'
+import type { Actions } from '../lib/useActions'
+import { AreaTree } from './AreaTree'
 import { SectionLabel } from './ui'
 
 export type Section = 'unsorted' | 'tasks' | 'docs'
@@ -37,11 +26,11 @@ interface Props {
   onSettings: () => void
   onAddArea: (title: string) => Promise<unknown>
   onAddProject: (areaId: string, title: string) => Promise<unknown>
+  actions: Actions
 }
 
 export function Sidebar(props: Props) {
   const { items, unsortedCount, section, onSection, projectId, onProject, expanded, onToggleArea } = props
-  const areas = childrenOf(items, null)
   // Where an inline "add" field is open: 'area' for a new area, or an area id for a new project.
   const [adding, setAdding] = useState<string | null>(null)
 
@@ -90,96 +79,18 @@ export function Sidebar(props: Props) {
           <AddButton label="Add an area" onClick={() => setAdding('area')} />
         </div>
 
-        {areas.map((area) => {
-          const open = expanded.has(area.id) || adding === area.id
-          const projects = childrenOf(items, area.id)
-          return (
-            <div key={area.id} className="flex flex-col gap-0.5">
-              <div className="group relative flex">
-                <button
-                  onClick={() => onToggleArea(area.id)}
-                  aria-expanded={open}
-                  className="flex h-7 flex-1 items-center gap-1.5 rounded-control px-2 text-left text-fg transition-colors duration-150 hover:bg-hover"
-                >
-                  <motion.span initial={false} animate={{ rotate: open ? 0 : -90 }} transition={spring.snappy} className="flex">
-                    <ChevronDown size={14} strokeWidth={2} className="text-fg-3" aria-hidden="true" />
-                  </motion.span>
-                  <Folder size={15} strokeWidth={1.75} className="text-fg-2" aria-hidden="true" />
-                  <span className="truncate">{area.title}</span>
-                </button>
-                <span className="absolute top-1 right-1">
-                  <AddButton label={`Add a project to ${area.title}`} onClick={() => setAdding(area.id)} />
-                </span>
-              </div>
-
-              <Collapse open={open} className="flex flex-col gap-0.5">
-                {projects.map((project) => {
-                  const active = section === 'tasks' && project.id === projectId
-                  const { done, total } = taskCounts(items, project.id)
-                  const finished = project.status === 'done' || project.status === 'dropped'
-                  return (
-                    <button
-                      key={project.id}
-                      onClick={() => onProject(project.id)}
-                      aria-current={active ? 'true' : undefined}
-                      className={`relative flex h-7 shrink-0 items-center gap-2 rounded-control pr-2 pl-[34px] text-left transition-colors duration-150 ${
-                        active ? 'font-medium text-fg' : `${finished ? 'text-fg-3' : 'text-fg-2'} hover:bg-hover`
-                      }`}
-                    >
-                      {/* One highlight that slides to whichever project is open. */}
-                      {active && (
-                        <motion.span
-                          layoutId="sidebar-project"
-                          transition={spring.snappy}
-                          className="absolute inset-0 rounded-control bg-selected"
-                        />
-                      )}
-                      <Target
-                        size={15}
-                        strokeWidth={1.75}
-                        className={`relative transition-colors duration-150 ${active ? 'text-accent' : ''}`}
-                        aria-hidden="true"
-                      />
-                      <span className="relative flex-1 truncate">{project.title}</span>
-                      {total > 0 && <span className="relative text-label font-normal text-fg-3">{`${done}/${total}`}</span>}
-                    </button>
-                  )
-                })}
-              </Collapse>
-
-              {adding === area.id && (
-                <InlineAdd
-                  autoFocus
-                  label="Project name"
-                  className="ml-[26px] h-7"
-                  onAdd={async (title) => {
-                    await props.onAddProject(area.id, title)
-                    setAdding(null)
-                  }}
-                  onDone={() => setAdding(null)}
-                />
-              )}
-            </div>
-          )
-        })}
-
-        {adding === 'area' && (
-          <InlineAdd
-            autoFocus
-            label="Area name"
-            className="h-7"
-            onAdd={async (title) => {
-              await props.onAddArea(title)
-              setAdding(null)
-            }}
-            onDone={() => setAdding(null)}
-          />
-        )}
-        {areas.length === 0 && adding !== 'area' && (
-          <button onClick={() => setAdding('area')} className="px-2.5 py-1 text-left text-fg-3 hover:text-fg-2">
-            Add an area
-          </button>
-        )}
+        <AreaTree
+          items={items}
+          activeProjectId={section === 'tasks' ? projectId : null}
+          onProject={onProject}
+          expanded={expanded}
+          onToggleArea={onToggleArea}
+          adding={adding}
+          setAdding={setAdding}
+          onAddArea={props.onAddArea}
+          onAddProject={props.onAddProject}
+          actions={props.actions}
+        />
       </div>
 
       <div className="mt-auto">

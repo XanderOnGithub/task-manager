@@ -62,6 +62,27 @@ export function useActions(reload: () => Promise<void>) {
 
       rename: (item: Item, title: string) => run(() => api.renameItem(item.id, title)),
 
+      /**
+       * Moves `item` into `to` (an item id, or null for the top level), placed
+       * before `before` (or at the end). Moving to a different parent shows a
+       * toast whose Undo puts it back exactly where it was (`from`).
+       */
+      move: (
+        item: Item,
+        to: { id: string | null; title: string },
+        before: string | null,
+        from: { parent: string | null; before: string | null },
+      ) =>
+        run(async () => {
+          await api.moveItem(item.id, to.id, before)
+          if (to.id !== from.parent) {
+            toast({
+              message: `Moved to ${to.title}`,
+              undo: () => run(() => api.moveItem(item.id, from.parent, from.before)),
+            })
+          }
+        }),
+
       setStatus: (item: Item, status: string) => run(() => api.setField(item.id, 'status', status)),
 
       setDue: (item: Item, due: string | null) => run(() => api.setField(item.id, 'due', due)),
