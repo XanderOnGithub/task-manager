@@ -1,0 +1,243 @@
+/* Task app design tokens.
+   Source of truth for how things look: the design canvas linked in CLAUDE.md.
+
+   Everything inside @theme becomes BOTH a CSS variable and Tailwind classes:
+     --color-panel        → var(--color-panel), bg-panel, text-panel, border-panel ...
+     --radius-panel       → rounded-panel
+     --text-title         → text-title (size, line height and weight together)
+     --spacing-sidebar    → w-sidebar, h-sidebar ...
+   The dark theme is the default. The light theme only overrides the color
+   variables (bottom of the file), so every class switches automatically.
+
+   Never hard-code a color in a component. Tailwind's own palette (red-500 etc.)
+   is switched off below, so a class like bg-red-500 doesn't exist.
+
+   `static` makes Tailwind output every variable, even ones no class uses yet.
+   Without it, colors only referenced from code (like the milestone chips'
+   var(--color-ms-teal)) would silently be missing. */
+
+@theme static {
+  /* Only our colors exist. */
+  --color-*: initial;
+
+  /* Type ------------------------------------------------------------------ */
+  --font-sans: "Geist", "Geist Sans", system-ui, sans-serif;
+  --font-mono: "Geist Mono", ui-monospace, monospace;
+
+  --text-title: 22px;               /* page titles */
+  --text-title--line-height: 28px;
+  --text-title--font-weight: 600;
+  --text-title--letter-spacing: -0.01em;
+  --text-heading: 15px;             /* section headings */
+  --text-heading--line-height: 20px;
+  --text-heading--font-weight: 600;
+  --text-body: 13px;                /* default */
+  --text-body--line-height: 1.5;
+  --text-meta: 12px;                /* dates, counts */
+  --text-meta--line-height: 16px;
+  --text-meta--font-weight: 500;
+  --text-label: 11px;               /* uppercase section labels, shortcuts */
+  --text-label--line-height: 14px;
+  --text-label--font-weight: 500;
+
+  --tracking-tight: -0.01em;
+  --tracking-label: 0.04em;
+
+  /* Shape ----------------------------------------------------------------- */
+  --radius-window: 14px;
+  --radius-panel: 12px;
+  --radius-card: 9px;
+  --radius-row: 8px;
+  --radius-control: 7px;
+  --radius-chip: 5px;
+
+  /* Fixed sizes (gaps use Tailwind's normal scale: gap-2 = 8px) ------------ */
+  --spacing-row: 34px;        /* h-row: list rows */
+  --spacing-sidebar: 244px;   /* w-sidebar */
+  --spacing-details: 340px;   /* w-details: the right-hand details panel */
+
+  /* Colors: dark theme ----------------------------------------------------- */
+  --color-wall: #0C0D10;                       /* behind the window, mockups only */
+  --color-window: rgba(24, 25, 29, 0.62);      /* vibrancy tint: sidebar and background */
+  --color-window-edge: rgba(255, 255, 255, 0.09);
+  --color-panel: #16171A;                      /* solid content panels */
+  --color-raised: #212227;                     /* segmented controls, pills */
+  --color-card: #1E1F23;                       /* board cards */
+  --color-column: rgba(255, 255, 255, 0.025);  /* board columns */
+  --color-field: rgba(255, 255, 255, 0.05);
+  --color-hover: rgba(255, 255, 255, 0.07);
+  --color-badge: rgba(255, 255, 255, 0.08);
+  --color-seg-on: #2C2D33;                     /* selected segment */
+  --color-menu: #222328;                       /* menus and toasts */
+  --color-scrim: rgba(0, 0, 0, 0.32);          /* dims the window behind dialogs */
+
+  --color-border: rgba(255, 255, 255, 0.07);
+  --color-border-strong: rgba(255, 255, 255, 0.12);
+  --color-border-menu: rgba(255, 255, 255, 0.10);
+  --color-border-dashed: rgba(255, 255, 255, 0.14);
+  --color-track: rgba(255, 255, 255, 0.09);    /* progress bar background */
+
+  --color-fg: #ECECEE;                         /* text */
+  --color-fg-2: #A9A9B2;                       /* secondary text */
+  --color-fg-3: #8A8A94;                       /* muted text */
+  --color-placeholder: #6C6C75;
+
+  --color-accent: #8FB996;                     /* sage */
+  --color-on-accent: #0B0C10;
+  --color-selected: rgba(143, 185, 150, 0.16);
+
+  --color-todo: var(--color-fg-3);
+  --color-doing: #E0A458;
+  --color-doing-soft: rgba(224, 164, 88, 0.16);
+  --color-done: var(--color-accent);
+
+  --color-due: var(--color-fg-3);
+  --color-due-soon: #B99873;                   /* amber blended 45% toward gray */
+  --color-overdue: #BE807D;                    /* red blended 40% toward gray */
+  --color-danger: #BE807D;
+
+  /* Milestone palette: muted, and never amber or green so it can't be read as a status */
+  --color-ms-dusty-blue: #93AECF;
+  --color-ms-mauve: #C3A0C0;
+  --color-ms-rose: #CF9A9F;
+  --color-ms-teal: #86B3BE;
+  --color-ms-lavender: #A9A3D6;
+  --color-ms-sand: #BDB39A;
+
+  /* Shadows ---------------------------------------------------------------- */
+  --shadow-window: 0 30px 80px rgba(0, 0, 0, 0.35);
+  --shadow-menu: 0 12px 32px rgba(0, 0, 0, 0.35);
+  --shadow-seg: 0 1px 2px rgba(0, 0, 0, 0.18);
+  --shadow-card: none;
+}
+
+/* Values used from code rather than as classes. */
+:root {
+  color-scheme: dark;
+  --icon-size: 16px;
+  --icon-stroke: 1.75;
+
+  /* Milestone chip mix: how strong the fill, border and text are. */
+  --chip-fill: 10%;
+  --chip-border: 25%;
+  --chip-text-mix: 100%;
+}
+
+/* Light theme ---------------------------------------------------------------
+   Follows the system, unless data-theme="dark" or "light" is set on <html>.
+   The block is repeated for the explicit override because CSS can't share
+   one rule between a media query and a selector. Keep the two in sync. */
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    color-scheme: light;
+
+    --color-wall: #D9DDE5;
+    --color-window: rgba(244, 244, 247, 0.60);
+    --color-window-edge: rgba(0, 0, 0, 0.10);
+    --color-panel: #FFFFFF;
+    --color-raised: #F1F1F4;
+    --color-card: #FFFFFF;
+    --color-column: #F5F5F7;
+    --color-field: rgba(255, 255, 255, 0.55);
+    --color-hover: rgba(0, 0, 0, 0.05);
+    --color-badge: rgba(0, 0, 0, 0.06);
+    --color-seg-on: #FFFFFF;
+    --color-menu: #FFFFFF;
+    --color-scrim: rgba(0, 0, 0, 0.18);
+    --color-border: rgba(0, 0, 0, 0.08);
+    --color-border-strong: rgba(0, 0, 0, 0.12);
+    --color-border-menu: rgba(0, 0, 0, 0.10);
+    --color-border-dashed: rgba(0, 0, 0, 0.16);
+    --color-track: rgba(0, 0, 0, 0.08);
+
+    --color-fg: #18181B;
+    --color-fg-2: #4E4E57;
+    --color-fg-3: #6A6A73;
+    --color-placeholder: #9A9AA3;
+
+    --color-accent: #59735D;                   /* sage darkened for contrast on white */
+    --color-on-accent: #FFFFFF;
+    --color-selected: rgba(89, 115, 93, 0.12);
+
+    --color-doing: #A86A1E;
+    --color-doing-soft: rgba(168, 106, 30, 0.12);
+    --color-due-soon: #8C6A44;
+    --color-overdue: #965551;
+    --color-danger: #965551;
+
+    --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.05);
+
+    --chip-fill: 12%;
+    --chip-border: 32%;
+    --chip-text-mix: 52%;                      /* chip text = milestone color darkened */
+  }
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+
+  --color-wall: #D9DDE5;
+  --color-window: rgba(244, 244, 247, 0.60);
+  --color-window-edge: rgba(0, 0, 0, 0.10);
+  --color-panel: #FFFFFF;
+  --color-raised: #F1F1F4;
+  --color-card: #FFFFFF;
+  --color-column: #F5F5F7;
+  --color-field: rgba(255, 255, 255, 0.55);
+  --color-hover: rgba(0, 0, 0, 0.05);
+  --color-badge: rgba(0, 0, 0, 0.06);
+  --color-seg-on: #FFFFFF;
+  --color-menu: #FFFFFF;
+  --color-scrim: rgba(0, 0, 0, 0.18);
+  --color-border: rgba(0, 0, 0, 0.08);
+  --color-border-strong: rgba(0, 0, 0, 0.12);
+  --color-border-menu: rgba(0, 0, 0, 0.10);
+  --color-border-dashed: rgba(0, 0, 0, 0.16);
+  --color-track: rgba(0, 0, 0, 0.08);
+
+  --color-fg: #18181B;
+  --color-fg-2: #4E4E57;
+  --color-fg-3: #6A6A73;
+  --color-placeholder: #9A9AA3;
+
+  --color-accent: #59735D;
+  --color-on-accent: #FFFFFF;
+  --color-selected: rgba(89, 115, 93, 0.12);
+
+  --color-doing: #A86A1E;
+  --color-doing-soft: rgba(168, 106, 30, 0.12);
+  --color-due-soon: #8C6A44;
+  --color-overdue: #965551;
+  --color-danger: #965551;
+
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.05);
+
+  --chip-fill: 12%;
+  --chip-border: 32%;
+  --chip-text-mix: 52%;
+}
+
+/* Milestone chip ------------------------------------------------------------
+   Set --ms to one palette color and the fill, border and text follow:
+     <span className="milestone-chip" style={{ '--ms': 'var(--color-ms-mauve)' }}>Paint the kitchen</span>
+   Add milestone-chip-header for the larger version used as a list heading. */
+
+@utility milestone-chip {
+  display: inline-flex;
+  align-items: center;
+  height: 18px;
+  padding: 0 6px;
+  border-radius: var(--radius-chip);
+  font: 400 11.5px/1 var(--font-sans);
+  background: color-mix(in srgb, var(--ms) var(--chip-fill), transparent);
+  border: 1px solid color-mix(in srgb, var(--ms) var(--chip-border), transparent);
+  color: color-mix(in srgb, var(--ms) var(--chip-text-mix), black);
+}
+
+@utility milestone-chip-header {
+  height: 22px;
+  padding: 0 8px;
+  border-radius: 6px;
+  font: 600 12.5px/1 var(--font-sans);
+}

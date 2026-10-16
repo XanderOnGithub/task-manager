@@ -1,0 +1,2 @@
+# Wider lines read better with the long comments in this codebase.
+max_width = 110

@@ -1,0 +1,27 @@
+[package]
+name = "task-manager"
+version = "0.1.0"
+description = "Task Manager desktop app"
+edition = "2021"
+publish = false
+
+[lib]
+# The `_lib` suffix avoids a name clash with the binary on Windows.
+name = "task_manager_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+# `macos-private-api` is what allows a transparent window (needed for vibrancy).
+tauri = { version = "2", features = ["macos-private-api"] }
+tauri-plugin-opener = "2"
+tauri-plugin-dialog = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+task-core = { path = "../core" }
+
+# macOS only: talking to WebKit for the experimental 120fps switch.
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2 = "0.6"

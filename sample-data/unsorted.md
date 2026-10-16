@@ -1,0 +1,4 @@
+- 2026-10-15 22:42 buy caulk for the sink
+- 2026-10-15 21:15 look into Syncthing for the notes folder
+- 2026-10-14 08:30 idea: weekly review checklist
+- 2026-10-12 17:05 call about the fridge warranty
