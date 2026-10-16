@@ -8,6 +8,7 @@ import { useMemo } from 'react'
 import * as api from './api'
 import type { Item, Kind, UnsortedEntry } from './api'
 import { useToast } from './toast'
+import { play } from './sounds'
 
 export type Actions = ReturnType<typeof useActions>
 
@@ -32,6 +33,7 @@ export function useActions(reload: () => Promise<void>) {
       // Unsorted -------------------------------------------------------------
       capture: (text: string) =>
         run(async () => {
+          play('capture')
           await api.addUnsorted(text)
           toast({ message: 'Added to Unsorted' })
         }),
@@ -40,6 +42,7 @@ export function useActions(reload: () => Promise<void>) {
       fileEntry: (entry: UnsortedEntry, kind: Kind, destination: { id: string | null; title: string }) =>
         run(async () => {
           const id = await api.fileUnsorted(entry, kind, destination.id)
+          play('drop')
           toast({
             message: `Moved to ${destination.title}`,
             undo: () =>
@@ -53,6 +56,7 @@ export function useActions(reload: () => Promise<void>) {
 
       removeEntry: (entry: UnsortedEntry) =>
         run(async () => {
+          play('delete')
           await api.removeUnsorted(entry)
           toast({ message: 'Deleted from Unsorted', undo: () => run(() => api.restoreUnsorted(entry)) })
         }),
@@ -83,16 +87,26 @@ export function useActions(reload: () => Promise<void>) {
           }
         }),
 
-      setStatus: (item: Item, status: string) => run(() => api.setField(item.id, 'status', status)),
+      setStatus: (item: Item, status: string) => {
+        if (status !== item.status) play(status === 'done' ? 'complete' : 'status')
+        return run(() => api.setField(item.id, 'status', status))
+      },
 
       setDue: (item: Item, due: string | null) => run(() => api.setField(item.id, 'due', due)),
 
       setColor: (item: Item, color: string) => run(() => api.setField(item.id, 'color', color)),
 
+      /** A page's emoji icon; null removes it. */
+      setIcon: (item: Item, icon: string | null) => {
+        play('select', { pitch: icon ? 1.1 : 0.9 })
+        return run(() => api.setField(item.id, 'icon', icon))
+      },
+
       writeBody: (item: Item, body: string) => run(() => api.writeBody(item.id, body)),
 
       trash: (item: Item) =>
         run(async () => {
+          play('delete')
           const trashed = await api.trashItem(item.id)
           toast({ message: `Deleted ${item.title}`, undo: () => run(() => api.restoreItem(trashed)) })
         }),

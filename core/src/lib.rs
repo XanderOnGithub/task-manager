@@ -8,7 +8,8 @@
 //! - `library`     loads the data folder into memory (frontmatter only) → `Library`
 //! - `issues`      problems found while loading, shown instead of crashing
 //! - `fix`         writes ids for files that are missing one
-//! - `ops`         create / rename / move / set field / body / trash
+//! - `search`      find text inside items (titles are searched by the app)
+//! - `ops`         create / rename / move / set field / body / trash (and emptying old trash)
 //! - `unsorted`    the `unsorted.md` capture list
 //! - `watch`       notices changes made outside the app
 //! - `frontmatter` reads and writes the `---` block at the top of a file
@@ -41,6 +42,7 @@ pub mod model;
 pub mod names;
 pub mod ops;
 pub mod order;
+pub mod search;
 pub mod unsorted;
 pub mod watch;
 

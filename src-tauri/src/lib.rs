@@ -22,7 +22,7 @@ use tauri::{AppHandle, Emitter, Manager, State};
 
 use task_core::unsorted::{self, Entry};
 use task_core::watch::{self, Watcher};
-use task_core::{fix, fsutil, ops, Issue, Item, Kind, Library};
+use task_core::{fix, fsutil, ops, search, Issue, Item, Kind, Library};
 
 /// Name of the event sent to the UI when files change outside the app.
 const DATA_CHANGED: &str = "data-changed";
@@ -186,6 +186,12 @@ async fn read_body(state: State<'_, AppState>, id: String) -> CmdResult<String> 
     read(&state, |lib| ops::read_body(lib, &id))
 }
 
+/// Finds items whose text contains `query`. Titles are matched in the UI.
+#[tauri::command]
+async fn search_text(state: State<'_, AppState>, query: String) -> CmdResult<Vec<search::Hit>> {
+    read(&state, |lib| Ok(search::search_text(lib, &query, 20)))
+}
+
 #[tauri::command]
 async fn write_body(state: State<'_, AppState>, id: String, body: String) -> CmdResult<()> {
     write(&state, |lib| ops::write_body(lib, &id, &body))
@@ -297,6 +303,14 @@ fn open_folder(app: &AppHandle, data: &mut Data, root: PathBuf) {
     // Dropping the old watcher stops it.
     data.watcher = None;
     data.library = None;
+
+    // Things deleted more than 30 days ago leave the hidden .trash folder for
+    // good. (Before the watcher starts, so this doesn't trigger a reload.)
+    match ops::empty_old_trash_now(&root) {
+        Ok(0) => {}
+        Ok(n) => eprintln!("Emptied {n} old item(s) from the trash"),
+        Err(e) => eprintln!("Couldn't empty old trash: {e}"),
+    }
 
     let handle = app.clone();
     match watch::watch(&root, move |paths| {
@@ -473,6 +487,7 @@ pub fn run() {
             move_item,
             set_field,
             read_body,
+            search_text,
             write_body,
             trash_item,
             restore_item,

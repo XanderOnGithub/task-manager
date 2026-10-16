@@ -619,3 +619,71 @@ fn the_watcher_reports_outside_changes() {
         }
     }
 }
+
+#[test]
+fn old_trash_is_emptied_and_recent_trash_kept() {
+    let (_dir, root) = sample();
+    let trash = root.join(".trash");
+    fs::create_dir_all(trash.join("20260901-100000-Old project")).unwrap();
+    fs::write(
+        trash.join("20260901-100000-Old project/_index.md"),
+        "---\nid: x\n---\n",
+    )
+    .unwrap();
+    fs::write(trash.join("20260910-120000-Old task.md"), "old").unwrap();
+    fs::write(trash.join("20261010-090000-Recent task.md"), "recent").unwrap();
+    fs::write(trash.join("put here by hand.md"), "mine").unwrap();
+
+    let today = chrono::NaiveDate::from_ymd_opt(2026, 10, 16).unwrap();
+    let removed = ops::empty_old_trash(&root, today, 30).unwrap();
+
+    assert_eq!(removed, 2);
+    assert!(!trash.join("20260901-100000-Old project").exists());
+    assert!(!trash.join("20260910-120000-Old task.md").exists());
+    assert!(trash.join("20261010-090000-Recent task.md").exists());
+    // No date stamp: not ours to delete.
+    assert!(trash.join("put here by hand.md").exists());
+    // A folder without .trash is fine too.
+    let (_empty, other) = sample();
+    assert_eq!(ops::empty_old_trash(&other, today, 30).unwrap(), 0);
+}
+
+#[test]
+fn search_finds_text_inside_items() {
+    let (_dir, root) = sample();
+    let lib = load(&root);
+    let hits = task_core::search::search_text(&lib, "SINK CUTOUT", 10);
+    assert_eq!(hits.len(), 1);
+    assert_eq!(hits[0].id, by_title(&lib, "Kitchen measurements").id);
+    assert!(hits[0].snippet.contains("Sink cutout"));
+    assert!(task_core::search::search_text(&lib, "   ", 10).is_empty());
+    // The limit caps the number of hits.
+    assert!(task_core::search::search_text(&lib, "e", 2).len() <= 2);
+}
+
+#[test]
+fn pages_can_have_an_emoji_icon() {
+    let (_dir, root) = sample();
+    let lib = load(&root);
+    let page = by_title(&lib, "Homelab").id.clone();
+    let task = by_title(&lib, "Pick tile").id.clone();
+
+    ops::set_field(&lib, &page, "icon", Some("🌿")).unwrap();
+    let lib = load(&root);
+    assert_eq!(by_title(&lib, "Homelab").icon.as_deref(), Some("🌿"));
+    let text = fs::read_to_string(root.join("notes/Homelab/_index.md")).unwrap();
+    assert!(text.contains("icon: 🌿"), "stored in the frontmatter: {text}");
+
+    // Emoji made of several characters joined together are fine.
+    ops::set_field(&lib, &page, "icon", Some("👩‍💻")).unwrap();
+    // Words, spaces and non-notes are not.
+    assert!(ops::set_field(&lib, &page, "icon", Some("a long word")).is_err());
+    assert!(ops::set_field(&lib, &task, "icon", Some("🌿")).is_err());
+
+    // Removing it leaves no icon line behind.
+    ops::set_field(&lib, &page, "icon", None).unwrap();
+    let lib = load(&root);
+    assert_eq!(by_title(&lib, "Homelab").icon, None);
+    let text = fs::read_to_string(root.join("notes/Homelab/_index.md")).unwrap();
+    assert!(!text.contains("icon:"));
+}

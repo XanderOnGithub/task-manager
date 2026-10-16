@@ -6,6 +6,25 @@ import { AnimatePresence, motion } from 'motion/react'
 import { spring } from './lib/motion'
 import { childrenOf, type Item, type TaskStatus } from './lib/api'
 import { trailOf } from './lib/items'
+import { isMac } from './lib/platform'
+import { readPref, writePref } from './lib/prefs'
+import {
+  BookOpen,
+  FilePlus,
+  Layers,
+  ListChecks,
+  Monitor,
+  Moon,
+  PanelLeft,
+  Plus,
+  Settings as SettingsIcon,
+  Sun,
+  Volume2,
+  VolumeX,
+} from 'lucide-react'
+import { play, setSoundSettings, soundSettings } from './lib/sounds'
+import { saveTheme } from './lib/theme'
+import { CommandPalette, type PaletteAction } from './components/CommandPalette'
 import { useActions } from './lib/useActions'
 import { useLibrary } from './lib/useLibrary'
 import { Sidebar, type Section } from './components/Sidebar'
@@ -16,6 +35,9 @@ import { DocsView } from './components/Docs'
 import { ChooseFolder, QuickCapture, Settings } from './components/Dialogs'
 import { InlineAdd } from './components/controls'
 import { Panel } from './components/ui'
+
+/** Matches --spacing-sidebar in tokens.css. */
+const SIDEBAR_WIDTH = 244
 
 const NEXT_STATUS: Record<TaskStatus, TaskStatus> = { todo: 'doing', doing: 'done', done: 'todo' }
 
@@ -31,7 +53,13 @@ export default function App() {
   const [layout, setLayout] = useState<Layout>('list')
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
   const [shownArea, setShownArea] = useState<string | undefined>()
-  const [dialog, setDialog] = useState<'capture' | 'settings' | null>(null)
+  const [dialog, setDialog] = useState<'capture' | 'settings' | 'search' | null>(null)
+  const [sidebarOpen, setSidebarOpen] = useState(() => readPref('sidebarOpen', true))
+  const toggleSidebar = () =>
+    setSidebarOpen((open) => {
+      writePref('sidebarOpen', !open)
+      return !open
+    })
 
   // ⌘N opens Quick capture from anywhere.
   useEffect(() => {
@@ -39,6 +67,22 @@ export default function App() {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'n') {
         e.preventDefault()
         setDialog('capture')
+      }
+      // ⌘K opens search (or closes it).
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault()
+        setDialog((d) => {
+          if (d !== 'search') play('open')
+          return d === 'search' ? null : 'search'
+        })
+      }
+      // ⌘\ hides or shows the sidebar.
+      if ((e.metaKey || e.ctrlKey) && e.key === '\\') {
+        e.preventDefault()
+        setSidebarOpen((open) => {
+          writePref('sidebarOpen', !open)
+          return !open
+        })
       }
     }
     window.addEventListener('keydown', onKey)
@@ -82,6 +126,87 @@ export default function App() {
     setSection('tasks')
     setChosenScope(id)
     setSelectedId(null)
+  }
+
+  // Opening something from search: pages open in Docs; tasks open their
+  // milestone or project with the task selected.
+  const openItem = (item: Item) => {
+    if (item.kind === 'note') {
+      setSection('docs')
+      setNoteId(item.id)
+    } else if (item.kind === 'task') {
+      if (item.parent) openScope(item.parent)
+      setSelectedId(item.id)
+    } else {
+      openScope(item.id)
+    }
+  }
+
+  const paletteActions: PaletteAction[] = [
+    { id: 'capture', label: 'Quick capture', Icon: Plus, keywords: 'add new unsorted', shortcut: '⌘N', run: () => setDialog('capture') },
+    { id: 'unsorted', label: 'Go to Unsorted', Icon: Layers, keywords: 'inbox', run: () => setSection('unsorted') },
+    { id: 'tasks', label: 'Go to Tasks', Icon: ListChecks, keywords: 'projects', run: () => setSection('tasks') },
+    { id: 'docs', label: 'Go to Docs', Icon: BookOpen, keywords: 'notes pages', run: () => setSection('docs') },
+    {
+      id: 'sidebar',
+      label: sidebarOpen ? 'Hide sidebar' : 'Show sidebar',
+      Icon: PanelLeft,
+      keywords: 'toggle',
+      shortcut: '⌘\\',
+      run: toggleSidebar,
+    },
+    {
+      id: 'sounds',
+      label: soundSettings().on ? 'Turn sounds off' : 'Turn sounds on',
+      Icon: soundSettings().on ? VolumeX : Volume2,
+      keywords: 'mute audio',
+      run: () => {
+        const on = !soundSettings().on
+        setSoundSettings({ ...soundSettings(), on })
+        if (on) play('complete')
+      },
+    },
+    { id: 'light', label: 'Light appearance', Icon: Sun, keywords: 'theme mode', run: () => saveTheme('light') },
+    { id: 'dark', label: 'Dark appearance', Icon: Moon, keywords: 'theme mode', run: () => saveTheme('dark') },
+    { id: 'system', label: 'Match system appearance', Icon: Monitor, keywords: 'theme mode auto', run: () => saveTheme('system') },
+    { id: 'settings', label: 'Settings', Icon: SettingsIcon, keywords: 'preferences folder', run: () => setDialog('settings') },
+  ]
+
+  // Actions made from what you typed.
+  const typedActions = (text: string): PaletteAction[] => {
+    if (!text) return []
+    const out: PaletteAction[] = [
+      { id: 'capture-text', label: `Add “${text}” to Unsorted`, Icon: Layers, run: () => void actions.capture(text) },
+    ]
+    // A new task goes where "+ Task" would put it: the open milestone, or the
+    // open project's first open milestone, or the project itself.
+    const home =
+      scope?.kind === 'milestone'
+        ? scope
+        : scope?.kind === 'project'
+          ? (childrenOf(items, scope.id).find((c) => c.kind === 'milestone' && c.status !== 'done') ??
+            (childrenOf(items, scope.id).some((c) => c.kind === 'milestone') ? undefined : scope))
+          : undefined
+    if (home) {
+      out.push({
+        id: 'task-text',
+        label: `New task “${text}” in ${home.title}`,
+        Icon: Plus,
+        run: () => void actions.create('task', home.id, text).then(() => openScope(home.id)),
+      })
+    }
+    out.push({
+      id: 'page-text',
+      label: `New page “${text}”`,
+      Icon: FilePlus,
+      run: () =>
+        void actions.create('note', null, text).then((id) => {
+          if (!id) return
+          setSection('docs')
+          setNoteId(id)
+        }),
+    })
+    return out
   }
 
   const cycleStatus = (task: Item) =>
@@ -157,27 +282,72 @@ export default function App() {
 
   return (
     <div className="flex h-full bg-window">
-      <Sidebar
-        items={items}
-        unsortedCount={snapshot?.unsorted.length ?? 0}
-        section={section}
-        onSection={setSection}
-        projectId={project?.id ?? null}
-        areaId={scope?.kind === 'area' ? scope.id : null}
-        onOpen={openScope}
-        expanded={expanded}
-        onToggleArea={toggleArea}
-        onQuickCapture={() => setDialog('capture')}
-        onSettings={() => setDialog('settings')}
-        onAddArea={(title) => actions.create('area', null, title)}
-        onAddProject={async (areaId, title) => {
-          const id = await actions.create('project', areaId, title)
-          if (id) openScope(id)
+      {/* The sidebar slides shut to zero width. Its contents keep their size
+          and get clipped, so nothing reflows while it moves. */}
+      <motion.div
+        initial={false}
+        animate={{ width: sidebarOpen ? SIDEBAR_WIDTH : 0, opacity: sidebarOpen ? 1 : 0 }}
+        transition={spring.smooth}
+        className="flex shrink-0 overflow-hidden"
+        inert={!sidebarOpen}
+      >
+        <Sidebar
+          onToggleSidebar={toggleSidebar}
+        noteId={(noteId ? byId.get(noteId)?.id : undefined) ?? childrenOf(items, null, true)[0]?.id ?? null}
+        onOpenNote={(id) => {
+          setSection('docs')
+          setNoteId(id)
         }}
-        actions={actions}
-      />
+          items={items}
+          unsortedCount={snapshot?.unsorted.length ?? 0}
+          section={section}
+          onSection={setSection}
+          projectId={project?.id ?? null}
+          areaId={scope?.kind === 'area' ? scope.id : null}
+          onOpen={openScope}
+          expanded={expanded}
+          onToggleArea={toggleArea}
+          onQuickCapture={() => setDialog('capture')}
+          onSettings={() => setDialog('settings')}
+          onAddArea={(title) => actions.create('area', null, title)}
+          onAddProject={async (areaId, title) => {
+            const id = await actions.create('project', areaId, title)
+            if (id) openScope(id)
+          }}
+          actions={actions}
+        />
 
-      <main className="flex min-w-0 flex-1 py-2 pr-2">
+      </motion.div>
+
+      {/* With the sidebar hidden, a button to bring it back sits in the
+          top-left corner (after the traffic lights on a Mac), and the first
+          panel's header makes room for it. */}
+      <AnimatePresence>
+        {!sidebarOpen && (
+          <motion.button
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={spring.snappy}
+            onClick={toggleSidebar}
+            aria-label="Show sidebar"
+            title="Show sidebar (⌘\)"
+            className={`fixed top-[19px] z-20 flex rounded-md p-1 text-fg-3 transition-colors duration-100 hover:bg-hover hover:text-fg-2 ${
+              isMac ? 'left-[84px]' : 'left-4'
+            }`}
+          >
+            <PanelLeft size={16} strokeWidth={1.75} aria-hidden="true" />
+          </motion.button>
+        )}
+      </AnimatePresence>
+
+      <main
+        className={`flex min-w-0 flex-1 py-2 pr-2 transition-[padding] duration-150 ease-snappy ${
+          sidebarOpen
+            ? ''
+            : `pl-2 ${isMac ? '[&>div>section:first-child>header]:pl-[112px]' : '[&>div>section:first-child>header]:pl-12'}`
+        }`}
+      >
         {/* Switching sections fades the new one in quickly. */}
         <motion.div
           key={needsFolder ? 'folder' : section}
@@ -190,6 +360,18 @@ export default function App() {
         </motion.div>
       </main>
 
+      <AnimatePresence>
+        {dialog === 'search' && (
+          <CommandPalette
+            key="search"
+            items={items}
+            actions={paletteActions}
+            makeActions={typedActions}
+            onOpenItem={openItem}
+            onClose={() => setDialog(null)}
+          />
+        )}
+      </AnimatePresence>
       {dialog === 'capture' && <QuickCapture onCapture={actions.capture} onClose={() => setDialog(null)} />}
       {dialog === 'settings' && (
         <Settings dataFolder={snapshot?.dataFolder ?? null} onClose={() => setDialog(null)} onFolderChanged={reload} />

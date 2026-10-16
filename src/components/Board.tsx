@@ -68,9 +68,10 @@ export function Board({ items, scope, selectedId, onSelect, onCycleStatus, actio
   const dragged = tasks.find(({ task }) => task.id === drag.active?.id)
 
   const onDragEnd = async ({ active, over }: DragEndEvent) => {
-    drag.end()
     const task = tasks.find((t) => t.task.id === active.id)?.task
     const status = over?.data.current?.status as TaskStatus | undefined
+    // A status change plays its own sound (complete / status), so no thud.
+    drag.end(!task || !status || status === task.status)
     if (!task || !status || status === task.status) return
     setPending({ id: task.id, status })
     setLanded(task.id)
@@ -83,8 +84,9 @@ export function Board({ items, scope, selectedId, onSelect, onCycleStatus, actio
       sensors={sensors}
       collisionDetection={columnCollision}
       onDragStart={drag.start}
+      onDragOver={drag.over}
       onDragEnd={(e) => void onDragEnd(e)}
-      onDragCancel={drag.end}
+      onDragCancel={() => drag.end(false)}
     >
       {/* The whole board scrolls as one (not each column), so a card can fly
           across columns without being clipped. Columns fill the height. */}
