@@ -96,6 +96,12 @@ export function useActions(reload: () => Promise<void>) {
 
       setColor: (item: Item, color: string) => run(() => api.setField(item.id, 'color', color)),
 
+      /** A page's emoji icon; null removes it. */
+      setIcon: (item: Item, icon: string | null) => {
+        play('select', { pitch: icon ? 1.1 : 0.9 })
+        return run(() => api.setField(item.id, 'icon', icon))
+      },
+
       writeBody: (item: Item, body: string) => run(() => api.writeBody(item.id, body)),
 
       trash: (item: Item) =>

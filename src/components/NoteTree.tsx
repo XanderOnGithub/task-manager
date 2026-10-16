@@ -164,7 +164,7 @@ export function NoteTree({
               // Row padding + the chevron's space + gap, same as the row.
               style={{ paddingLeft: 4 + draggedDepth * INDENT + 21 }}
             >
-              <FileText size={15} strokeWidth={1.75} className="shrink-0 text-fg-2" aria-hidden="true" />
+              <NoteIcon note={dragged} />
               <span className="truncate">{dragged.title}</span>
             </div>
           </Lifted>
@@ -277,7 +277,7 @@ function Row({
     >
       {toggle}
       <button onClick={() => onOpen(note.id)} className="flex h-full min-w-0 flex-1 items-center gap-2 text-left">
-        <FileText size={15} strokeWidth={1.75} className="shrink-0 text-fg-2" aria-hidden="true" />
+        <NoteIcon note={note} />
         <span className="truncate">{note.title}</span>
       </button>
       {/* Where it will land: a line above or below, at this page's indent. */}
@@ -291,5 +291,16 @@ function Row({
         />
       )}
     </div>
+  )
+}
+
+/** A page's emoji if it has one, else the page icon. Same 15px slot either way. */
+export function NoteIcon({ note }: { note: Item }) {
+  return note.icon ? (
+    <span className="flex w-[15px] shrink-0 justify-center text-[14px] leading-none" aria-hidden="true">
+      {note.icon}
+    </span>
+  ) : (
+    <FileText size={15} strokeWidth={1.75} className="shrink-0 text-fg-2" aria-hidden="true" />
   )
 }

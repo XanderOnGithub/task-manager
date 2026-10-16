@@ -103,6 +103,8 @@ pub struct Item {
     pub due: Option<String>,
     /// Milestones only: one of `MILESTONE_COLORS`.
     pub color: Option<String>,
+    /// Notes only: an emoji shown next to the title (`icon: 🌿`).
+    pub icon: Option<String>,
 }
 
 impl Item {
@@ -114,4 +116,12 @@ impl Item {
             self.path.clone()
         }
     }
+}
+
+/// Is `value` usable as a page icon? One emoji, which can be several
+/// characters joined together (👩‍💻 is three), so allow a few, but no spaces,
+/// and nothing long. This only checks the shape, not that it's an emoji.
+pub fn is_icon(value: &str) -> bool {
+    let count = value.chars().count();
+    count > 0 && count <= 8 && !value.chars().any(|c| c.is_whitespace() || c.is_control())
 }

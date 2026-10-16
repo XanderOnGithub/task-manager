@@ -16,7 +16,7 @@ use crate::frontmatter::{self, Frontmatter};
 use crate::fsutil::{self, title_taken, write_atomic};
 use crate::id;
 use crate::library::{is_date, Library, INDEX_FILE, NOTES_DIR, TASKS_DIR};
-use crate::model::{Item, Kind, MILESTONE_COLORS};
+use crate::model::{is_icon, Item, Kind, MILESTONE_COLORS};
 use crate::names::check_title;
 use crate::order;
 
@@ -176,6 +176,8 @@ pub fn set_field(lib: &Library, id: &str, field: &str, value: Option<&str>) -> R
         ("due", None) => true,
         ("color", Some(v)) => item.kind == Kind::Milestone && MILESTONE_COLORS.contains(&v),
         ("color", None) => item.kind == Kind::Milestone,
+        ("icon", Some(v)) => item.kind == Kind::Note && is_icon(v),
+        ("icon", None) => item.kind == Kind::Note,
         _ => return Err(Error::NotAllowed(format!("\"{field}\" can't be changed here"))),
     };
     if !ok {

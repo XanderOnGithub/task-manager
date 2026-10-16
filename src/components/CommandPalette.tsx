@@ -272,7 +272,13 @@ function KindIcon({ item }: { item: Item }): ReactNode {
     case 'task':
       return <StatusIcon status={item.status} size={15} />
     default:
-      return <FileText size={15} strokeWidth={1.75} aria-hidden="true" />
+      return item.icon ? (
+        <span className="text-[14px] leading-none" aria-hidden="true">
+          {item.icon}
+        </span>
+      ) : (
+        <FileText size={15} strokeWidth={1.75} aria-hidden="true" />
+      )
   }
 }
 

@@ -101,7 +101,7 @@ data/
 - Folders are containers, files are leaves. `_index.md` holds a folder's own frontmatter and body.
 - Type comes from location, title is the filename (block `/` and `:`), parent is the containing folder.
 - A project's children are all milestones or all tasks, never mixed.
-- Frontmatter: `id` (10-char random id, never changes), `status`, `order` (fractional index key), `created`, optional `due`, `color` (milestones only, stored by name: `dusty-blue`, `mauve`, `rose`, `teal`, `lavender`, `sand`).
+- Frontmatter: `id` (10-char random id, never changes), `status`, `order` (fractional index key), `created`, optional `due`, `color` (milestones only, stored by name: `dusty-blue`, `mauve`, `rose`, `teal`, `lavender`, `sand`), `icon` (notes only: one emoji, e.g. `icon: 🌿`).
 - Statuses: task `todo|doing|done`, milestone `open|done`, project `active|paused|done|dropped`.
 - Done items stay in place. Startup reads frontmatter only into an in-memory index; a file watcher keeps it current.
 

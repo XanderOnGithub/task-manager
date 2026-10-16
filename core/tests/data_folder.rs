@@ -660,3 +660,30 @@ fn search_finds_text_inside_items() {
     // The limit caps the number of hits.
     assert!(task_core::search::search_text(&lib, "e", 2).len() <= 2);
 }
+
+#[test]
+fn pages_can_have_an_emoji_icon() {
+    let (_dir, root) = sample();
+    let lib = load(&root);
+    let page = by_title(&lib, "Homelab").id.clone();
+    let task = by_title(&lib, "Pick tile").id.clone();
+
+    ops::set_field(&lib, &page, "icon", Some("🌿")).unwrap();
+    let lib = load(&root);
+    assert_eq!(by_title(&lib, "Homelab").icon.as_deref(), Some("🌿"));
+    let text = fs::read_to_string(root.join("notes/Homelab/_index.md")).unwrap();
+    assert!(text.contains("icon: 🌿"), "stored in the frontmatter: {text}");
+
+    // Emoji made of several characters joined together are fine.
+    ops::set_field(&lib, &page, "icon", Some("👩‍💻")).unwrap();
+    // Words, spaces and non-notes are not.
+    assert!(ops::set_field(&lib, &page, "icon", Some("a long word")).is_err());
+    assert!(ops::set_field(&lib, &task, "icon", Some("🌿")).is_err());
+
+    // Removing it leaves no icon line behind.
+    ops::set_field(&lib, &page, "icon", None).unwrap();
+    let lib = load(&root);
+    assert_eq!(by_title(&lib, "Homelab").icon, None);
+    let text = fs::read_to_string(root.join("notes/Homelab/_index.md")).unwrap();
+    assert!(!text.contains("icon:"));
+}

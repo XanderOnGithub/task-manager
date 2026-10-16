@@ -26,7 +26,7 @@ use serde::Serialize;
 use crate::frontmatter::{self, Frontmatter};
 use crate::id;
 use crate::issues::Issue;
-use crate::model::{Item, Kind, MILESTONE_COLORS};
+use crate::model::{is_icon, Item, Kind, MILESTONE_COLORS};
 use crate::names;
 use crate::order;
 
@@ -290,6 +290,11 @@ impl Library {
         } else {
             None
         };
+        let icon = if kind == Kind::Note {
+            check("icon", &is_icon)
+        } else {
+            None
+        };
 
         self.by_id.insert(id.clone(), self.items.len());
         self.items.push(Item {
@@ -304,6 +309,7 @@ impl Library {
             created,
             due,
             color,
+            icon,
         });
         id
     }

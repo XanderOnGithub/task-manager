@@ -39,6 +39,8 @@ export interface Item {
   /** YYYY-MM-DD */
   due: string | null
   color: MilestoneColor | null
+  /** Notes only: an emoji shown next to the title. */
+  icon: string | null
 }
 
 /** Something odd found in the data folder. Fixable ones are fixed automatically on load. */
@@ -90,7 +92,7 @@ export const renameItem = (id: string, title: string) => invoke<void>('rename_it
 /** Moves into `parent` (pass the current parent to reorder), before `before` or at the end. */
 export const moveItem = (id: string, parent: string | null, before: string | null = null) =>
   invoke<void>('move_item', { id, parent, before })
-export const setField = (id: string, field: 'status' | 'due' | 'color', value: string | null) =>
+export const setField = (id: string, field: 'status' | 'due' | 'color' | 'icon', value: string | null) =>
   invoke<void>('set_field', { id, field, value })
 export const readBody = (id: string) => invoke<string>('read_body', { id })
 

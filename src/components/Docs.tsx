@@ -6,6 +6,7 @@ import { childrenOf, type Item } from '../lib/api'
 import type { Actions } from '../lib/useActions'
 import { BodyEditor, EditableTitle, InlineAdd, Menu } from './controls'
 import { itemMenu } from './itemMenu'
+import { PageIcon } from './EmojiPicker'
 import { Panel, PanelHeader } from './ui'
 
 export function DocsView({
@@ -59,13 +60,16 @@ export function DocsView({
           </PanelHeader>
           <div className="flex flex-1 justify-center overflow-y-auto px-7 py-8">
             <div className="flex w-full max-w-[720px] flex-col gap-4">
-              <EditableTitle
-                key={`${note.id}:${renaming}`}
-                editing={renaming > 0}
-                value={note.title}
-                onSave={(title) => actions.rename(note, title)}
-                className="w-fit text-title"
-              />
+              <div className="group/title flex flex-col gap-1">
+                <PageIcon note={note} onChange={(icon) => void actions.setIcon(note, icon)} />
+                <EditableTitle
+                  key={`${note.id}:${renaming}`}
+                  editing={renaming > 0}
+                  value={note.title}
+                  onSave={(title) => actions.rename(note, title)}
+                  className="w-fit text-title"
+                />
+              </div>
               <BodyEditor
                 item={note}
                 onSave={(body) => actions.writeBody(note, body)}
