@@ -1,4 +1,5 @@
-// The board: a project's tasks in Todo / Doing / Done columns.
+// The board: the tasks inside an area, project or milestone, in Todo / Doing /
+// Done columns.
 // Drag a card into another column to change its status. Clicking a card's
 // circle also changes status, and the card flies to its new column.
 
@@ -14,9 +15,9 @@ import {
   type DragEndEvent,
 } from '@dnd-kit/core'
 import { LayoutGroup, motion } from 'motion/react'
-import { childrenOf, type Item, type TaskStatus } from '../lib/api'
+import type { Item, TaskStatus } from '../lib/api'
 import { useDragSensors, useDragState } from '../lib/drag'
-import { statusLabel } from '../lib/items'
+import { statusLabel, tasksUnder } from '../lib/items'
 import { spring } from '../lib/motion'
 import type { Actions } from '../lib/useActions'
 import { Lifted } from './Lifted'
@@ -36,14 +37,15 @@ const columnCollision: CollisionDetection = (args) => {
 
 interface Props {
   items: Item[]
-  project: Item
+  /** The area, project or milestone whose tasks are shown. */
+  scope: Item
   selectedId: string | null
   onSelect: (id: string) => void
   onCycleStatus: (task: Item) => void
   actions: Actions
 }
 
-export function Board({ items, project, selectedId, onSelect, onCycleStatus, actions }: Props) {
+export function Board({ items, scope, selectedId, onSelect, onCycleStatus, actions }: Props) {
   const sensors = useDragSensors()
   const drag = useDragState()
   // Status shown right away after a drop, before the save comes back.
@@ -56,12 +58,12 @@ export function Board({ items, project, selectedId, onSelect, onCycleStatus, act
     return () => window.clearTimeout(t)
   }, [landed])
 
-  // Every task in the project, in list order, with its milestone (if any).
-  const tasks: { task: Item; milestone: Item | null }[] = []
-  for (const child of childrenOf(items, project.id)) {
-    if (child.kind === 'task') tasks.push({ task: child, milestone: null })
-    else for (const task of childrenOf(items, child.id)) tasks.push({ task, milestone: child })
-  }
+  // Every task inside, in list order, with its milestone and project.
+  const tasks = tasksUnder(items, scope.id)
+  // Inside a milestone the chip would say the same thing on every card.
+  const showMilestone = scope.kind !== 'milestone'
+  // In an area, cards also say which project they're from.
+  const showProject = scope.kind === 'area'
   const statusOf = (task: Item) => (pending?.id === task.id ? pending.status : task.status)
   const dragged = tasks.find(({ task }) => task.id === drag.active?.id)
 
@@ -92,11 +94,12 @@ export function Board({ items, project, selectedId, onSelect, onCycleStatus, act
             <Column key={column.status} {...column} count={tasks.filter(({ task }) => statusOf(task) === column.status).length}>
               {tasks
                 .filter(({ task }) => statusOf(task) === column.status)
-                .map(({ task, milestone }) => (
+                .map(({ task, milestone, project }) => (
                   <Card
                     key={task.id}
                     task={{ ...task, status: statusOf(task) }}
-                    milestone={milestone}
+                    milestone={showMilestone ? milestone : null}
+                    project={showProject ? project : null}
                     selected={task.id === selectedId}
                     landed={task.id === landed}
                     onSelect={onSelect}
@@ -112,7 +115,12 @@ export function Board({ items, project, selectedId, onSelect, onCycleStatus, act
       <DragOverlay dropAnimation={null}>
         {dragged && drag.active && (
           <Lifted grab={drag.active.grab} width={drag.active.width} className="rounded-card">
-            <CardFace task={dragged.task} milestone={dragged.milestone} lifted />
+            <CardFace
+              task={dragged.task}
+              milestone={showMilestone ? dragged.milestone : null}
+              project={showProject ? dragged.project : null}
+              lifted
+            />
           </Lifted>
         )}
       </DragOverlay>
@@ -137,7 +145,7 @@ function Column({
   return (
     <div
       ref={droppable.setNodeRef}
-      className={`flex flex-col gap-2 rounded-[10px] p-2.5 transition-colors duration-200 ${
+      className={`flex flex-col gap-2 rounded-[10px] p-2.5 transition-colors duration-150 ${
         droppable.isOver ? 'bg-hover' : 'bg-column'
       }`}
     >
@@ -154,6 +162,7 @@ function Column({
 function Card({
   task,
   milestone,
+  project,
   selected,
   landed,
   onSelect,
@@ -161,6 +170,7 @@ function Card({
 }: {
   task: Item
   milestone: Item | null
+  project: Item | null
   selected: boolean
   landed: boolean
   onSelect: (id: string) => void
@@ -183,6 +193,7 @@ function Card({
       <CardFace
         task={task}
         milestone={milestone}
+        project={project}
         selected={selected}
         onSelect={onSelect}
         onCycleStatus={onCycleStatus}
@@ -194,6 +205,7 @@ function Card({
 function CardFace({
   task,
   milestone,
+  project = null,
   selected = false,
   lifted = false,
   onSelect,
@@ -201,6 +213,7 @@ function CardFace({
 }: {
   task: Item
   milestone: Item | null
+  project?: Item | null
   selected?: boolean
   lifted?: boolean
   onSelect?: (id: string) => void
@@ -208,7 +221,7 @@ function CardFace({
 }) {
   return (
     <div
-      className={`flex flex-col gap-2.5 rounded-card border bg-card p-3 shadow-card transition-colors duration-150 ${
+      className={`flex flex-col gap-2.5 rounded-card border bg-card p-3 shadow-card transition-colors duration-100 ${
         lifted || selected ? 'border-border-strong' : task.status === 'doing' ? 'border-doing/45' : 'border-border'
       }`}
     >
@@ -216,7 +229,7 @@ function CardFace({
         <button
           onClick={() => onCycleStatus?.(task)}
           aria-label={`Status: ${statusLabel(task.status)}. Change status`}
-          className="mt-px rounded-full transition-transform duration-150 ease-pop active:scale-90"
+          className="mt-px rounded-full transition-transform duration-100 ease-pop active:scale-90"
         >
           <StatusIcon status={task.status} />
         </button>
@@ -227,8 +240,9 @@ function CardFace({
           {task.title}
         </button>
       </div>
-      {(milestone || task.due) && (
-        <div className="flex items-center gap-2">
+      {(milestone || project || task.due) && (
+        <div className="flex min-w-0 items-center gap-2">
+          {project && <span className="truncate text-meta font-normal text-fg-3">{project.title}</span>}
           {milestone && <MilestoneChip title={milestone.title} color={milestone.color} />}
           <DueDate item={task} className="ml-auto" />
         </div>

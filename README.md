@@ -1,4 +1,9 @@
-# Task Manager
+<h1>
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="brand/wordmark-dark.svg">
+    <img src="brand/wordmark-light.svg" alt="Moss" height="56">
+  </picture>
+</h1>
 
 A local-first desktop app for tasks and notes. Capture anything into **Unsorted**, then sort it into a strict hierarchy: **Area → Project → Milestone → Task**, with **Notes** alongside.
 
@@ -52,3 +57,16 @@ Loading 10,000 tasks (plus 1,000 notes with 20 KB bodies) takes about 70 ms, bec
 On macOS, Settings includes an opt-in native refresh-rate switch for ProMotion
 displays. It uses `tauri-plugin-macos-fps` to unlock rendering above 60fps; the
 switch remains off by default to avoid unnecessary battery use.
+
+## Releases
+
+Bump `version` in `src-tauri/tauri.conf.json`, then push a tag:
+
+```sh
+git tag v0.2.0 && git push origin v0.2.0
+```
+
+GitHub Actions (`.github/workflows/release.yml`) builds installers for macOS
+(Apple silicon and Intel), Windows and Linux and puts them in a draft release.
+Review it on GitHub and press Publish. The builds aren't code-signed yet, so
+macOS asks you to right-click → Open the first time and Windows SmartScreen warns.

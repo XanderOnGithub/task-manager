@@ -10,7 +10,7 @@ import { CSS } from '@dnd-kit/utilities'
 import { motion } from 'motion/react'
 import { ChevronDown, Folder, Plus, Target } from 'lucide-react'
 import { childrenOf, type Item } from '../lib/api'
-import { collisionFor, dropSettle, useDragSensors } from '../lib/drag'
+import { collisionFor, dropSettle, SLIDE, useDragSensors } from '../lib/drag'
 import { taskCounts } from '../lib/items'
 import { spring } from '../lib/motion'
 import type { Actions } from '../lib/useActions'
@@ -20,12 +20,13 @@ import { Lifted } from './Lifted'
 import { Collapse } from './motion'
 
 const ROOT = 'areas'
-const SLIDE = { duration: 220, easing: 'cubic-bezier(0.2, 0, 0, 1)' }
 
 interface Props {
   items: Item[]
   activeProjectId: string | null
-  onProject: (id: string) => void
+  activeAreaId: string | null
+  /** Opens an area or project page. */
+  onOpen: (id: string) => void
   expanded: Set<string>
   onToggleArea: (id: string) => void
   /** Where an inline "add" field is open: 'area', or an area id for a new project. */
@@ -115,10 +116,12 @@ export function AreaTree(props: Props) {
           <Lifted grab={drag.active.grab} width={drag.active.width} className="rounded-control">
             {/* Same padding as the row it came from, so nothing jumps on pickup. */}
             {dragged.kind === 'area' ? (
-              <div className="flex h-7 items-center gap-1.5 rounded-control border border-border-menu bg-menu px-2 text-fg">
+              <div className="flex h-7 items-center gap-1 rounded-control border border-border-menu bg-menu px-2 text-fg">
                 <ChevronDown size={14} strokeWidth={2} className="-rotate-90 text-fg-3" aria-hidden="true" />
-                <Folder size={15} strokeWidth={1.75} className="text-fg-2" aria-hidden="true" />
-                <span className="truncate">{dragged.title}</span>
+                <span className="flex min-w-0 items-center gap-1.5">
+                  <Folder size={15} strokeWidth={1.75} className="text-fg-2" aria-hidden="true" />
+                  <span className="truncate">{dragged.title}</span>
+                </span>
               </div>
             ) : (
               <div className="flex h-7 items-center gap-2 rounded-control border border-border-menu bg-menu pr-2 pl-[34px] text-fg">
@@ -139,7 +142,8 @@ function SortableArea({
   open,
   items,
   activeProjectId,
-  onProject,
+  activeAreaId,
+  onOpen,
   onToggleArea,
   adding,
   setAdding,
@@ -151,21 +155,33 @@ function SortableArea({
   return (
     <div ref={sortable.setNodeRef} style={style} className="flex flex-col gap-0.5">
       <div
-        className={`group relative flex rounded-control transition-colors duration-150 ${
-          sortable.isDragging ? 'bg-hover [&>*]:invisible' : ''
+        className={`group relative flex h-7 items-center rounded-control transition-colors duration-100 ${
+          sortable.isDragging
+            ? 'bg-hover [&>*]:invisible'
+            : area.id === activeAreaId
+              ? 'bg-selected font-medium'
+              : 'hover:bg-hover'
         }`}
       >
+        {/* The chevron folds the area; the name opens the area's page. */}
+        <button
+          onClick={() => onToggleArea(area.id)}
+          aria-label={open ? `Collapse ${area.title}` : `Expand ${area.title}`}
+          aria-expanded={open}
+          className="flex h-full items-center pr-1 pl-2 text-fg-3 hover:text-fg-2"
+        >
+          <motion.span initial={false} animate={{ rotate: open ? 0 : -90 }} transition={spring.snappy} className="flex">
+            <ChevronDown size={14} strokeWidth={2} aria-hidden="true" />
+          </motion.span>
+        </button>
         <button
           ref={sortable.setActivatorNodeRef}
           {...sortable.attributes}
           {...sortable.listeners}
-          onClick={() => onToggleArea(area.id)}
-          aria-expanded={open}
-          className="flex h-7 flex-1 items-center gap-1.5 rounded-control px-2 text-left text-fg transition-colors duration-150 hover:bg-hover"
+          onClick={() => onOpen(area.id)}
+          aria-current={area.id === activeAreaId ? 'true' : undefined}
+          className="flex h-full min-w-0 flex-1 items-center gap-1.5 pr-2 text-left text-fg"
         >
-          <motion.span initial={false} animate={{ rotate: open ? 0 : -90 }} transition={spring.snappy} className="flex">
-            <ChevronDown size={14} strokeWidth={2} className="text-fg-3" aria-hidden="true" />
-          </motion.span>
           <Folder size={15} strokeWidth={1.75} className="text-fg-2" aria-hidden="true" />
           <span className="truncate">{area.title}</span>
         </button>
@@ -174,7 +190,7 @@ function SortableArea({
             onClick={() => setAdding(area.id)}
             aria-label={`Add a project to ${area.title}`}
             title={`Add a project to ${area.title}`}
-            className="flex rounded-md p-0.5 text-fg-3 opacity-0 transition-opacity duration-150 group-hover:opacity-100 hover:bg-hover hover:text-fg-2 focus-visible:opacity-100"
+            className="flex rounded-md p-0.5 text-fg-3 opacity-0 transition-opacity duration-100 group-hover:opacity-100 hover:bg-hover hover:text-fg-2 focus-visible:opacity-100"
           >
             <Plus size={14} strokeWidth={2} aria-hidden="true" />
           </button>
@@ -189,7 +205,7 @@ function SortableArea({
               project={project}
               items={items}
               active={project.id === activeProjectId}
-              onProject={onProject}
+              onOpen={onOpen}
             />
           ))}
         </SortableContext>
@@ -215,12 +231,12 @@ function SortableProject({
   project,
   items,
   active,
-  onProject,
+  onOpen,
 }: {
   project: Item
   items: Item[]
   active: boolean
-  onProject: (id: string) => void
+  onOpen: (id: string) => void
 }) {
   const sortable = useSortable({ id: project.id, data: { type: 'project' }, transition: SLIDE })
   const style: CSSProperties = { transform: CSS.Translate.toString(sortable.transform), transition: sortable.transition }
@@ -233,9 +249,9 @@ function SortableProject({
       style={style}
       {...sortable.attributes}
       {...sortable.listeners}
-      onClick={() => onProject(project.id)}
+      onClick={() => onOpen(project.id)}
       aria-current={active ? 'true' : undefined}
-      className={`relative flex h-7 shrink-0 items-center gap-2 rounded-control pr-2 pl-[34px] text-left transition-colors duration-150 ${
+      className={`relative flex h-7 shrink-0 items-center gap-2 rounded-control pr-2 pl-[34px] text-left transition-colors duration-100 ${
         sortable.isDragging
           ? 'bg-hover [&>*]:invisible'
           : active
@@ -250,7 +266,7 @@ function SortableProject({
       <Target
         size={15}
         strokeWidth={1.75}
-        className={`relative transition-colors duration-150 ${active ? 'text-accent' : ''}`}
+        className={`relative transition-colors duration-100 ${active ? 'text-accent' : ''}`}
         aria-hidden="true"
       />
       <span className="relative flex-1 truncate">{project.title}</span>

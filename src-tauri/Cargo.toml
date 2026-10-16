@@ -1,13 +1,13 @@
 [package]
-name = "task-manager"
+name = "moss"
 version = "0.1.0"
-description = "Task Manager desktop app"
+description = "Moss: tasks and notes, sorted into a strict hierarchy"
 edition = "2021"
 publish = false
 
 [lib]
 # The `_lib` suffix avoids a name clash with the binary on Windows.
-name = "task_manager_lib"
+name = "moss_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]

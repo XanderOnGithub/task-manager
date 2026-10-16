@@ -5,10 +5,11 @@ import { useEffect, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import { spring } from './lib/motion'
 import { childrenOf, type Item, type TaskStatus } from './lib/api'
+import { trailOf } from './lib/items'
 import { useActions } from './lib/useActions'
 import { useLibrary } from './lib/useLibrary'
 import { Sidebar, type Section } from './components/Sidebar'
-import { ProjectView, type ProjectLayout } from './components/ProjectView'
+import { ScopeView, type Layout } from './components/ScopeView'
 import { DetailsPanel } from './components/DetailsPanel'
 import { UnsortedView } from './components/Unsorted'
 import { DocsView } from './components/Docs'
@@ -23,10 +24,11 @@ export default function App() {
   const actions = useActions(reload)
 
   const [section, setSection] = useState<Section>('tasks')
-  const [chosenProject, setChosenProject] = useState<string | null>(null)
+  // The open area, project or milestone page.
+  const [chosenScope, setChosenScope] = useState<string | null>(null)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [noteId, setNoteId] = useState<string | null>(null)
-  const [layout, setLayout] = useState<ProjectLayout>('list')
+  const [layout, setLayout] = useState<Layout>('list')
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
   const [shownArea, setShownArea] = useState<string | undefined>()
   const [dialog, setDialog] = useState<'capture' | 'settings' | null>(null)
@@ -45,14 +47,20 @@ export default function App() {
 
   const items = snapshot?.items ?? []
 
-  // Until you pick one, show the first project. If the chosen one disappears
-  // (deleted, or in Finder), fall back the same way.
-  const firstProject = childrenOf(items, null)
-    .flatMap((a) => childrenOf(items, a.id))
-    .find((i) => i.kind === 'project')
-  const chosen = chosenProject ? byId.get(chosenProject) : undefined
-  const project = chosen?.kind === 'project' ? chosen : firstProject
-  const area = project?.parent ? byId.get(project.parent) : undefined
+  // Until you pick one, show the first project (or the first area if there
+  // are no projects). If the chosen one disappears (deleted, or in Finder),
+  // fall back the same way.
+  const areas = childrenOf(items, null)
+  const firstProject = areas.flatMap((a) => childrenOf(items, a.id)).find((i) => i.kind === 'project')
+  const chosen = chosenScope ? byId.get(chosenScope) : undefined
+  const scope =
+    chosen && (chosen.kind === 'area' || chosen.kind === 'project' || chosen.kind === 'milestone')
+      ? chosen
+      : (firstProject ?? areas[0])
+  // Where the open page sits, for the sidebar highlight.
+  const trail = scope ? trailOf(items, scope.id) : []
+  const area = trail[0]
+  const project = trail.find((i) => i.kind === 'project')
   const selected = selectedId ? byId.get(selectedId) : undefined
 
   // Areas you open stay open. The open project's area opens whenever the open
@@ -70,9 +78,9 @@ export default function App() {
       return next
     })
 
-  const openProject = (id: string) => {
+  const openScope = (id: string) => {
     setSection('tasks')
-    setChosenProject(id)
+    setChosenScope(id)
     setSelectedId(null)
   }
 
@@ -92,7 +100,7 @@ export default function App() {
     if (section === 'docs') {
       return <DocsView items={items} byId={byId} noteId={noteId} onOpen={setNoteId} actions={actions} />
     }
-    if (!project) {
+    if (!scope) {
       return (
         <Panel label="No projects" className="flex-1 items-center justify-center">
           <div className="flex w-[280px] flex-col gap-2 text-center text-fg-3">
@@ -110,10 +118,10 @@ export default function App() {
     }
     return (
       <>
-        <ProjectView
+        <ScopeView
           items={items}
-          project={project}
-          area={area}
+          scope={scope}
+          onOpen={openScope}
           layout={layout}
           onLayout={setLayout}
           selectedId={selected?.id ?? null}
@@ -155,7 +163,8 @@ export default function App() {
         section={section}
         onSection={setSection}
         projectId={project?.id ?? null}
-        onProject={openProject}
+        areaId={scope?.kind === 'area' ? scope.id : null}
+        onOpen={openScope}
         expanded={expanded}
         onToggleArea={toggleArea}
         onQuickCapture={() => setDialog('capture')}
@@ -163,7 +172,7 @@ export default function App() {
         onAddArea={(title) => actions.create('area', null, title)}
         onAddProject={async (areaId, title) => {
           const id = await actions.create('project', areaId, title)
-          if (id) openProject(id)
+          if (id) openScope(id)
         }}
         actions={actions}
       />

@@ -37,7 +37,7 @@ export function useDragSensors() {
 
 /** The glide into place when you let go. */
 export const dropSettle: DropAnimation = {
-  duration: 260,
+  duration: 180,
   easing: 'cubic-bezier(0.2, 0, 0, 1)',
   sideEffects: defaultDropAnimationSideEffects({ styles: { active: { opacity: '0' } } }),
 }
@@ -105,3 +105,6 @@ export function useDragState() {
     [active],
   )
 }
+
+/** How siblings slide aside while you drag. Same curve as the rest of the app. */
+export const SLIDE = { duration: 160, easing: 'cubic-bezier(0.2, 0, 0, 1)' }

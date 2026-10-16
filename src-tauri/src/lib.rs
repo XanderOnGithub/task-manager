@@ -319,6 +319,33 @@ fn load_settings(path: &Path) -> Settings {
         .unwrap_or_default()
 }
 
+/// The app used to be called "Task Manager" with the id
+/// `com.xanderreyes.taskmanager`. Settings live in a folder named after the id,
+/// so after the rename to Moss they'd be "lost" (you'd have to choose your data
+/// folder again). On first start as Moss, copy the old settings file over.
+/// Your notes and tasks never moved; this is only the settings file.
+fn bring_over_old_settings(new_file: &Path) {
+    if new_file.exists() {
+        return;
+    }
+    // Same parent folder (e.g. ~/Library/Application Support), old app id.
+    let Some(old_file) = new_file
+        .parent()
+        .and_then(Path::parent)
+        .map(|base| base.join("com.xanderreyes.taskmanager").join("settings.json"))
+    else {
+        return;
+    };
+    if old_file.exists() {
+        if let Some(dir) = new_file.parent() {
+            let _ = fs::create_dir_all(dir);
+        }
+        if let Err(e) = fs::copy(&old_file, new_file) {
+            eprintln!("Couldn't bring over old settings: {e}");
+        }
+    }
+}
+
 fn save_settings(path: &Path, settings: &Settings) -> std::io::Result<()> {
     if let Some(dir) = path.parent() {
         fs::create_dir_all(dir)?;
@@ -404,6 +431,7 @@ pub fn run() {
         .plugin(tauri_plugin_macos_fps::init())
         .setup(|app| {
             let settings_file = app.path().app_config_dir()?.join("settings.json");
+            bring_over_old_settings(&settings_file);
             let settings = load_settings(&settings_file);
             app.manage(AppState {
                 settings_file,

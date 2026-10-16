@@ -75,7 +75,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
             <button
               onClick={() => void undo()}
               title="Undo (⌘Z)"
-              className="h-7 rounded-control bg-hover px-2.5 font-medium transition-colors duration-150 hover:bg-border-strong"
+              className="h-7 rounded-control bg-hover px-2.5 font-medium transition-colors duration-100 hover:bg-border-strong"
             >
               Undo
             </button>

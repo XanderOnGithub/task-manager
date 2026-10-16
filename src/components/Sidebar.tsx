@@ -7,8 +7,10 @@ import { spring } from '../lib/motion'
 import { BookOpen, Layers, ListChecks, PanelLeft, Plus, Settings, type LucideIcon } from 'lucide-react'
 import type { Item } from '../lib/api'
 import { icon } from '../lib/items'
+import { isMac } from '../lib/platform'
 import type { Actions } from '../lib/useActions'
 import { AreaTree } from './AreaTree'
+import { MossMark } from './Brand'
 import { SectionLabel } from './ui'
 
 export type Section = 'unsorted' | 'tasks' | 'docs'
@@ -18,8 +20,12 @@ interface Props {
   unsortedCount: number
   section: Section
   onSection: (section: Section) => void
+  /** The open project (also when one of its milestones is open). */
   projectId: string | null
-  onProject: (id: string) => void
+  /** The open area, when an area page is open. */
+  areaId: string | null
+  /** Opens an area or project page. */
+  onOpen: (id: string) => void
   expanded: Set<string>
   onToggleArea: (id: string) => void
   onQuickCapture: () => void
@@ -30,18 +36,27 @@ interface Props {
 }
 
 export function Sidebar(props: Props) {
-  const { items, unsortedCount, section, onSection, projectId, onProject, expanded, onToggleArea } = props
+  const { items, unsortedCount, section, onSection, projectId, areaId, onOpen, expanded, onToggleArea } = props
   // Where an inline "add" field is open: 'area' for a new area, or an area id for a new project.
   const [adding, setAdding] = useState<string | null>(null)
 
   return (
     <nav aria-label="Sidebar" className="flex w-sidebar shrink-0 flex-col gap-3.5 pt-3.5 pr-2.5 pb-3 pl-3">
-      {/* Top row: room for the traffic lights, and a drag handle for the window. */}
-      <div data-tauri-drag-region className="flex h-5 items-center justify-end">
+      {/* Top row: the traffic lights (on a Mac), the app's name, and a drag
+          handle for the window. The name doesn't take clicks, so dragging
+          there moves the window. */}
+      <div data-tauri-drag-region className="flex h-5 items-center">
+        <span
+          className={`pointer-events-none flex items-center gap-1.5 select-none ${isMac ? 'pl-[62px]' : 'pl-1'}`}
+        >
+          <MossMark className="h-[15px] w-auto" />
+          <span className="text-[14px] leading-none font-semibold tracking-tight text-fg">moss</span>
+        </span>
+        <span data-tauri-drag-region className="flex-1 self-stretch" />
         <button
           aria-label="Toggle sidebar"
           title="Toggle sidebar"
-          className="flex rounded-md p-1 text-fg-3 transition-colors duration-150 hover:bg-hover hover:text-fg-2"
+          className="flex rounded-md p-1 text-fg-3 transition-colors duration-100 hover:bg-hover hover:text-fg-2"
         >
           <PanelLeft {...icon} />
         </button>
@@ -49,7 +64,7 @@ export function Sidebar(props: Props) {
 
       <button
         onClick={props.onQuickCapture}
-        className="flex h-8 items-center gap-2 rounded-row border border-border bg-field px-2.5 text-left text-fg-2 transition-colors duration-150 hover:text-fg"
+        className="flex h-8 items-center gap-2 rounded-row border border-border bg-field px-2.5 text-left text-fg-2 transition-colors duration-100 hover:text-fg"
       >
         <Plus size={15} strokeWidth={1.75} aria-hidden="true" />
         <span className="flex-1">Quick capture</span>
@@ -82,7 +97,8 @@ export function Sidebar(props: Props) {
         <AreaTree
           items={items}
           activeProjectId={section === 'tasks' ? projectId : null}
-          onProject={onProject}
+          activeAreaId={section === 'tasks' ? areaId : null}
+          onOpen={onOpen}
           expanded={expanded}
           onToggleArea={onToggleArea}
           adding={adding}
@@ -109,7 +125,7 @@ function AddButton({ label, onClick }: { label: string; onClick: () => void }) {
       onClick={onClick}
       aria-label={label}
       title={label}
-      className="flex rounded-md p-0.5 text-fg-3 opacity-0 transition-opacity duration-150 group-hover:opacity-100 hover:bg-hover hover:text-fg-2 focus-visible:opacity-100"
+      className="flex rounded-md p-0.5 text-fg-3 opacity-0 transition-opacity duration-100 group-hover:opacity-100 hover:bg-hover hover:text-fg-2 focus-visible:opacity-100"
     >
       <Plus size={14} strokeWidth={2} aria-hidden="true" />
     </button>
@@ -131,7 +147,7 @@ function NavItem({
     <button
       onClick={onClick}
       aria-current={active ? 'page' : undefined}
-      className={`relative flex h-[30px] w-full items-center gap-2.5 rounded-control px-2.5 text-left transition-colors duration-150 ${
+      className={`relative flex h-[30px] w-full items-center gap-2.5 rounded-control px-2.5 text-left transition-colors duration-100 ${
         active ? 'font-medium text-fg' : 'text-fg-2 hover:bg-hover hover:text-fg'
       }`}
     >
