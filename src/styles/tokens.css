@@ -139,7 +139,7 @@
     color-scheme: light;
 
     --color-wall: #D9DDE5;
-    --color-window: rgba(244, 244, 247, 0.60);
+    --color-window: rgba(244, 244, 247, 0.32);  /* lighter than dark's tint: macOS's light material is already pale, so more white hides the blur */
     --color-window-edge: rgba(0, 0, 0, 0.10);
     --color-panel: #FFFFFF;
     --color-raised: #F1F1F4;
@@ -186,7 +186,7 @@
   color-scheme: light;
 
   --color-wall: #D9DDE5;
-  --color-window: rgba(244, 244, 247, 0.60);
+  --color-window: rgba(244, 244, 247, 0.32);
   --color-window-edge: rgba(0, 0, 0, 0.10);
   --color-panel: #FFFFFF;
   --color-raised: #F1F1F4;

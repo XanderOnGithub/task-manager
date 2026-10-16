@@ -2,6 +2,7 @@
 // (it's a per-computer preference, not part of your data).
 
 import { useEffect, useState } from 'react'
+import { getCurrentWindow } from '@tauri-apps/api/window'
 
 export type Theme = 'system' | 'light' | 'dark'
 
@@ -16,10 +17,23 @@ function read(): Theme {
   }
 }
 
-/** Sets data-theme on <html>; tokens.css does the rest. */
+/**
+ * Sets data-theme on <html> (tokens.css does the colors), and tells the
+ * window too. The blurred material behind the sidebar is drawn by macOS, and
+ * it follows the WINDOW's appearance, not the page's; without this, choosing
+ * Light while macOS is dark leaves a dark blur behind light colors.
+ */
 export function applyTheme(theme: Theme = read()) {
   if (theme === 'system') document.documentElement.removeAttribute('data-theme')
   else document.documentElement.setAttribute('data-theme', theme)
+  try {
+    // null = follow the system again.
+    void getCurrentWindow()
+      .setTheme(theme === 'system' ? null : theme)
+      .catch(() => {})
+  } catch {
+    // Not running inside the app (e.g. a plain browser): nothing to tell.
+  }
 }
 
 export function useTheme(): [Theme, (theme: Theme) => void] {
