@@ -355,6 +355,7 @@ fn copy_dir(from: &Path, to: &Path) -> std::io::Result<()> {
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
             let settings_file = app.path().app_config_dir()?.join("settings.json");
             let settings = load_settings(&settings_file);

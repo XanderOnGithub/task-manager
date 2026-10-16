@@ -1,28 +1,32 @@
-// The right panel: details of the selected task or milestone.
+// The right panel: details of the selected task or milestone, all editable.
 
-import type { ReactNode } from 'react'
-import { Ellipsis } from 'lucide-react'
-import { childrenOf, type Item } from '../lib/api'
-import { useBody } from '../lib/useBody'
+import { useState, type CSSProperties, type ReactNode } from 'react'
+import { X } from 'lucide-react'
+import { childrenOf, MILESTONE_COLORS, type Item, type MilestoneColor, type Status } from '../lib/api'
 import { shortDate } from '../lib/dates'
-import { icon, statusLabel } from '../lib/items'
-import { DueDate, MilestoneChip, Panel, PanelHeader, Progress, SectionLabel, StatusIcon } from './ui'
+import { statusLabel } from '../lib/items'
+import type { Actions } from '../lib/useActions'
+import { BodyEditor, DateField, EditableTitle, InlineAdd, Menu, Segmented } from './controls'
+import { itemMenu } from './itemMenu'
+import { MilestoneChip, Panel, PanelHeader, Progress, SectionLabel, StatusIcon } from './ui'
 
 interface Props {
   items: Item[]
   item: Item
   parent: Item | undefined
-  onSelect: (id: string) => void
+  onSelect: (id: string | null) => void
+  actions: Actions
 }
 
-export function DetailsPanel({ items, item, parent, onSelect }: Props) {
-  const body = useBody(item.id, item)
+export function DetailsPanel({ items, item, parent, onSelect, actions }: Props) {
+  const [renaming, setRenaming] = useState(0)
   const isMilestone = item.kind === 'milestone'
   const tasks = isMilestone ? childrenOf(items, item.id) : []
   const done = tasks.filter((t) => t.status === 'done').length
+  const statuses: Status[] = isMilestone ? ['open', 'done'] : ['todo', 'doing', 'done']
 
   return (
-    <Panel label={isMilestone ? 'Milestone details' : 'Task details'} className="w-details shrink-0">
+    <Panel label={isMilestone ? 'Milestone details' : 'Task details'} className="w-details shrink-0 animate-fade-in">
       <PanelHeader>
         {isMilestone ? (
           <SectionLabel>Milestone</SectionLabel>
@@ -37,33 +41,53 @@ export function DetailsPanel({ items, item, parent, onSelect }: Props) {
           </span>
         )}
         <span className="flex-1" />
+        <Menu items={itemMenu(item, actions, () => setRenaming((n) => n + 1))} />
         <button
-          aria-label="More actions"
-          className="flex rounded-md p-1.5 text-fg-3 transition-colors duration-150 hover:bg-hover hover:text-fg-2"
+          onClick={() => onSelect(null)}
+          aria-label="Close details"
+          title="Close"
+          className="-mr-1 flex rounded-md p-1.5 text-fg-3 transition-colors duration-150 hover:bg-hover hover:text-fg-2"
         >
-          <Ellipsis {...icon} strokeWidth={2} />
+          <X size={16} strokeWidth={1.75} aria-hidden="true" />
         </button>
       </PanelHeader>
 
       <div className="flex min-h-0 flex-1 flex-col gap-[18px] overflow-y-auto px-5 pt-5 pb-4">
-        <h2 className="text-heading text-[18px] leading-6 tracking-tight">{item.title}</h2>
+        <EditableTitle
+          key={`${item.id}:${renaming}`}
+          editing={renaming > 0}
+          value={item.title}
+          onSave={(title) => actions.rename(item, title)}
+          className="text-[18px] leading-6 font-semibold tracking-tight"
+        />
 
-        <dl className="grid grid-cols-[84px_minmax(0,1fr)] items-center gap-y-2.5 text-[12.5px]">
-          {isMilestone ? (
+        <dl className="grid grid-cols-[76px_minmax(0,1fr)] items-center gap-y-2.5 text-[12.5px]">
+          <Field label="Status">
+            <Segmented<Status>
+              label="Status"
+              size="sm"
+              value={item.status}
+              onChange={(status) => void actions.setStatus(item, status)}
+              options={statuses.map((s) => ({ value: s, label: statusLabel(s) }))}
+            />
+          </Field>
+
+          {!isMilestone && parent?.kind === 'milestone' && (
+            <Field label="Milestone">
+              <button onClick={() => onSelect(parent.id)} className="flex" title="Open milestone">
+                <MilestoneChip title={parent.title} color={parent.color} />
+              </button>
+            </Field>
+          )}
+
+          <Field label="Due">
+            <DateField label="Due date" value={item.due} onChange={(due) => void actions.setDue(item, due)} />
+          </Field>
+
+          {isMilestone && (
             <>
-              <Field label="Status">
-                <span className="flex items-center gap-1.5">
-                  <StatusIcon status={item.status} size={13} />
-                  {statusLabel(item.status)}
-                </span>
-              </Field>
-              {item.due && (
-                <Field label="Due">
-                  <DueDate item={item} className="text-[12.5px]" />
-                </Field>
-              )}
               <Field label="Color">
-                <MilestoneChip title={colorName(item.color ?? 'sand')} color={item.color} />
+                <ColorPicker value={item.color} onChange={(color) => void actions.setColor(item, color)} />
               </Field>
               <Field label="Progress">
                 <span className="flex items-center gap-2">
@@ -72,35 +96,16 @@ export function DetailsPanel({ items, item, parent, onSelect }: Props) {
                 </span>
               </Field>
             </>
-          ) : (
-            <>
-              {parent?.kind === 'milestone' && (
-                <Field label="Milestone">
-                  <span className="flex">
-                    <MilestoneChip title={parent.title} color={parent.color} />
-                  </span>
-                </Field>
-              )}
-              {item.due && (
-                <Field label="Due">
-                  <DueDate item={item} className="text-[12.5px]" />
-                </Field>
-              )}
-              {item.created && <Field label="Created">{shortDate(item.created)}</Field>}
-            </>
           )}
+
+          {!isMilestone && item.created && <Field label="Created">{shortDate(item.created)}</Field>}
         </dl>
 
         <div className="h-px shrink-0 bg-border" />
 
-        {/* Plain text for now. A markdown preview comes with the notes editor (M6). */}
-        {body ? (
-          <p className="leading-relaxed whitespace-pre-wrap text-fg-2 select-text">{body.trim()}</p>
-        ) : (
-          <p className="text-fg-3">No description</p>
-        )}
+        <BodyEditor item={item} onSave={(body) => actions.writeBody(item, body)} placeholder="Add a description" />
 
-        {isMilestone && tasks.length > 0 && (
+        {isMilestone && (
           <div className="flex flex-col gap-1">
             <SectionLabel className="pb-1">Tasks</SectionLabel>
             {tasks.map((task) => (
@@ -115,6 +120,7 @@ export function DetailsPanel({ items, item, parent, onSelect }: Props) {
                 </span>
               </button>
             ))}
+            <InlineAdd label="Add a task" onAdd={(title) => actions.create('task', item.id, title)} />
           </div>
         )}
       </div>
@@ -131,8 +137,27 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
   )
 }
 
-/** "dusty-blue" → "Dusty blue" */
-function colorName(color: string): string {
-  const words = color.replace('-', ' ')
-  return words[0].toUpperCase() + words.slice(1)
+function ColorPicker({ value, onChange }: { value: MilestoneColor | null; onChange: (c: MilestoneColor) => void }) {
+  return (
+    <span role="radiogroup" aria-label="Milestone color" className="flex gap-[7px]">
+      {MILESTONE_COLORS.map((color) => {
+        const on = color === value
+        const name = color.replace('-', ' ')
+        return (
+          <button
+            key={color}
+            role="radio"
+            aria-checked={on}
+            aria-label={name}
+            title={name}
+            onClick={() => onChange(color)}
+            style={{ '--ms': `var(--color-ms-${color})` } as CSSProperties}
+            className={`size-[18px] rounded-[5px] border border-[color-mix(in_srgb,var(--ms)_70%,transparent)] bg-[color-mix(in_srgb,var(--ms)_30%,transparent)] transition-transform duration-150 ease-pop hover:scale-110 ${
+              on ? 'ring-2 ring-(--ms) ring-offset-2 ring-offset-panel' : ''
+            }`}
+          />
+        )
+      })}
+    </span>
+  )
 }

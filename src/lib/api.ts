@@ -127,3 +127,6 @@ export function compareForDisplay(a: Item, b: Item): number {
   if (b.order) return 1
   return a.title.localeCompare(b.title, undefined, { sensitivity: 'base' })
 }
+
+/** The milestone palette, in picker order. Names match `--color-ms-*` in tokens.css. */
+export const MILESTONE_COLORS: MilestoneColor[] = ['dusty-blue', 'mauve', 'rose', 'teal', 'lavender', 'sand']

@@ -51,6 +51,12 @@ sample-data/    the renovation example from the mockups; dev builds open a copy 
 - Motion: transitions in Tailwind with `ease-snappy` or `ease-pop`; keyframe animations live in `motion.css` as `animate-*`. Reduce motion is handled globally.
 - Repeated class lists become small components (`<Chip>`, `<Row>`), not `@apply`.
 
+## Front-end structure
+
+- `src/lib/useLibrary.ts` loads the snapshot and reloads on `data-changed`. `src/lib/useActions.ts` holds every change the UI can make (each one calls Rust, shows a toast with Undo where it makes sense, and reloads). Add new actions there, not in components.
+- `src/components/controls.tsx`: InlineAdd, EditableTitle, Menu, Segmented, Modal, BodyEditor, DateField. `ui.tsx`: Panel, chips, status icon, due date, progress.
+- Toasts: `useToast()`; ⌘Z runs the visible toast's Undo. ⌘N opens Quick capture.
+
 ## Vocabulary (fixed, never use synonyms in UI or code)
 
 - **Unsorted**: raw capture, emptied regularly. Icon: Lucide `layers`. Sidebar button: "Quick capture" (⌘N).
@@ -103,7 +109,8 @@ data/
 
 M1 file format + Rust core + 10k-file benchmark → M2 app shell + tokens → M3 Unsorted (start using the app here) → M4 hierarchy lists → M5 drag and drop + Board → M6 notes editor (plain text + preview first). v1 is only Unsorted, the hierarchy and notes. Budget: a few weekends.
 
+Status: M1–M4 are built (core, shell, Unsorted flow, create / edit / delete with Undo, Settings with the data folder picker, plain-text page editing). Next: M5 drag and drop (reorder and move in the list, board and sidebar; `move_item` already exists in core), then M6 the markdown editor with preview.
+
 ## Working with me
 
 - I don't know Rust yet. Keep the Rust core small and heavily commented so I can learn from it.
-- I write the front end myself; review and suggest rather than rewriting whole components unless I ask.
