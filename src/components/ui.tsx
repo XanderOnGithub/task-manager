@@ -20,10 +20,16 @@ export function Panel({ label, className = '', children }: { label: string; clas
   )
 }
 
-/** The 48px bar at the top of a panel. */
+/**
+ * The 48px bar at the top of a panel. It's a named container ("header"), so
+ * controls inside can go compact when the panel is narrow: put
+ * `@max-[34rem]/header:sr-only` on a label to keep only its icon.
+ */
 export function PanelHeader({ children }: { children: ReactNode }) {
   return (
-    <header className="flex h-12 shrink-0 items-center gap-2.5 border-b border-border pr-3.5 pl-[18px]">{children}</header>
+    <header className="@container/header flex h-12 shrink-0 items-center gap-2.5 border-b border-border pr-3.5 pl-[18px]">
+      {children}
+    </header>
   )
 }
 
@@ -37,15 +43,22 @@ export function MilestoneChip({
   title,
   color,
   header = false,
+  className = '',
 }: {
   title: string
   color: MilestoneColor | null
   header?: boolean
+  /** Layout classes. The chip never grows, and shrinks (cutting its name with "…") when space runs out. */
+  className?: string
 }) {
   const style = { '--ms': `var(--color-ms-${color ?? 'sand'})` } as CSSProperties
   return (
-    <span className={`milestone-chip shrink-0 whitespace-nowrap ${header ? 'milestone-chip-header' : ''}`} style={style}>
-      {title}
+    <span
+      className={`milestone-chip max-w-full min-w-0 shrink whitespace-nowrap ${header ? 'milestone-chip-header' : ''} ${className}`}
+      style={style}
+      title={title}
+    >
+      <span className="truncate">{title}</span>
     </span>
   )
 }
@@ -114,7 +127,8 @@ export function TaskTitle({ title, done, className = '' }: { title: string; done
   // The outer span truncates long titles; the inner one is only as wide as the
   // text, so the line stops where the words stop.
   return (
-    <span className={`min-w-0 flex-1 truncate transition-colors duration-150 ${done ? 'text-fg-3' : 'text-fg'} ${className}`}>
+    // At least ~half the row stays for the title, however long the chips next to it are.
+    <span className={`min-w-[min(45%,10rem)] flex-1 truncate transition-colors duration-150 ${done ? 'text-fg-3' : 'text-fg'} ${className}`}>
       <motion.span
         initial={false}
         animate={{ backgroundSize: done ? '100% 1px' : '0% 1px' }}
