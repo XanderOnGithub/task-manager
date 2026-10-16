@@ -3492,6 +3492,7 @@ dependencies = [
 name = "task-manager"
 version = "0.1.0"
 dependencies = [
+ "objc2",
  "serde",
  "serde_json",
  "task-core",

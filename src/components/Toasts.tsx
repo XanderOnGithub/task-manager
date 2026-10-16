@@ -1,6 +1,8 @@
 // Renders one toast at a time (a new one replaces the old one), bottom center.
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
+import { AnimatePresence, motion } from 'motion/react'
+import { spring } from '../lib/motion'
 import { ToastContext, type ToastInput } from '../lib/toast'
 
 /** How long a toast stays up. Longer when there's an Undo to reach for. */
@@ -43,11 +45,15 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   return (
     <ToastContext.Provider value={show}>
       {children}
+      <AnimatePresence>
       {toast && (
-        <div
+        <motion.div
           key={toast.key}
           role="status"
-          className="fixed bottom-6 left-1/2 z-50 flex h-10 max-w-[80vw] -translate-x-1/2 animate-toast-in items-center gap-3 rounded-[10px] border border-border-menu bg-menu pr-2 pl-3.5 whitespace-nowrap shadow-menu"
+          initial={{ opacity: 0, y: 12, scale: 0.96, x: '-50%' }}
+          animate={{ opacity: 1, y: 0, scale: 1, x: '-50%', transition: spring.pop }}
+          exit={{ opacity: 0, y: 8, scale: 0.98, x: '-50%', transition: spring.snappy }}
+          className="fixed bottom-6 left-1/2 z-50 flex h-10 max-w-[80vw] items-center gap-3 rounded-[10px] border border-border-menu bg-menu pr-2 pl-3.5 whitespace-nowrap shadow-menu"
         >
           {toast.tone !== 'error' && (
             <svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true" className="shrink-0">
@@ -74,8 +80,9 @@ export function ToastProvider({ children }: { children: ReactNode }) {
               Undo
             </button>
           )}
-        </div>
+        </motion.div>
       )}
+      </AnimatePresence>
     </ToastContext.Provider>
   )
 }

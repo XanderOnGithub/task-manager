@@ -27,6 +27,19 @@
     user-select: text;
   }
 
+  /* Keyboard focus: a soft sage outline instead of the browser's blue one.
+     Only shows when using the keyboard (not on click). Text fields show focus
+     through their own styles instead. */
+  :focus-visible {
+    outline: 2px solid color-mix(in srgb, var(--color-accent) 60%, transparent);
+    outline-offset: 1px;
+  }
+  :focus:not(:focus-visible),
+  input:focus-visible,
+  textarea:focus-visible {
+    outline: none;
+  }
+
   /* Lets you drag the window by any element with this attribute
      (e.g. the empty top of the sidebar, next to the traffic lights). */
   [data-tauri-drag-region] {

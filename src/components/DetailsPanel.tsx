@@ -8,7 +8,7 @@ import { statusLabel } from '../lib/items'
 import type { Actions } from '../lib/useActions'
 import { BodyEditor, DateField, EditableTitle, InlineAdd, Menu, Segmented } from './controls'
 import { itemMenu } from './itemMenu'
-import { MilestoneChip, Panel, PanelHeader, Progress, SectionLabel, StatusIcon } from './ui'
+import { MilestoneChip, Panel, PanelHeader, Progress, SectionLabel, StatusIcon, TaskTitle } from './ui'
 
 interface Props {
   items: Item[]
@@ -26,7 +26,7 @@ export function DetailsPanel({ items, item, parent, onSelect, actions }: Props) 
   const statuses: Status[] = isMilestone ? ['open', 'done'] : ['todo', 'doing', 'done']
 
   return (
-    <Panel label={isMilestone ? 'Milestone details' : 'Task details'} className="w-details shrink-0 animate-fade-in">
+    <Panel label={isMilestone ? 'Milestone details' : 'Task details'} className="h-full w-details shrink-0">
       <PanelHeader>
         {isMilestone ? (
           <SectionLabel>Milestone</SectionLabel>
@@ -115,9 +115,7 @@ export function DetailsPanel({ items, item, parent, onSelect, actions }: Props) 
                 className="flex h-[30px] items-center gap-2.5 rounded-control px-1.5 text-left transition-colors duration-150 hover:bg-hover"
               >
                 <StatusIcon status={task.status} size={15} />
-                <span className={`flex-1 truncate text-[12.5px] ${task.status === 'done' ? 'text-fg-3 line-through' : ''}`}>
-                  {task.title}
-                </span>
+                <TaskTitle title={task.title} done={task.status === 'done'} className="text-[12.5px]" />
               </button>
             ))}
             <InlineAdd label="Add a task" onAdd={(title) => actions.create('task', item.id, title)} />

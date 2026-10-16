@@ -7,6 +7,9 @@
 //      and the next item opens so you can keep going.
 
 import { useMemo, useState, type ReactNode } from 'react'
+import { AnimatePresence, motion } from 'motion/react'
+import { spring } from '../lib/motion'
+import { Collapse } from './motion'
 import { BookOpen, Folder, FileText, Search, Target, Trash2 } from 'lucide-react'
 import { childrenOf, type Item, type Kind, type MilestoneColor, type UnsortedEntry } from '../lib/api'
 import type { Actions } from '../lib/useActions'
@@ -68,11 +71,18 @@ export function UnsortedView({ entries, items, actions }: { entries: UnsortedEnt
             <p className="px-3 text-fg-3">Nothing unsorted</p>
           ) : (
             <ul className="flex flex-col gap-1">
+              {/* A filed item slides off to the right while its height closes,
+                  which pulls the rest of the list up into its place. */}
+              <AnimatePresence initial={false}>
               {entries.map((entry) => {
                 const isOpen = entry.raw === openRaw
                 return (
-                  <li
-                    key={`${entry.line}:${entry.raw}`}
+                  <motion.li
+                    key={entry.raw}
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto', x: 0 }}
+                    exit={{ opacity: 0, x: 40, height: 0, marginTop: -4 }}
+                    transition={spring.smooth}
                     className={`flex flex-col overflow-hidden rounded-[10px] border transition-colors duration-150 ${
                       isOpen ? 'border-border-strong bg-field' : 'border-transparent'
                     }`}
@@ -89,8 +99,8 @@ export function UnsortedView({ entries, items, actions }: { entries: UnsortedEnt
                       {entry.added && <span className="text-meta font-normal text-fg-3">{timeLabel(entry.added)}</span>}
                     </button>
 
-                    {isOpen && (
-                      <div className="flex animate-fade-in flex-col gap-3 pr-3 pb-3 pl-7">
+                    <Collapse open={isOpen}>
+                      <div className="flex flex-col gap-3 pr-3 pb-3 pl-7">
                         <div className="flex items-center gap-2.5">
                           <span className="text-[12.5px] text-fg-3">Create as</span>
                           <Segmented<FileAs>
@@ -123,10 +133,11 @@ export function UnsortedView({ entries, items, actions }: { entries: UnsortedEnt
                           />
                         )}
                       </div>
-                    )}
-                  </li>
+                    </Collapse>
+                  </motion.li>
                 )
               })}
+              </AnimatePresence>
             </ul>
           )}
         </div>

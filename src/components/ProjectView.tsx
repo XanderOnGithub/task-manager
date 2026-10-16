@@ -2,14 +2,17 @@
 // a board grouped by status.
 
 import { useState } from 'react'
-import { Calendar, ChevronDown, ChevronRight, List, Plus, SquareKanban } from 'lucide-react'
+import { AnimatePresence, LayoutGroup, motion } from 'motion/react'
+import { Calendar, ChevronDown, List, Plus, SquareKanban } from 'lucide-react'
 import { childrenOf, type Item, type ProjectStatus, type TaskStatus } from '../lib/api'
 import { dueLabel } from '../lib/dates'
 import { statusLabel, taskCounts } from '../lib/items'
 import type { Actions } from '../lib/useActions'
 import { BodyEditor, EditableTitle, InlineAdd, Menu, Segmented } from './controls'
 import { itemMenu } from './itemMenu'
-import { DueDate, MilestoneChip, Panel, PanelHeader, Progress, StatusIcon } from './ui'
+import { spring } from '../lib/motion'
+import { Collapse, ListRow } from './motion'
+import { DueDate, MilestoneChip, Panel, PanelHeader, Progress, StatusIcon, TaskTitle } from './ui'
 
 export type ProjectLayout = 'list' | 'board'
 
@@ -126,32 +129,38 @@ export function ProjectView(props: Props) {
             </div>
           </div>
 
-          {milestones.map((milestone) => (
-            <MilestoneGroup
-              key={milestone.id}
-              milestone={milestone}
-              tasks={childrenOf(items, milestone.id)}
-              collapsed={collapsed.has(milestone.id)}
-              onToggle={() => toggle(milestone.id)}
-              selectedId={selectedId}
-              onSelect={onSelect}
-              onCycleStatus={onCycleStatus}
-              actions={actions}
-            />
-          ))}
+          <AnimatePresence initial={false}>
+            {milestones.map((milestone) => (
+              <ListRow key={milestone.id}>
+                <MilestoneGroup
+                  milestone={milestone}
+                  tasks={childrenOf(items, milestone.id)}
+                  collapsed={collapsed.has(milestone.id)}
+                  onToggle={() => toggle(milestone.id)}
+                  selectedId={selectedId}
+                  onSelect={onSelect}
+                  onCycleStatus={onCycleStatus}
+                  actions={actions}
+                />
+              </ListRow>
+            ))}
+          </AnimatePresence>
 
           {milestones.length === 0 && (
             <div className="flex flex-col gap-0.5">
-              {looseTasks.map((task) => (
-                <TaskRow
-                  key={task.id}
-                  task={task}
-                  selected={task.id === selectedId}
-                  onSelect={onSelect}
-                  onCycleStatus={onCycleStatus}
-                  indent={false}
-                />
-              ))}
+              <AnimatePresence initial={false}>
+                {looseTasks.map((task) => (
+                  <ListRow key={task.id}>
+                    <TaskRow
+                      task={task}
+                      selected={task.id === selectedId}
+                      onSelect={onSelect}
+                      onCycleStatus={onCycleStatus}
+                      indent={false}
+                    />
+                  </ListRow>
+                ))}
+              </AnimatePresence>
               <InlineAdd
                 id={`add-task-${project.id}`}
                 label="Add a task"
@@ -210,11 +219,9 @@ function MilestoneGroup({
           aria-expanded={!collapsed}
           className="flex rounded-md p-1 text-fg-3 hover:text-fg-2"
         >
-          {collapsed ? (
-            <ChevronRight size={14} strokeWidth={2} aria-hidden="true" />
-          ) : (
+          <motion.span initial={false} animate={{ rotate: collapsed ? -90 : 0 }} transition={spring.snappy} className="flex">
             <ChevronDown size={14} strokeWidth={2} aria-hidden="true" />
-          )}
+          </motion.span>
         </button>
         <button onClick={() => onSelect(milestone.id)} className="flex h-full flex-1 items-center gap-2 text-left">
           <MilestoneChip title={milestone.title} color={milestone.color} header />
@@ -224,26 +231,27 @@ function MilestoneGroup({
           <Progress done={done} total={tasks.length} className="ml-1.5 max-w-[120px] flex-1" />
         </button>
       </div>
-      {!collapsed && (
-        <>
+      <Collapse open={!collapsed} className="flex flex-col gap-0.5">
+        <AnimatePresence initial={false}>
           {tasks.map((task) => (
-            <TaskRow
-              key={task.id}
-              task={task}
-              selected={task.id === selectedId}
-              onSelect={onSelect}
-              onCycleStatus={onCycleStatus}
-              indent
-            />
+            <ListRow key={task.id}>
+              <TaskRow
+                task={task}
+                selected={task.id === selectedId}
+                onSelect={onSelect}
+                onCycleStatus={onCycleStatus}
+                indent
+              />
+            </ListRow>
           ))}
-          <InlineAdd
-            id={`add-task-${milestone.id}`}
-            label="Add a task"
-            onAdd={(title) => actions.create('task', milestone.id, title)}
-            className="ml-[22px]"
-          />
-        </>
-      )}
+        </AnimatePresence>
+        <InlineAdd
+          id={`add-task-${milestone.id}`}
+          label="Add a task"
+          onAdd={(title) => actions.create('task', milestone.id, title)}
+          className="ml-[22px]"
+        />
+      </Collapse>
     </div>
   )
 }
@@ -276,12 +284,9 @@ function TaskRow({
       >
         <StatusIcon status={task.status} />
       </button>
-      <button
-        onClick={() => onSelect(task.id)}
-        className={`flex h-full min-w-0 flex-1 items-center gap-2.5 text-left ${done ? 'text-fg-3 line-through' : 'text-fg'}`}
-      >
-        <span className="flex-1 truncate">{task.title}</span>
-        <DueDate item={task} className="no-underline" />
+      <button onClick={() => onSelect(task.id)} className="flex h-full min-w-0 flex-1 items-center gap-2.5 text-left">
+        <TaskTitle title={task.title} done={done} />
+        <DueDate item={task} />
       </button>
     </div>
   )
@@ -317,21 +322,28 @@ function Board({
     else for (const task of childrenOf(items, child.id)) tasks.push({ task, milestone: child })
   }
 
+  // LayoutGroup + layoutId: when a card's status changes, it flies from its old
+  // column to its new one instead of disappearing and reappearing.
   return (
-    <div className="grid min-h-0 flex-1 grid-cols-3 gap-3 p-4">
+    <LayoutGroup>
+    {/* The whole board scrolls as one (not each column), so a card can fly
+        across columns without being clipped. Columns fill the height. */}
+    <div className="grid min-h-0 flex-1 grid-cols-3 gap-3 overflow-y-auto p-4 [grid-auto-rows:minmax(100%,max-content)]">
       {COLUMNS.map((column) => {
         const cards = tasks.filter(({ task }) => task.status === column.status)
         return (
-          <div key={column.status} className="flex min-h-0 flex-col gap-2 overflow-y-auto rounded-[10px] bg-column p-2.5">
+          <div key={column.status} className="flex flex-col gap-2 rounded-[10px] bg-column p-2.5">
             <div className="flex h-[26px] shrink-0 items-center gap-2 px-1">
               <span className={`size-2 rounded-full ${column.dot}`} />
               <span className="font-semibold">{column.label}</span>
               <span className="text-meta font-normal text-fg-3">{cards.length}</span>
             </div>
             {cards.map(({ task, milestone }) => (
-              <div
+              <motion.div
                 key={task.id}
-                className={`flex shrink-0 flex-col gap-2.5 rounded-card border bg-card p-3 shadow-card transition-colors duration-150 ${
+                layoutId={task.id}
+                transition={spring.smooth}
+                className={`relative z-10 flex shrink-0 flex-col gap-2.5 rounded-card border bg-card p-3 shadow-card transition-colors duration-150 ${
                   task.id === selectedId
                     ? 'border-border-strong'
                     : task.status === 'doing'
@@ -360,11 +372,12 @@ function Board({
                     <DueDate item={task} className="ml-auto" />
                   </div>
                 )}
-              </div>
+              </motion.div>
             ))}
           </div>
         )
       })}
     </div>
+    </LayoutGroup>
   )
 }

@@ -1,12 +1,13 @@
 // Quick capture (⌘N), Settings, and the first-run "choose a data folder" screen.
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { FolderOpen, Layers } from 'lucide-react'
 import { open } from '@tauri-apps/plugin-dialog'
-import { setDataFolder } from '../lib/api'
+import { getHighRefresh, setDataFolder, setHighRefresh, type HighRefresh } from '../lib/api'
+import { useFrameRate } from '../lib/useFrameRate'
 import { useTheme, type Theme } from '../lib/theme'
 import { useToast } from '../lib/toast'
-import { Modal, Segmented } from './controls'
+import { Modal, Segmented, Switch } from './controls'
 import { Panel } from './ui'
 
 export function QuickCapture({ onCapture, onClose }: { onCapture: (text: string) => Promise<unknown>; onClose: () => void }) {
@@ -92,6 +93,8 @@ export function Settings({
           </p>
         </div>
 
+        <HighRefreshSetting />
+
         <div className="flex flex-col gap-2">
           <div className="text-meta text-fg-2">Appearance</div>
           <Segmented<Theme>
@@ -140,5 +143,58 @@ export function ChooseFolder({ onChosen }: { onChosen: () => Promise<void> }) {
         </button>
       </div>
     </Panel>
+  )
+}
+
+/**
+ * Experimental: draw at 120fps on ProMotion displays (macOS). The live readout
+ * shows what the window is actually doing, so you can tell whether it worked.
+ */
+function HighRefreshSetting() {
+  const [state, setState] = useState<HighRefresh | null>(null)
+  const [busy, setBusy] = useState(false)
+  const toast = useToast()
+  const fps = useFrameRate()
+
+  useEffect(() => {
+    getHighRefresh()
+      .then(setState)
+      .catch(() => setState({ supported: false, enabled: false }))
+  }, [])
+
+  const change = async (enabled: boolean) => {
+    setBusy(true)
+    try {
+      await setHighRefresh(enabled)
+      // The new frame rate applies to a fresh page.
+      window.location.reload()
+    } catch (e) {
+      toast({ message: String(e), tone: 'error' })
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="flex items-center gap-3">
+        <div className="flex flex-1 flex-col gap-0.5">
+          <span className="text-meta text-fg-2">Smoother animation (120fps)</span>
+          <span className="text-meta font-normal text-fg-3">
+            {state && !state.supported
+              ? 'Only available on macOS'
+              : 'Experimental. Uses a little more battery on ProMotion displays.'}
+          </span>
+        </div>
+        <Switch
+          label="Smoother animation"
+          checked={state?.enabled ?? false}
+          disabled={!state?.supported || busy}
+          onChange={(enabled) => void change(enabled)}
+        />
+      </div>
+      <span className="font-mono text-label font-normal text-fg-3">
+        {fps === null ? 'Measuring frame rate' : `Drawing at ${fps} fps`}
+      </span>
+    </div>
   )
 }

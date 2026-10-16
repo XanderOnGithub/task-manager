@@ -2,6 +2,8 @@
 // Layout follows the design canvas linked in CLAUDE.md.
 
 import { useEffect, useState } from 'react'
+import { AnimatePresence, motion } from 'motion/react'
+import { spring } from './lib/motion'
 import { childrenOf, type Item, type TaskStatus } from './lib/api'
 import { useActions } from './lib/useActions'
 import { useLibrary } from './lib/useLibrary'
@@ -116,15 +118,28 @@ export default function App() {
           onCycleStatus={cycleStatus}
           actions={actions}
         />
-        {selected && (selected.kind === 'task' || selected.kind === 'milestone') && (
-          <DetailsPanel
-            items={items}
-            item={selected}
-            parent={selected.parent ? byId.get(selected.parent) : undefined}
-            onSelect={setSelectedId}
-            actions={actions}
-          />
-        )}
+        {/* The details panel grows in from the right; the project panel
+            resizes smoothly instead of jumping. */}
+        <AnimatePresence initial={false}>
+          {selected && (selected.kind === 'task' || selected.kind === 'milestone') && (
+            <motion.div
+              key="details"
+              initial={{ width: 0, opacity: 0, marginLeft: -8 }}
+              animate={{ width: 340, opacity: 1, marginLeft: 0 }}
+              exit={{ width: 0, opacity: 0, marginLeft: -8 }}
+              transition={spring.smooth}
+              className="flex shrink-0 justify-end overflow-hidden"
+            >
+              <DetailsPanel
+                items={items}
+                item={selected}
+                parent={selected.parent ? byId.get(selected.parent) : undefined}
+                onSelect={setSelectedId}
+                actions={actions}
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
       </>
     )
   }
@@ -149,7 +164,18 @@ export default function App() {
         }}
       />
 
-      <main className="flex min-w-0 flex-1 gap-2 py-2 pr-2">{content()}</main>
+      <main className="flex min-w-0 flex-1 py-2 pr-2">
+        {/* Switching sections fades the new one in quickly. */}
+        <motion.div
+          key={needsFolder ? 'folder' : section}
+          initial={{ opacity: 0, y: 4 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={spring.snappy}
+          className="flex min-w-0 flex-1 gap-2"
+        >
+          {content()}
+        </motion.div>
+      </main>
 
       {dialog === 'capture' && <QuickCapture onCapture={actions.capture} onClose={() => setDialog(null)} />}
       {dialog === 'settings' && (

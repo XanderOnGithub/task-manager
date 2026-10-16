@@ -2,7 +2,10 @@
 // Plain-text editing for now; the markdown editor comes in M6.
 
 import { useState } from 'react'
-import { ChevronDown, ChevronRight, FileText } from 'lucide-react'
+import { motion } from 'motion/react'
+import { spring } from '../lib/motion'
+import { Collapse } from './motion'
+import { ChevronDown, FileText } from 'lucide-react'
 import { childrenOf, type Item } from '../lib/api'
 import type { Actions } from '../lib/useActions'
 import { BodyEditor, EditableTitle, InlineAdd, Menu } from './controls'
@@ -166,11 +169,9 @@ function NoteTree({
                   aria-expanded={open}
                   className="flex rounded p-0.5 text-fg-3"
                 >
-                  {open ? (
+                  <motion.span initial={false} animate={{ rotate: open ? 0 : -90 }} transition={spring.snappy} className="flex">
                     <ChevronDown size={13} strokeWidth={2} aria-hidden="true" />
-                  ) : (
-                    <ChevronRight size={13} strokeWidth={2} aria-hidden="true" />
-                  )}
+                  </motion.span>
                 </button>
               ) : (
                 <span className="w-[17px]" />
@@ -180,8 +181,10 @@ function NoteTree({
                 <span className="truncate">{note.title}</span>
               </button>
             </div>
-            {hasChildren && open && (
-              <NoteTree items={items} parent={note.id} depth={depth + 1} openId={openId} onOpen={onOpen} />
+            {hasChildren && (
+              <Collapse open={open}>
+                <NoteTree items={items} parent={note.id} depth={depth + 1} openId={openId} onOpen={onOpen} />
+              </Collapse>
             )}
           </li>
         )

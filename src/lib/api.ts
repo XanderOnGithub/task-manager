@@ -130,3 +130,11 @@ export function compareForDisplay(a: Item, b: Item): number {
 
 /** The milestone palette, in picker order. Names match `--color-ms-*` in tokens.css. */
 export const MILESTONE_COLORS: MilestoneColor[] = ['dusty-blue', 'mauve', 'rose', 'teal', 'lavender', 'sand']
+
+/** Experimental 120fps drawing (macOS only). */
+export interface HighRefresh {
+  supported: boolean
+  enabled: boolean
+}
+export const getHighRefresh = () => invoke<HighRefresh>('get_high_refresh')
+export const setHighRefresh = (enabled: boolean) => invoke<void>('set_high_refresh', { enabled })

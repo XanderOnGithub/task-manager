@@ -8,7 +8,9 @@ import '@fontsource/geist-sans/600.css'
 import '@fontsource/geist-mono/400.css'
 
 import './styles/app.css'
+import { MotionConfig } from 'motion/react'
 import App from './App.tsx'
+import { spring } from './lib/motion'
 import { applyTheme } from './lib/theme'
 import { ToastProvider } from './components/Toasts'
 
@@ -17,8 +19,11 @@ applyTheme()
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <ToastProvider>
-      <App />
-    </ToastProvider>
+    {/* reducedMotion="user": follows the macOS Reduce motion setting. */}
+    <MotionConfig reducedMotion="user" transition={spring.snappy}>
+      <ToastProvider>
+        <App />
+      </ToastProvider>
+    </MotionConfig>
   </StrictMode>,
 )

@@ -11,6 +11,8 @@
 //! UI hears about outside changes through the `data-changed` event and calls
 //! `load_library` again.
 
+mod high_refresh;
+
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::{Mutex, MutexGuard};
@@ -42,11 +44,21 @@ struct Data {
     watcher: Option<Watcher>,
 }
 
-/// The small settings file. Only the data folder for now.
+/// The small settings file (app config folder / settings.json).
 #[derive(Default, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "camelCase", default)]
 struct Settings {
     data_folder: Option<PathBuf>,
+    /// Experimental 120fps drawing on macOS. See high_refresh.rs.
+    high_refresh: bool,
+}
+
+/// What the Settings screen shows for the 120fps switch.
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct HighRefresh {
+    supported: bool,
+    enabled: bool,
 }
 
 /// What the UI gets from `load_library`: everything it needs to draw.
@@ -88,9 +100,8 @@ fn set_data_folder(app: AppHandle, state: State<'_, AppState>, path: String) -> 
     if !root.is_dir() {
         return Err(format!("Folder not found: {path}"));
     }
-    let settings = Settings {
-        data_folder: Some(root.clone()),
-    };
+    let mut settings = load_settings(&state.settings_file);
+    settings.data_folder = Some(root.clone());
     save_settings(&state.settings_file, &settings).map_err(|e| e.to_string())?;
     let mut data = lock(&state)?;
     open_folder(&app, &mut data, root);
@@ -348,6 +359,39 @@ fn copy_dir(from: &Path, to: &Path) -> std::io::Result<()> {
 }
 
 // ---------------------------------------------------------------------------
+// Experimental 120fps
+// ---------------------------------------------------------------------------
+
+#[tauri::command]
+fn get_high_refresh(state: State<'_, AppState>) -> HighRefresh {
+    HighRefresh {
+        supported: high_refresh::SUPPORTED,
+        enabled: load_settings(&state.settings_file).high_refresh,
+    }
+}
+
+/// Saves the switch and applies it. The UI reloads the page afterwards so the
+/// new frame rate takes effect.
+#[tauri::command]
+async fn set_high_refresh(
+    window: tauri::WebviewWindow,
+    state: State<'_, AppState>,
+    enabled: bool,
+) -> CmdResult<()> {
+    let mut settings = load_settings(&state.settings_file);
+    settings.high_refresh = enabled;
+    save_settings(&state.settings_file, &settings).map_err(|e| e.to_string())?;
+
+    // Commands run off the main thread, so it's fine to wait for the result here.
+    let (tx, rx) = std::sync::mpsc::channel();
+    high_refresh::apply(&window, enabled, move |result| {
+        let _ = tx.send(result);
+    });
+    rx.recv_timeout(std::time::Duration::from_secs(3))
+        .map_err(|_| "The web view didn't respond".to_owned())?
+}
+
+// ---------------------------------------------------------------------------
 // Startup
 // ---------------------------------------------------------------------------
 
@@ -363,6 +407,20 @@ pub fn run() {
                 settings_file,
                 data: Mutex::new(Data::default()),
             });
+
+            // Turn on 120fps before you start using the window, then reload so
+            // the page picks it up. Only when you've switched it on.
+            if settings.high_refresh && high_refresh::SUPPORTED {
+                if let Some(window) = app.get_webview_window("main") {
+                    let reload_target = window.clone();
+                    high_refresh::apply(&window, true, move |result| match result {
+                        Ok(()) => {
+                            let _ = reload_target.reload();
+                        }
+                        Err(e) => eprintln!("120fps not applied: {e}"),
+                    });
+                }
+            }
 
             let handle = app.handle().clone();
             let root = settings
@@ -394,6 +452,8 @@ pub fn run() {
             file_unsorted,
             remove_unsorted,
             restore_unsorted,
+            get_high_refresh,
+            set_high_refresh,
         ])
         .run(tauri::generate_context!())
         .expect("error while running the app");

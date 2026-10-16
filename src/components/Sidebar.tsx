@@ -2,10 +2,12 @@
 // It sits on the window's vibrancy (no panel behind it).
 
 import { useState, type ReactNode } from 'react'
+import { motion } from 'motion/react'
+import { spring } from '../lib/motion'
+import { Collapse } from './motion'
 import {
   BookOpen,
   ChevronDown,
-  ChevronRight,
   Folder,
   Layers,
   ListChecks,
@@ -99,11 +101,9 @@ export function Sidebar(props: Props) {
                   aria-expanded={open}
                   className="flex h-7 flex-1 items-center gap-1.5 rounded-control px-2 text-left text-fg transition-colors duration-150 hover:bg-hover"
                 >
-                  {open ? (
+                  <motion.span initial={false} animate={{ rotate: open ? 0 : -90 }} transition={spring.snappy} className="flex">
                     <ChevronDown size={14} strokeWidth={2} className="text-fg-3" aria-hidden="true" />
-                  ) : (
-                    <ChevronRight size={14} strokeWidth={2} className="text-fg-3" aria-hidden="true" />
-                  )}
+                  </motion.span>
                   <Folder size={15} strokeWidth={1.75} className="text-fg-2" aria-hidden="true" />
                   <span className="truncate">{area.title}</span>
                 </button>
@@ -112,8 +112,8 @@ export function Sidebar(props: Props) {
                 </span>
               </div>
 
-              {open &&
-                projects.map((project) => {
+              <Collapse open={open} className="flex flex-col gap-0.5">
+                {projects.map((project) => {
                   const active = section === 'tasks' && project.id === projectId
                   const { done, total } = taskCounts(items, project.id)
                   const finished = project.status === 'done' || project.status === 'dropped'
@@ -122,16 +122,30 @@ export function Sidebar(props: Props) {
                       key={project.id}
                       onClick={() => onProject(project.id)}
                       aria-current={active ? 'true' : undefined}
-                      className={`flex h-7 items-center gap-2 rounded-control pr-2 pl-[34px] text-left transition-colors duration-150 ${
-                        active ? 'bg-selected font-medium text-fg' : `${finished ? 'text-fg-3' : 'text-fg-2'} hover:bg-hover`
+                      className={`relative flex h-7 shrink-0 items-center gap-2 rounded-control pr-2 pl-[34px] text-left transition-colors duration-150 ${
+                        active ? 'font-medium text-fg' : `${finished ? 'text-fg-3' : 'text-fg-2'} hover:bg-hover`
                       }`}
                     >
-                      <Target size={15} strokeWidth={1.75} className={active ? 'text-accent' : ''} aria-hidden="true" />
-                      <span className="flex-1 truncate">{project.title}</span>
-                      {total > 0 && <span className="text-label font-normal text-fg-3">{`${done}/${total}`}</span>}
+                      {/* One highlight that slides to whichever project is open. */}
+                      {active && (
+                        <motion.span
+                          layoutId="sidebar-project"
+                          transition={spring.snappy}
+                          className="absolute inset-0 rounded-control bg-selected"
+                        />
+                      )}
+                      <Target
+                        size={15}
+                        strokeWidth={1.75}
+                        className={`relative transition-colors duration-150 ${active ? 'text-accent' : ''}`}
+                        aria-hidden="true"
+                      />
+                      <span className="relative flex-1 truncate">{project.title}</span>
+                      {total > 0 && <span className="relative text-label font-normal text-fg-3">{`${done}/${total}`}</span>}
                     </button>
                   )
                 })}
+              </Collapse>
 
               {adding === area.id && (
                 <InlineAdd
@@ -206,12 +220,17 @@ function NavItem({
     <button
       onClick={onClick}
       aria-current={active ? 'page' : undefined}
-      className={`flex h-[30px] w-full items-center gap-2.5 rounded-control px-2.5 text-left transition-colors duration-150 ${
-        active ? 'bg-hover font-medium text-fg' : 'text-fg-2 hover:bg-hover hover:text-fg'
+      className={`relative flex h-[30px] w-full items-center gap-2.5 rounded-control px-2.5 text-left transition-colors duration-150 ${
+        active ? 'font-medium text-fg' : 'text-fg-2 hover:bg-hover hover:text-fg'
       }`}
     >
-      <Icon {...icon} />
-      {children}
+      {active && (
+        <motion.span layoutId="sidebar-section" transition={spring.snappy} className="absolute inset-0 rounded-control bg-hover" />
+      )}
+      <span className="relative flex flex-1 items-center gap-2.5">
+        <Icon {...icon} />
+        {children}
+      </span>
     </button>
   )
 }

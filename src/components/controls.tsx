@@ -1,6 +1,8 @@
 // Interactive building blocks: inline inputs, menus, modals, segmented controls.
 
-import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
+import { motion } from 'motion/react'
+import { spring } from '../lib/motion'
 import { Ellipsis, Plus, X, type LucideIcon } from 'lucide-react'
 import type { Item } from '../lib/api'
 import { icon } from '../lib/items'
@@ -228,6 +230,8 @@ export function Segmented<T extends string>({
   onChange: (value: T) => void
   size?: 'sm' | 'md'
 }) {
+  // The selected background is one element that slides between options.
+  const thumbId = useId()
   return (
     <div role="radiogroup" aria-label={label} className="flex w-fit gap-0.5 rounded-row bg-raised p-0.5">
       {options.map((option) => {
@@ -238,12 +242,21 @@ export function Segmented<T extends string>({
             role="radio"
             aria-checked={on}
             onClick={() => onChange(option.value)}
-            className={`flex items-center gap-1.5 rounded-md transition-colors duration-150 ${
+            className={`relative flex items-center gap-1.5 rounded-md transition-colors duration-150 ${
               size === 'sm' ? 'h-6 px-2.5 text-meta' : 'h-[26px] px-3 text-[12.5px] font-medium'
-            } ${on ? 'bg-seg-on text-fg shadow-seg' : 'text-fg-2 hover:text-fg'}`}
+            } ${on ? 'text-fg' : 'text-fg-2 hover:text-fg'}`}
           >
-            {option.icon}
-            {option.label}
+            {on && (
+              <motion.span
+                layoutId={thumbId}
+                transition={spring.snappy}
+                className="absolute inset-0 rounded-md bg-seg-on shadow-seg"
+              />
+            )}
+            <span className="relative flex items-center gap-1.5">
+              {option.icon}
+              {option.label}
+            </span>
           </button>
         )
       })}
@@ -406,5 +419,36 @@ export function DateField({
         </button>
       )}
     </span>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Switch: an on/off toggle whose knob slides.
+// ---------------------------------------------------------------------------
+
+export function Switch({
+  checked,
+  onChange,
+  label,
+  disabled = false,
+}: {
+  checked: boolean
+  onChange: (checked: boolean) => void
+  label: string
+  disabled?: boolean
+}) {
+  return (
+    <button
+      role="switch"
+      aria-checked={checked}
+      aria-label={label}
+      disabled={disabled}
+      onClick={() => onChange(!checked)}
+      className={`flex h-[18px] w-8 shrink-0 items-center rounded-full p-0.5 transition-colors duration-200 disabled:opacity-50 ${
+        checked ? 'justify-end bg-accent' : 'justify-start bg-border-strong'
+      }`}
+    >
+      <motion.span layout transition={spring.pop} className="size-3.5 rounded-full bg-fg shadow-seg" />
+    </button>
   )
 }

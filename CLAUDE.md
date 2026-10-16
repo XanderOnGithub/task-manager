@@ -48,7 +48,7 @@ sample-data/    the renovation example from the mockups; dev builds open a copy 
 - Type: `text-title`, `text-heading`, `text-body`, `text-meta`, `text-label` (each sets size, line height and weight). Mono: `font-mono`.
 - Shape: `rounded-window|panel|card|row|control|chip`; sizes `h-row`, `w-sidebar`, `w-details`; shadows `shadow-window|menu|seg|card`.
 - Milestone chips: `milestone-chip` (+ `milestone-chip-header`) with `style={{ '--ms': 'var(--color-ms-teal)' }}`.
-- Motion: transitions in Tailwind with `ease-snappy` or `ease-pop`; keyframe animations live in `motion.css` as `animate-*`. Reduce motion is handled globally.
+- Motion: see the Motion section below. CSS-only effects (hover color, simple fades) can use Tailwind `transition-*` with `ease-snappy`; keyframes live in `motion.css`.
 - Repeated class lists become small components (`<Chip>`, `<Row>`), not `@apply`.
 
 ## Front-end structure
@@ -56,6 +56,17 @@ sample-data/    the renovation example from the mockups; dev builds open a copy 
 - `src/lib/useLibrary.ts` loads the snapshot and reloads on `data-changed`. `src/lib/useActions.ts` holds every change the UI can make (each one calls Rust, shows a toast with Undo where it makes sense, and reloads). Add new actions there, not in components.
 - `src/components/controls.tsx`: InlineAdd, EditableTitle, Menu, Segmented, Modal, BodyEditor, DateField. `ui.tsx`: Panel, chips, status icon, due date, progress.
 - Toasts: `useToast()`; ⌘Z runs the visible toast's Undo. ⌘N opens Quick capture.
+
+## Motion
+
+The app should feel smooth and considered, never gamified. Library: Motion (`motion/react`).
+- Springs only, from `src/lib/motion.ts`: `spring.snappy` (default), `spring.smooth` (size changes, panels), `spring.pop` (small overshoot, only for completing a task or dropping a card). No hand-written durations.
+- Motion explains cause and effect: where something came from and where it went. Don't animate for decoration.
+- Nothing animates on first render (`initial={false}`), only on changes.
+- Building blocks: `Collapse` (open/close by height, staggered rows), `ListRow` (rows entering and leaving a list), `StatusIcon` (ring, half fill, pop, check draws), `TaskTitle` (strikethrough sweep), `layoutId` for shared highlights (segmented thumb, sidebar selection) and board cards moving between columns.
+- Reduce motion is respected through `<MotionConfig reducedMotion="user">` in main.tsx and a rule in motion.css.
+- Planned: drag and drop with dnd-kit (we draw the dragged card ourselves) and a velocity-based tilt: the card leans with movement up to about 6°, smoothed by a spring, scales about 2% on pickup, springs into place on drop. Later: tiny optional sounds on committed actions only (capture, complete, file, drop, delete, undo), preloaded with Web Audio, with an on/off and volume setting.
+- 120fps: WebKit caps at 60fps. `src-tauri/src/high_refresh.rs` flips WebKit's private "prefer 60fps" flag behind an experimental Settings switch with a live fps readout. Animations must look right at both 60 and 120.
 
 ## Vocabulary (fixed, never use synonyms in UI or code)
 
@@ -109,7 +120,7 @@ data/
 
 M1 file format + Rust core + 10k-file benchmark → M2 app shell + tokens → M3 Unsorted (start using the app here) → M4 hierarchy lists → M5 drag and drop + Board → M6 notes editor (plain text + preview first). v1 is only Unsorted, the hierarchy and notes. Budget: a few weekends.
 
-Status: M1–M4 are built (core, shell, Unsorted flow, create / edit / delete with Undo, Settings with the data folder picker, plain-text page editing). Next: M5 drag and drop (reorder and move in the list, board and sidebar; `move_item` already exists in core), then M6 the markdown editor with preview.
+Status: M1–M4 are built (core, shell, Unsorted flow, create / edit / delete with Undo, Settings with the data folder picker, plain-text page editing). Motion pass done. Next: M5 drag and drop with dnd-kit + the tilt (reorder and move in the list, board and sidebar; `move_item` already exists in core), then M6 the markdown editor with preview, then sounds.
 
 ## Working with me
 
