@@ -2,7 +2,6 @@
 // Pages are edited as rich text and saved as markdown (MarkdownEditor.tsx).
 
 import { useState } from 'react'
-import { NoteTree } from './NoteTree'
 import { childrenOf, type Item } from '../lib/api'
 import type { Actions } from '../lib/useActions'
 import { BodyEditor, EditableTitle, InlineAdd, Menu } from './controls'
@@ -22,7 +21,8 @@ export function DocsView({
   onOpen: (id: string | null) => void
   actions: Actions
 }) {
-  // Until you open one, show the first page.
+  // Until you open one, show the first page. (The page tree lives in the
+  // sidebar while you're in Docs; see Sidebar.tsx.)
   const note = (noteId ? byId.get(noteId) : undefined) ?? childrenOf(items, null, true)[0]
   const [renaming, setRenaming] = useState(0)
   const [addingSub, setAddingSub] = useState(false)
@@ -35,22 +35,6 @@ export function DocsView({
 
   return (
     <>
-      <Panel label="Pages" className="w-[260px] shrink-0">
-        <PanelHeader>
-          <span className="flex-1">Docs</span>
-        </PanelHeader>
-        <div className="flex flex-1 flex-col gap-1 overflow-y-auto p-2">
-          <NoteTree items={items} openId={note?.id ?? null} onOpen={onOpen} actions={actions} />
-          <InlineAdd
-            label="Add a page"
-            onAdd={async (title) => {
-              const id = await actions.create('note', null, title)
-              if (id) onOpen(id)
-            }}
-          />
-        </div>
-      </Panel>
-
       {note ? (
         <Panel label="Page" className="flex-1 animate-fade-in">
           <PanelHeader>

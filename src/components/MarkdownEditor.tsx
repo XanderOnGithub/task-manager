@@ -38,12 +38,30 @@ import {
 } from '@milkdown/kit/preset/commonmark'
 import { gfm, toggleStrikethroughCommand } from '@milkdown/kit/preset/gfm'
 import { TextSelection } from '@milkdown/kit/prose/state'
+import {
+  addColumnAfter,
+  addRowAfter,
+  deleteColumn,
+  deleteRow,
+  deleteTable,
+  findTable,
+  goToNextCell,
+  isInTable,
+} from '@milkdown/kit/prose/tables'
 import type { EditorView } from '@milkdown/kit/prose/view'
 import { callCommand, replaceAll } from '@milkdown/kit/utils'
 import { openUrl } from '@tauri-apps/plugin-opener'
 import { play } from '../lib/sounds'
 import { matchBlocks, type Block } from './editor/blocks'
-import { SelectionToolbar, SlashMenu, type MarkAction, type SlashState, type ToolbarState } from './editor/EditorMenus'
+import {
+  SelectionToolbar,
+  SlashMenu,
+  TableBar,
+  type MarkAction,
+  type SlashState,
+  type TableAction,
+  type ToolbarState,
+} from './editor/EditorMenus'
 import { menuPlugin } from './editor/menuPlugin'
 
 // Milkdown keeps empty paragraphs by writing `<br />` into the file. We'd
@@ -67,6 +85,12 @@ function normalize(markdown: string) {
     if (/^\s*(```|~~~)/.test(line)) inCode = !inCode
     if (!inCode) {
       if (line.trim() === '<br />') continue
+      // Table separator rows: Milkdown writes "| :---- | :- |" (left-aligned);
+      // plain dashes ("| ----- | --- |") read better and mean the same.
+      if (/^\|(\s*:-+\s*\|)+\s*$/.test(line)) {
+        out.push(line.replace(/:(-+)/g, (_, dashes: string) => `-${dashes.padEnd(2, '-')}`))
+        continue
+      }
       if (line.trim() === '' && out.length > 0 && out[out.length - 1].trim() === '') continue
     }
     out.push(line)
@@ -109,6 +133,8 @@ export function MarkdownEditor({
   const [slash, setSlash] = useState<SlashState | null>(null)
   const [slashIndex, setSlashIndex] = useState(0)
   const [naming, setNaming] = useState(false)
+  // Where the table the cursor is in sits on screen (for its small toolbar).
+  const [tableBar, setTableBar] = useState<{ x: number; y: number } | null>(null)
   // Where Escape closed the "/" menu, so it stays closed for that "/".
   const dismissed = useRef<number | null>(null)
   const blocks = slash ? matchBlocks(slash.query, !!onCreatePage) : []
@@ -148,6 +174,16 @@ export function MarkdownEditor({
         setToolbar(null)
       }
 
+      // Table toolbar: shows while the cursor is in a table.
+      const table = focused && isInTable(state) ? findTable(sel.$from) : undefined
+      const tableDom = table ? view.nodeDOM(table.pos) : null
+      if (tableDom instanceof HTMLElement) {
+        const box = tableDom.getBoundingClientRect()
+        setTableBar((prev) => (prev && prev.x === box.left && prev.y === box.top ? prev : { x: box.left, y: box.top }))
+      } else {
+        setTableBar(null)
+      }
+
       // "/" menu: a slash at the start of a line or after a space, followed by
       // what you've typed so far.
       if (live.current.naming) return // asking for a page name: keep the menu
@@ -171,7 +207,17 @@ export function MarkdownEditor({
       }
       setSlash(null)
     },
-    keyDown: (_view: EditorView, event: KeyboardEvent) => {
+    keyDown: (view: EditorView, event: KeyboardEvent) => {
+      // In a table, Tab moves to the next cell (Shift+Tab back). Tab in the
+      // last cell adds a row, so you can keep typing down the table.
+      if (event.key === 'Tab' && isInTable(view.state)) {
+        const dir = event.shiftKey ? -1 : 1
+        if (!goToNextCell(dir)(view.state, view.dispatch) && dir === 1) {
+          addRowAfter(view.state, view.dispatch)
+          goToNextCell(1)(view.state, view.dispatch)
+        }
+        return true
+      }
       const { slash, blocks, slashIndex, naming } = live.current
       if (!slash || naming) return false
       if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
@@ -257,6 +303,15 @@ export function MarkdownEditor({
     }[mark]
     editor.current?.action(callCommand(command.key))
     play('status', { pitch: 1.2 })
+  }
+
+  const tableAction = (action: TableAction) => {
+    withView((view) => {
+      const command = { addRow: addRowAfter, addColumn: addColumnAfter, deleteRow, deleteColumn, deleteTable }[action]
+      command(view.state, view.dispatch)
+      view.focus()
+    })
+    play(action.startsWith('delete') ? 'delete' : 'status', { pitch: action.startsWith('delete') ? 1.2 : 1.1 })
   }
 
   const setLink = (href: string | null) => {
@@ -349,6 +404,7 @@ export function MarkdownEditor({
           if (e.relatedTarget instanceof Element && e.relatedTarget.closest('[role="toolbar"], [role="listbox"], form')) return
           flush()
           setToolbar(null)
+          setTableBar(null)
           if (!live.current.naming) setSlash(null)
         }}
         // Page links (to subpages) open with a click. Web links open in the
@@ -368,6 +424,7 @@ export function MarkdownEditor({
       />
       <AnimatePresence>
         {toolbar && !slash && <SelectionToolbar key="toolbar" state={toolbar} onMark={toggleMark} onLink={setLink} />}
+        {tableBar && !toolbar && !slash && <TableBar key="table" x={tableBar.x} y={tableBar.y} onAction={tableAction} />}
         {slash && (
           <SlashMenu
             key="slash"

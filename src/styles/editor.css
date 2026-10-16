@@ -175,6 +175,36 @@
   font-weight: 600;
   background: var(--color-raised);
 }
+/* Tables: rounded outer edge, cells that keep their size when empty, and
+   room to read. */
+.md-editor table {
+  table-layout: fixed;
+  border-radius: var(--radius-control);
+  border-style: hidden;
+  box-shadow: 0 0 0 1px var(--color-border);
+  overflow: hidden;
+}
+.md-editor th,
+.md-editor td {
+  min-width: 80px;
+  height: 2.2em;
+  position: relative;
+}
+.md-editor th p,
+.md-editor td p {
+  margin: 0;
+}
+/* Cells selected by dragging across them. */
+.md-editor .selectedCell::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: color-mix(in srgb, var(--color-accent) 14%, transparent);
+  pointer-events: none;
+}
+.md-editor .tableWrapper {
+  overflow-x: auto;
+}
 
 .md-editor del {
   color: var(--color-fg-3);

@@ -293,6 +293,11 @@ export default function App() {
       >
         <Sidebar
           onToggleSidebar={toggleSidebar}
+        noteId={(noteId ? byId.get(noteId)?.id : undefined) ?? childrenOf(items, null, true)[0]?.id ?? null}
+        onOpenNote={(id) => {
+          setSection('docs')
+          setNoteId(id)
+        }}
           items={items}
           unsortedCount={snapshot?.unsorted.length ?? 0}
           section={section}

@@ -15,6 +15,7 @@ import { childrenOf, type Item, type Kind, type MilestoneColor, type UnsortedEnt
 import type { Actions } from '../lib/useActions'
 import { InlineAdd, Segmented } from './controls'
 import { MilestoneChip, Panel, PanelHeader, StatusIcon } from './ui'
+import { play } from '../lib/sounds'
 
 type FileAs = 'task' | 'note' | 'project'
 
@@ -106,7 +107,11 @@ export function UnsortedView({ entries, items, actions }: { entries: UnsortedEnt
                           <Segmented<FileAs>
                             label="Create as"
                             value={fileAs}
-                            onChange={setFileAs}
+                            onChange={(kind) => {
+                              // Task, Note, Project: each a step higher.
+                              play('select', { pitch: { task: 0.92, note: 1, project: 1.1 }[kind] })
+                              setFileAs(kind)
+                            }}
                             options={[
                               { value: 'task', label: 'Task', icon: <StatusIcon status="todo" size={13} /> },
                               { value: 'note', label: 'Note', icon: <FileText size={13} strokeWidth={2} aria-hidden="true" /> },

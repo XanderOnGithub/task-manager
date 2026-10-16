@@ -8,7 +8,7 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { motion } from 'motion/react'
-import { Bold, Code, CornerDownLeft, Italic, Link, Strikethrough } from 'lucide-react'
+import { Bold, Code, CornerDownLeft, Italic, Link, Strikethrough, Trash2 } from 'lucide-react'
 import { spring } from '../../lib/motion'
 import type { Block } from './blocks'
 
@@ -146,6 +146,49 @@ function ToolButton({
     >
       {children}
     </button>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Table toolbar: sits just above a table while the cursor is in it.
+// ---------------------------------------------------------------------------
+
+export type TableAction = 'addRow' | 'addColumn' | 'deleteRow' | 'deleteColumn' | 'deleteTable'
+
+export function TableBar({ x, y, onAction }: { x: number; y: number; onAction: (action: TableAction) => void }) {
+  const button = (action: TableAction, label: string, title: string) => (
+    <button
+      onClick={() => onAction(action)}
+      title={title}
+      className="flex h-6 items-center rounded-control px-2 text-label font-normal text-fg-2 transition-[color,background-color,transform] duration-100 hover:bg-hover hover:text-fg active:scale-95"
+    >
+      {label}
+    </button>
+  )
+  return createPortal(
+    <motion.div
+      {...pop}
+      role="toolbar"
+      aria-label="Table"
+      onMouseDown={(e) => e.preventDefault()}
+      style={{ left: x, top: y, originX: 0, originY: 1 }}
+      className="fixed z-40 flex -translate-y-[calc(100%+6px)] items-center gap-0.5 rounded-control border border-border-menu bg-menu p-0.5 shadow-menu"
+    >
+      {button('addRow', '+ Row', 'Add a row below')}
+      {button('addColumn', '+ Column', 'Add a column to the right')}
+      <span className="mx-0.5 h-3.5 w-px bg-border" aria-hidden="true" />
+      {button('deleteRow', '− Row', 'Delete this row')}
+      {button('deleteColumn', '− Column', 'Delete this column')}
+      <button
+        onClick={() => onAction('deleteTable')}
+        aria-label="Delete table"
+        title="Delete table"
+        className="flex size-6 items-center justify-center rounded-control text-fg-3 transition-colors duration-100 hover:bg-hover hover:text-danger"
+      >
+        <Trash2 size={13} strokeWidth={1.75} aria-hidden="true" />
+      </button>
+    </motion.div>,
+    document.body,
   )
 }
 

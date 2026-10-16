@@ -2,7 +2,7 @@
 // It sits on the window's vibrancy (no panel behind it).
 
 import { useState, type ReactNode } from 'react'
-import { motion } from 'motion/react'
+import { AnimatePresence, motion } from 'motion/react'
 import { spring } from '../lib/motion'
 import { BookOpen, Layers, ListChecks, PanelLeft, Plus, Settings, type LucideIcon } from 'lucide-react'
 import type { Item } from '../lib/api'
@@ -10,6 +10,8 @@ import { icon } from '../lib/items'
 import { isMac } from '../lib/platform'
 import type { Actions } from '../lib/useActions'
 import { AreaTree } from './AreaTree'
+import { InlineAdd } from './controls'
+import { NoteTree } from './NoteTree'
 import { MossMark } from './Brand'
 import { SectionLabel } from './ui'
 
@@ -31,6 +33,9 @@ interface Props {
   onQuickCapture: () => void
   onSettings: () => void
   onToggleSidebar: () => void
+  /** Docs: the open page, and opening one. */
+  noteId: string | null
+  onOpenNote: (id: string) => void
   onAddArea: (title: string) => Promise<unknown>
   onAddProject: (areaId: string, title: string) => Promise<unknown>
   actions: Actions
@@ -90,26 +95,67 @@ export function Sidebar(props: Props) {
         </NavItem>
       </div>
 
-      <div className="flex min-h-0 flex-col gap-0.5 overflow-y-auto">
-        <div className="group flex items-center pr-1 pb-1.5 pl-2.5">
-          <SectionLabel className="flex-1">Areas</SectionLabel>
-          <AddButton label="Add an area" onClick={() => setAdding('area')} />
-        </div>
+      {/* The lower half follows the section: pages while you're in Docs,
+          areas and projects everywhere else. One sidebar, never two. */}
+      <AnimatePresence mode="wait" initial={false}>
+        {section === 'docs' ? (
+          <motion.div
+            key="pages"
+            initial={{ opacity: 0, x: 8 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: 8 }}
+            transition={spring.snappy}
+            className="flex min-h-0 flex-col gap-0.5 overflow-y-auto"
+          >
+            <div className="group flex items-center pr-1 pb-1.5 pl-2.5">
+              <SectionLabel className="flex-1">Pages</SectionLabel>
+              <AddButton label="Add a page" onClick={() => setAdding('page')} />
+            </div>
+            <NoteTree items={items} openId={props.noteId} onOpen={props.onOpenNote} actions={props.actions} />
+            {adding === 'page' && (
+              <InlineAdd
+                autoFocus
+                label="Page name"
+                className="h-7"
+                onAdd={async (title) => {
+                  const id = await props.actions.create('note', null, title)
+                  setAdding(null)
+                  if (id) props.onOpenNote(id)
+                }}
+                onDone={() => setAdding(null)}
+              />
+            )}
+          </motion.div>
+        ) : (
+          <motion.div
+            key="areas"
+            initial={{ opacity: 0, x: -8 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -8 }}
+            transition={spring.snappy}
+            className="flex min-h-0 flex-col gap-0.5 overflow-y-auto"
+          >
+            <div className="group flex items-center pr-1 pb-1.5 pl-2.5">
+              <SectionLabel className="flex-1">Areas</SectionLabel>
+              <AddButton label="Add an area" onClick={() => setAdding('area')} />
+            </div>
 
-        <AreaTree
-          items={items}
-          activeProjectId={section === 'tasks' ? projectId : null}
-          activeAreaId={section === 'tasks' ? areaId : null}
-          onOpen={onOpen}
-          expanded={expanded}
-          onToggleArea={onToggleArea}
-          adding={adding}
-          setAdding={setAdding}
-          onAddArea={props.onAddArea}
-          onAddProject={props.onAddProject}
-          actions={props.actions}
-        />
-      </div>
+            <AreaTree
+              items={items}
+              activeProjectId={section === 'tasks' ? projectId : null}
+              activeAreaId={section === 'tasks' ? areaId : null}
+              onOpen={onOpen}
+              expanded={expanded}
+              onToggleArea={onToggleArea}
+              adding={adding}
+              setAdding={setAdding}
+              onAddArea={props.onAddArea}
+              onAddProject={props.onAddProject}
+              actions={props.actions}
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <div className="mt-auto">
         <NavItem Icon={Settings} active={false} onClick={props.onSettings}>

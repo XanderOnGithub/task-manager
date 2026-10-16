@@ -4,6 +4,7 @@
 
 import type { Ctx } from '@milkdown/kit/ctx'
 import { editorViewCtx } from '@milkdown/kit/core'
+import { Selection } from '@milkdown/kit/prose/state'
 import {
   createCodeBlockCommand,
   insertHrCommand,
@@ -72,7 +73,28 @@ export const BLOCKS: Block[] = [
   { id: 'quote', label: 'Quote', hint: 'Set text apart', Icon: Quote, aliases: ['blockquote', '>'], run: (ctx) => void callCommand(wrapInBlockquoteCommand.key)(ctx) },
   { id: 'code', label: 'Code block', hint: 'Monospaced, kept exactly', Icon: SquareCode, aliases: ['code', 'pre', '```'], run: (ctx) => void callCommand(createCodeBlockCommand.key)(ctx) },
   { id: 'divider', label: 'Divider', hint: 'A line between sections', Icon: Minus, aliases: ['spacer', 'line', 'hr', 'separator', '---'], run: (ctx) => void callCommand(insertHrCommand.key)(ctx) },
-  { id: 'table', label: 'Table', hint: '3 × 3 to start', Icon: Table, aliases: ['grid'], run: (ctx) => void callCommand(insertTableCommand.key, { row: 3, col: 3 })(ctx) },
+  {
+    id: 'table',
+    label: 'Table',
+    hint: '3 × 3 to start; Tab moves between cells',
+    Icon: Table,
+    aliases: ['grid'],
+    run: (ctx) => {
+      const view = ctx.get(editorViewCtx)
+      const at = view.state.selection.from
+      callCommand(insertTableCommand.key, { row: 3, col: 3 })(ctx)
+      // Put the cursor in the first cell, ready to type.
+      let tablePos = -1
+      view.state.doc.descendants((node, pos) => {
+        if (tablePos < 0 && node.type.name === 'table' && pos + node.nodeSize >= at) tablePos = pos
+        return tablePos < 0
+      })
+      if (tablePos >= 0) {
+        const tr = view.state.tr
+        view.dispatch(tr.setSelection(Selection.near(tr.doc.resolve(tablePos + 1))))
+      }
+    },
+  },
   { id: 'page', label: 'Page', hint: 'A subpage inside this one', Icon: FilePlus, aliases: ['subpage', 'new page', 'doc', 'note'] },
 ]
 
