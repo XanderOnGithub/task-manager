@@ -58,15 +58,18 @@ export function AreaList({ items, area, selectedId, onSelect, onCycleStatus, onO
                   <ChevronDown size={14} strokeWidth={2} aria-hidden="true" />
                 </motion.span>
               </button>
-              <button onClick={() => onOpen(project.id)} className="flex h-full flex-1 items-center gap-2 text-left">
-                <Target size={15} strokeWidth={1.75} className="text-fg-2" aria-hidden="true" />
-                <span className={`font-semibold ${finished ? 'text-fg-3' : 'text-fg'}`}>{project.title}</span>
+              <button
+                onClick={() => onOpen(project.id)}
+                className="@container flex h-full min-w-0 flex-1 items-center gap-2 text-left"
+              >
+                <Target size={15} strokeWidth={1.75} className="shrink-0 text-fg-2" aria-hidden="true" />
+                <span className={`min-w-0 truncate font-semibold ${finished ? 'text-fg-3' : 'text-fg'}`}>{project.title}</span>
                 {project.status !== 'active' && (
-                  <span className="rounded-full bg-raised px-2 text-meta text-fg-3">{statusLabel(project.status)}</span>
+                  <span className="shrink-0 rounded-full bg-raised px-2 text-meta text-fg-3">{statusLabel(project.status)}</span>
                 )}
-                <span className="text-meta font-normal text-fg-3">{`${done} / ${all.length}`}</span>
-                <DueDate item={project} />
-                <Progress done={done} total={all.length} className="ml-1.5 max-w-[120px] flex-1" />
+                <span className="shrink-0 text-meta font-normal text-fg-3">{`${done} / ${all.length}`}</span>
+                <DueDate item={project} className="@max-[20rem]:hidden" />
+                <Progress done={done} total={all.length} className="ml-1.5 max-w-[120px] min-w-6 flex-1 @max-[24rem]:hidden" />
               </button>
               <button
                 onClick={() => onOpen(project.id)}
@@ -97,10 +100,16 @@ export function AreaList({ items, area, selectedId, onSelect, onCycleStatus, onO
                       </button>
                       <button
                         onClick={() => onSelect(task.id)}
-                        className="flex h-full min-w-0 flex-1 items-center gap-2.5 text-left"
+                        className="@container flex h-full min-w-0 flex-1 items-center gap-2.5 text-left"
                       >
                         <TaskTitle title={task.title} done={false} />
-                        {milestone && <MilestoneChip title={milestone.title} color={milestone.color} />}
+                        {milestone && (
+                          <MilestoneChip
+                            title={milestone.title}
+                            color={milestone.color}
+                            className="max-w-[45%] @max-[14rem]:hidden"
+                          />
+                        )}
                         <DueDate item={task} />
                       </button>
                     </div>

@@ -89,7 +89,7 @@ function OneScopeView(props: Props & { scope: Item }) {
       <PanelHeader>
         <nav aria-label="Breadcrumb" className="flex min-w-0 flex-1 items-center gap-1.5 text-fg-3">
           {trail.map((parent) => (
-            <span key={parent.id} className="flex min-w-0 items-center gap-1.5">
+            <span key={parent.id} className="flex min-w-0 items-center gap-1.5 @max-[34rem]/header:hidden">
               <button onClick={() => onOpen(parent.id)} className="truncate transition-colors duration-100 hover:text-fg-2">
                 {parent.title}
               </button>
@@ -103,7 +103,7 @@ function OneScopeView(props: Props & { scope: Item }) {
           <Menu
             label="Project status"
             trigger={
-              <span className="flex h-6 items-center gap-1.5 rounded-full bg-raised px-2.5 text-meta text-fg-2 transition-colors duration-100 hover:text-fg">
+              <span className="flex h-6 shrink-0 items-center gap-1.5 rounded-full bg-raised px-2.5 text-meta whitespace-nowrap text-fg-2 transition-colors duration-100 hover:text-fg">
                 <span className={`size-[7px] rounded-full ${scope.status === 'active' ? 'bg-accent' : 'bg-fg-3'}`} />
                 {statusLabel(scope.status)}
               </span>
@@ -116,10 +116,11 @@ function OneScopeView(props: Props & { scope: Item }) {
         )}
         <button
           onClick={addTask}
-          className="flex h-7 items-center gap-1.5 rounded-row bg-accent px-3 font-medium text-on-accent transition-[filter,transform] duration-100 hover:brightness-110 active:scale-[0.97]"
+          title={scope.kind === 'area' ? 'Add a project' : 'Add a task'}
+          className="flex h-7 shrink-0 items-center gap-1.5 rounded-row bg-accent px-3 font-medium text-on-accent transition-[filter,transform] duration-100 hover:brightness-110 active:scale-[0.97] @max-[34rem]/header:px-2"
         >
           <Plus size={14} strokeWidth={2} aria-hidden="true" />
-          {scope.kind === 'area' ? 'Project' : 'Task'}
+          <span className="@max-[34rem]/header:sr-only">{scope.kind === 'area' ? 'Project' : 'Task'}</span>
         </button>
         <Menu items={itemMenu(scope, actions, () => setRenaming((n) => n + 1))} />
       </PanelHeader>

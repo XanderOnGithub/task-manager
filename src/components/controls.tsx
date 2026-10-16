@@ -242,6 +242,7 @@ export function Segmented<T extends string>({
             role="radio"
             aria-checked={on}
             onClick={() => onChange(option.value)}
+            title={option.icon ? option.label : undefined}
             className={`relative flex items-center gap-1.5 rounded-md transition-colors duration-100 ${
               size === 'sm' ? 'h-6 px-2.5 text-meta' : 'h-[26px] px-3 text-[12.5px] font-medium'
             } ${on ? 'text-fg' : 'text-fg-2 hover:text-fg'}`}
@@ -255,7 +256,8 @@ export function Segmented<T extends string>({
             )}
             <span className="relative flex items-center gap-1.5">
               {option.icon}
-              {option.label}
+              {/* In a narrow panel header, options with an icon show just the icon. */}
+              <span className={option.icon ? '@max-[34rem]/header:sr-only' : ''}>{option.label}</span>
             </span>
           </button>
         )

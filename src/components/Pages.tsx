@@ -49,7 +49,7 @@ export function PageView({
       <PanelHeader>
         <nav aria-label="Breadcrumb" className="flex min-w-0 flex-1 items-center gap-1.5 text-fg-3">
           {trail.map((p) => (
-            <span key={p.id} className="flex min-w-0 items-center gap-1.5">
+            <span key={p.id} className="flex min-w-0 items-center gap-1.5 @max-[34rem]/header:hidden">
               <button onClick={() => onOpen(p.id)} className="truncate transition-colors duration-100 hover:text-fg-2">
                 {p.title}
               </button>

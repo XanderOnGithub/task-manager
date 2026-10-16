@@ -218,12 +218,15 @@ function SortableMilestone({
             <ChevronDown size={14} strokeWidth={2} aria-hidden="true" />
           </motion.span>
         </button>
-        <button onClick={() => onSelect(milestone.id)} className="flex h-full flex-1 items-center gap-2 text-left">
+        <button
+          onClick={() => onSelect(milestone.id)}
+          className="@container flex h-full min-w-0 flex-1 items-center gap-2 text-left"
+        >
           <MilestoneChip title={milestone.title} color={milestone.color} header />
           {milestone.status === 'done' && <StatusIcon status="done" size={14} />}
-          <span className="text-meta font-normal text-fg-3">{`${done} / ${tasks.length}`}</span>
-          <DueDate item={milestone} />
-          <Progress done={done} total={tasks.length} className="ml-1.5 max-w-[120px] flex-1" />
+          <span className="shrink-0 text-meta font-normal text-fg-3">{`${done} / ${tasks.length}`}</span>
+          <DueDate item={milestone} className="@max-[20rem]:hidden" />
+          <Progress done={done} total={tasks.length} className="ml-1.5 max-w-[120px] min-w-6 flex-1 @max-[24rem]:hidden" />
         </button>
         <button
           onClick={onOpen}

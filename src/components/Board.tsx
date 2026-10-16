@@ -91,7 +91,9 @@ export function Board({ items, scope, selectedId, onSelect, onCycleStatus, actio
       {/* The whole board scrolls as one (not each column), so a card can fly
           across columns without being clipped. Columns fill the height. */}
       <LayoutGroup>
-        <div className="grid min-h-0 flex-1 grid-cols-3 gap-3 overflow-y-auto p-4 [grid-auto-rows:minmax(100%,max-content)]">
+        {/* Columns never get narrower than a readable card; past that the
+            board scrolls sideways instead of squashing them. */}
+        <div className="grid min-h-0 flex-1 grid-cols-[repeat(3,minmax(12.5rem,1fr))] gap-3 overflow-auto p-4 [grid-auto-rows:minmax(100%,max-content)]">
           {COLUMNS.map((column) => (
             <Column key={column.status} {...column} count={tasks.filter(({ task }) => statusOf(task) === column.status).length}>
               {tasks
@@ -147,7 +149,7 @@ function Column({
   return (
     <div
       ref={droppable.setNodeRef}
-      className={`flex flex-col gap-2 rounded-[10px] p-2.5 transition-colors duration-150 ${
+      className={`flex min-w-0 flex-col gap-2 rounded-[10px] p-2.5 transition-colors duration-150 ${
         droppable.isOver ? 'bg-hover' : 'bg-column'
       }`}
     >
@@ -237,14 +239,15 @@ function CardFace({
         </button>
         <button
           onClick={() => onSelect?.(task.id)}
-          className={`flex-1 text-left leading-snug ${task.status === 'done' ? 'text-fg-2' : 'text-fg'}`}
+          className={`min-w-0 flex-1 text-left leading-snug break-words ${task.status === 'done' ? 'text-fg-2' : 'text-fg'}`}
         >
           {task.title}
         </button>
       </div>
       {(milestone || project || task.due) && (
-        <div className="flex min-w-0 items-center gap-2">
-          {project && <span className="truncate text-meta font-normal text-fg-3">{project.title}</span>}
+        // Wraps onto a second line when the card is narrow, instead of spilling out.
+        <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1.5">
+          {project && <span className="min-w-0 truncate text-meta font-normal text-fg-3">{project.title}</span>}
           {milestone && <MilestoneChip title={milestone.title} color={milestone.color} />}
           <DueDate item={task} className="ml-auto" />
         </div>
