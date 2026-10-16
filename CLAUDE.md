@@ -131,6 +131,15 @@ M1 file format + Rust core + 10k-file benchmark → M2 app shell + tokens → M3
 
 Status: M1–M6 are built (core, shell, Unsorted flow, create / edit / delete with Undo, Settings, motion pass, drag and drop, rich text editor), plus area and milestone pages with List/Board and a release workflow. Branding done (Moss). Sidebar hides with ⌘\; trash older than 30 days is emptied on open; Docs pages drag (above / into / below). Sounds (ten, tunable), ⌘K search and commands, editor toolbar and "/" blocks are in. Next: use it daily and fix what bugs you.
 
+## Navigation plan (agreed, not built yet)
+
+- One sidebar tree: Areas → Projects → Pages (pages under the project or area they belong to). Click a project = its tasks; click a page = the page.
+- Pages live in places: `areas/<Area>/Pages/…` and `areas/<Area>/<Project>/Pages/…`. Rename `tasks/` and `notes/` to `areas/`; the word is "Page" everywhere (vocabulary: Note → Page).
+- Two overview views, reusing existing views (no new kinds of lists):
+  - Tasks: all projects, as List + Board (project completion at a glance).
+  - Pages: all projects/areas with their pages, as a hierarchy list.
+- Clicking an area still gives its List/Board of milestones/tasks and its page hierarchy. Same view types everywhere.
+
 ## Backlog (after v1)
 
 - Timeline view (maybe).
