@@ -253,12 +253,15 @@ export function Segmented<T extends string>({
   value,
   onChange,
   size = 'md',
+  iconsOnly = false,
 }: {
   label: string
   options: { value: T; label: string; icon?: ReactNode }[]
   value: T | null
   onChange: (value: T) => void
   size?: 'sm' | 'md'
+  /** Show only the icons (labels become tooltips and stay readable by screen readers). */
+  iconsOnly?: boolean
 }) {
   // The selected background is one element that slides between options.
   const thumbId = useId()
@@ -273,8 +276,9 @@ export function Segmented<T extends string>({
             aria-checked={on}
             onClick={() => onChange(option.value)}
             title={option.icon ? option.label : undefined}
+            aria-label={iconsOnly ? option.label : undefined}
             className={`relative flex items-center gap-1.5 rounded-md transition-colors duration-100 ${
-              size === 'sm' ? 'h-6 px-2.5 text-meta' : 'h-[26px] px-3 text-[12.5px] font-medium'
+              iconsOnly ? (size === 'sm' ? 'h-6 px-1.5' : 'h-[26px] px-2') : size === 'sm' ? 'h-6 px-2.5 text-meta' : 'h-[26px] px-3 text-[12.5px] font-medium'
             } ${on ? 'text-fg' : 'text-fg-2 hover:text-fg'}`}
           >
             {on && (
@@ -287,7 +291,7 @@ export function Segmented<T extends string>({
             <span className="relative flex items-center gap-1.5">
               {option.icon}
               {/* In a narrow panel header, options with an icon show just the icon. */}
-              <span className={option.icon ? '@max-[34rem]/header:sr-only' : ''}>{option.label}</span>
+              <span className={iconsOnly ? 'sr-only' : option.icon ? '@max-[34rem]/header:sr-only' : ''}>{option.label}</span>
             </span>
           </button>
         )

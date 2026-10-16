@@ -5,6 +5,7 @@ import { X } from 'lucide-react'
 import { childrenOf, MILESTONE_COLORS, type Item, type MilestoneColor, type Status } from '../lib/api'
 import { shortDate } from '../lib/dates'
 import { statusLabel } from '../lib/items'
+import { useLanes } from '../lib/lanes'
 import type { Actions } from '../lib/useActions'
 import { BodyEditor, DateField, EditableTitle, InlineAdd, Menu, Segmented } from './controls'
 import { itemMenu } from './itemMenu'
@@ -23,7 +24,9 @@ export function DetailsPanel({ items, item, parent, onSelect, actions }: Props) 
   const isMilestone = item.kind === 'milestone'
   const tasks = isMilestone ? childrenOf(items, item.id) : []
   const done = tasks.filter((t) => t.status === 'done').length
-  const statuses: Status[] = isMilestone ? ['open', 'done'] : ['todo', 'doing', 'done']
+  // A task's choices follow the Board's lanes (Later and Waiting when they're on).
+  const lanes = useLanes(isMilestone ? [] : [item])
+  const statuses: Status[] = isMilestone ? ['open', 'done'] : lanes.map((lane) => lane.status)
 
   return (
     <Panel label={isMilestone ? 'Milestone details' : 'Task details'} className="h-full w-details shrink-0">
@@ -33,7 +36,7 @@ export function DetailsPanel({ items, item, parent, onSelect, actions }: Props) 
         ) : (
           <span
             className={`flex h-6 items-center gap-1.5 rounded-full px-2.5 text-meta text-fg ${
-              item.status === 'doing' ? 'bg-doing-soft' : 'bg-raised'
+              item.status === 'doing' ? 'bg-doing-soft' : item.status === 'waiting' ? 'bg-waiting-soft' : 'bg-raised'
             }`}
           >
             <StatusIcon status={item.status} size={13} />
@@ -68,7 +71,14 @@ export function DetailsPanel({ items, item, parent, onSelect, actions }: Props) 
               size="sm"
               value={item.status}
               onChange={(status) => void actions.setStatus(item, status)}
-              options={statuses.map((s) => ({ value: s, label: statusLabel(s) }))}
+              // Five lanes don't fit as words, so with Later or Waiting on, the
+              // choices are their status circles (names show on hover).
+              iconsOnly={statuses.length > 3}
+              options={statuses.map((s) => ({
+                value: s,
+                label: statusLabel(s),
+                icon: statuses.length > 3 ? <StatusIcon status={s} size={15} /> : undefined,
+              }))}
             />
           </Field>
 

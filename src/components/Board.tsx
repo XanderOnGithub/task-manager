@@ -18,16 +18,12 @@ import { LayoutGroup, motion } from 'motion/react'
 import type { Item, TaskStatus } from '../lib/api'
 import { useDragSensors, useDragState } from '../lib/drag'
 import { statusLabel, tasksUnder } from '../lib/items'
+import { useLanes } from '../lib/lanes'
 import { spring } from '../lib/motion'
 import type { Actions } from '../lib/useActions'
 import { Lifted } from './Lifted'
 import { DueDate, MilestoneChip, StatusIcon } from './ui'
 
-const COLUMNS: { status: TaskStatus; label: string; dot: string }[] = [
-  { status: 'todo', label: 'Todo', dot: 'bg-todo' },
-  { status: 'doing', label: 'Doing', dot: 'bg-doing' },
-  { status: 'done', label: 'Done', dot: 'bg-done' },
-]
 
 /** The column under the pointer, or the nearest one (for keyboard dragging). */
 const columnCollision: CollisionDetection = (args) => {
@@ -60,6 +56,8 @@ export function Board({ items, scope, selectedId, onSelect, onCycleStatus, actio
 
   // Every task inside, in list order, with its milestone and project.
   const tasks = tasksUnder(items, scope?.id ?? null)
+  // Todo, Doing, Done, plus Later and Waiting when they're on (or in use here).
+  const lanes = useLanes(tasks.map(({ task }) => task))
   // Inside a milestone the chip would say the same thing on every card.
   const showMilestone = scope?.kind !== 'milestone'
   // In an area (or everywhere), cards also say which project they're from.
@@ -95,8 +93,8 @@ export function Board({ items, scope, selectedId, onSelect, onCycleStatus, actio
       <LayoutGroup>
         <div className="flex min-h-0 flex-1 overflow-x-auto">
           <div className="flex min-h-0 flex-1 gap-3 p-4">
-            {COLUMNS.map((column) => (
-              <Column key={column.status} {...column} count={tasks.filter(({ task }) => statusOf(task) === column.status).length}>
+            {lanes.map((column) => (
+              <Column key={column.status} status={column.status} label={column.label} dot={column.dot} count={tasks.filter(({ task }) => statusOf(task) === column.status).length}>
                 {tasks
                   .filter(({ task }) => statusOf(task) === column.status)
                   .map(({ task, milestone, project }) => (

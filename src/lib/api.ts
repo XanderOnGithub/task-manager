@@ -13,7 +13,8 @@ import { listen, type UnlistenFn } from '@tauri-apps/api/event'
 
 export type Kind = 'area' | 'project' | 'milestone' | 'task' | 'page'
 
-export type TaskStatus = 'todo' | 'doing' | 'done'
+/** `later` and `waiting` are optional lanes (Settings → Board lanes); the file accepts them either way. */
+export type TaskStatus = 'todo' | 'doing' | 'done' | 'later' | 'waiting'
 export type MilestoneStatus = 'open' | 'done'
 export type ProjectStatus = 'active' | 'paused' | 'done' | 'dropped'
 export type Status = TaskStatus | MilestoneStatus | ProjectStatus

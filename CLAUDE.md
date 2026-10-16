@@ -59,7 +59,7 @@ brand/          the Moss mark (icon.svg), the moss° wordmarks (wordmark.py draw
 - `src/components/controls.tsx`: InlineAdd, EditableTitle, Menu, Segmented, Modal, BodyEditor, DateField. `ui.tsx`: Panel, chips, status icon, due date, progress.
 - Navigation: one sidebar tree, areas → projects → pages (`AreaTree.tsx`, one DndContext for all three; page rows in `PageTree.tsx`, page drag logic in `lib/pageDrag.ts`). Above it, three overviews: Unsorted, Tasks (every project, List/Board) and Pages (every area and project with its pages). `App.tsx` keeps what's open as an overview or an item id; opening anything unfolds the sidebar down to it.
 - Task views: `ScopeView.tsx` shows everything (scope null, the Tasks overview), an area, project or milestone (breadcrumb, List/Board). List: `AreaList.tsx` (projects with their open tasks) or `ProjectList.tsx` (a project's milestones/tasks, or a milestone's tasks), then the area's or project's pages (`PageSection`). Board: `Board.tsx` for any of them. `tasksUnder()` in `lib/items.ts` collects the tasks inside anything (null = all).
-- Pages: `Pages.tsx` (PageView, PagesOverview, PageSection). Text: `MarkdownEditor.tsx` (Milkdown) for pages and every description. Rich text on screen, plain markdown on disk ("-" bullets, no `<br />`), saved only after a real edit. Styles in `styles/editor.css`. Loaded lazily.
+- Pages: `Pages.tsx` (PageView, PagesOverview, PageSection; word count in the corner, Settings → Word count). Type `:name` for emoji (`editor/emojiShortcodes.ts`, gemoji). Shift+Enter always adds a line break (our key handler; the preset's is left out). Text: `MarkdownEditor.tsx` (Milkdown) for pages and every description. Rich text on screen, plain markdown on disk ("-" bullets, no `<br />`), saved only after a real edit. Styles in `styles/editor.css`. Loaded lazily.
 - Toasts: `useToast()`; ⌘Z runs the visible toast's Undo. ⌘N opens Quick capture. ⌘\ hides the sidebar (remembered via `lib/prefs.ts`).
 - Search: `CommandPalette.tsx` (⌘K). Items by title (matched in the UI), actions (go to, theme, sounds, sidebar, plus typed: add to Unsorted, new task in the open project, new page in the open area or project), and text matches from `core/src/search.rs` via `search_text`.
 - Editor menus: `components/editor/` (selection toolbar, "/" block menu with /page). `/page` creates a subpage and writes a relative link `[Name](Name.md)`; clicking it opens the page.
@@ -105,7 +105,7 @@ data/
 - A project's children are all milestones or all tasks, never mixed. Its `Pages` folder doesn't count; it isn't an item, so no project or milestone may be called "Pages".
 - Older folders (`tasks/` + `notes/`) move to this layout when opened (`core/src/migrate.rs`); old notes go to a "Reference" area.
 - Frontmatter: `id` (10-char random id, never changes), `status`, `order` (fractional index key), `created`, optional `due`, `color` (milestones only, stored by name: `dusty-blue`, `mauve`, `rose`, `teal`, `lavender`, `sand`), `icon` (pages only: one emoji, e.g. `icon: 🌿`).
-- Statuses: task `todo|doing|done`, milestone `open|done`, project `active|paused|done|dropped`.
+- Statuses: task `todo|doing|done`, plus the optional lanes `later|waiting` (always valid on disk; Settings → Board lanes shows them, `lib/lanes.ts`), milestone `open|done`, project `active|paused|done|dropped`.
 - Done items stay in place. Startup reads frontmatter only into an in-memory index; a file watcher keeps it current.
 
 ## Language rules (all UI copy)
@@ -121,7 +121,7 @@ data/
 
 - Icons: Lucide (`lucide-react`), 16px, stroke 1.75.
 - Fonts: Geist for everything; Geist Mono only for shortcuts and paths.
-- Sage accent marks selection, progress and Done. Status is always a circle: Todo gray, Doing amber, Done sage.
+- Sage accent marks selection, progress and Done. Status is always a circle: Todo gray, Doing amber, Done sage; the optional lanes are Later (dashed gray ring) and Waiting (lavender ring with a pause sign).
 - Milestones are tinted chips (muted fill + matching border, no icon), using the milestone palette.
 - Due dates: calendar icon; gray normally, muted amber when due soon, muted red when overdue.
 - Window vibrancy on sidebar and background only; content panels are solid and rounded.

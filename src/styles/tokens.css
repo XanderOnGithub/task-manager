@@ -91,6 +91,11 @@
   --color-doing: #E0A458;
   --color-doing-soft: rgba(224, 164, 88, 0.16);
   --color-done: var(--color-accent);
+  /* Optional lanes: Later is a dashed gray ring, Waiting a muted lavender one
+     (kept clear of amber, sage and the red of overdue dates). */
+  --color-later: var(--color-fg-3);
+  --color-waiting: #A49ED3;
+  --color-waiting-soft: rgba(164, 158, 211, 0.16);
 
   --color-due: var(--color-fg-3);
   --color-due-soon: #B99873;                   /* amber blended 45% toward gray */
@@ -172,6 +177,8 @@
 
     --color-doing: #A86A1E;
     --color-doing-soft: rgba(168, 106, 30, 0.12);
+    --color-waiting: #6A64A3;
+    --color-waiting-soft: rgba(106, 100, 163, 0.12);
     --color-due-soon: #8C6A44;
     --color-overdue: #965551;
     --color-danger: #965551;
@@ -220,6 +227,8 @@
 
   --color-doing: #A86A1E;
   --color-doing-soft: rgba(168, 106, 30, 0.12);
+  --color-waiting: #6A64A3;
+  --color-waiting-soft: rgba(106, 100, 163, 0.12);
   --color-due-soon: #8C6A44;
   --color-overdue: #965551;
   --color-danger: #965551;

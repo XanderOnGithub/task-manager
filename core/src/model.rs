@@ -16,9 +16,14 @@ pub enum Kind {
 impl Kind {
     /// The statuses each kind accepts. The first one is the default.
     /// Areas and pages have no status.
+    ///
+    /// Tasks have two optional ones the app can show as extra lanes:
+    /// `later` (not up next) and `waiting` (held up by someone or something).
+    /// They're always accepted here, so turning a lane off in the app never
+    /// makes a file invalid.
     pub fn statuses(self) -> &'static [&'static str] {
         match self {
-            Kind::Task => &["todo", "doing", "done"],
+            Kind::Task => &["todo", "doing", "done", "later", "waiting"],
             Kind::Milestone => &["open", "done"],
             Kind::Project => &["active", "paused", "done", "dropped"],
             Kind::Area | Kind::Page => &[],

@@ -10,8 +10,9 @@ import { useFrameRate } from '../lib/useFrameRate'
 import { useTheme, type Theme } from '../lib/theme'
 import { useToast } from '../lib/toast'
 import { usePref } from '../lib/prefs'
+import { LANES, OPTIONAL, useOptionalLanes } from '../lib/lanes'
 import { Modal, Segmented, Switch } from './controls'
-import { Panel } from './ui'
+import { Panel, StatusIcon } from './ui'
 import { play, setSoundSettings, SOUND_INFO, soundSettings, type SoundName, type SoundSettings } from '../lib/sounds'
 
 export function QuickCapture({ onCapture, onClose }: { onCapture: (text: string) => Promise<unknown>; onClose: () => void }) {
@@ -94,7 +95,7 @@ export function Settings({
             <SoundsTab />
           </motion.div>
         ) : (
-          <motion.div key="general" {...tabMotion(-1)} className="flex flex-col gap-5 p-5">
+          <motion.div key="general" {...tabMotion(-1)} className="flex max-h-[62vh] flex-col gap-5 overflow-y-auto p-5">
             <div className="flex flex-col gap-2">
               <div className="text-meta text-fg-2">Data folder</div>
               {/* The one place a path is shown: it's the setting itself. */}
@@ -116,6 +117,8 @@ export function Settings({
             </div>
 
             <WordCountSetting />
+
+            <LanesSetting />
 
             <HighRefreshSetting />
 
@@ -292,6 +295,33 @@ function SoundRow({
         <span className="truncate text-label font-normal text-fg-3">{when}</span>
       </div>
       <Switch label={label} checked={on} onChange={onToggle} />
+    </div>
+  )
+}
+
+/** Extra task lanes: Later and Waiting, on top of Todo, Doing and Done. */
+function LanesSetting() {
+  const [on, setOn] = useOptionalLanes()
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="flex flex-col gap-0.5">
+        <span className="text-meta text-fg-2">Board lanes</span>
+        <span className="text-meta font-normal text-fg-3">Todo, Doing and Done are always on. Add these as you need them.</span>
+      </div>
+      {LANES.filter((lane) => OPTIONAL.includes(lane.status)).map((lane) => (
+        <div key={lane.status} className="flex items-center gap-3">
+          <StatusIcon status={lane.status} size={15} />
+          <div className="flex flex-1 flex-col">
+            <span className="text-fg">{lane.label}</span>
+            <span className="text-label font-normal text-fg-3">{lane.hint}</span>
+          </div>
+          <Switch
+            label={lane.label}
+            checked={on.includes(lane.status)}
+            onChange={(checked) => setOn(checked ? [...on, lane.status] : on.filter((s) => s !== lane.status))}
+          />
+        </div>
+      ))}
     </div>
   )
 }

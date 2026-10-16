@@ -66,6 +66,8 @@ export function MilestoneChip({
 /**
  * Status circle. Todo is an empty gray ring, Doing is half-filled amber, Done
  * is a filled sage circle with a check. Milestones use open/done the same way.
+ * The optional lanes: Later is a dashed gray ring, Waiting a lavender ring
+ * with a small pause sign.
  *
  * All three are layers of one drawing, so changing status animates: the ring
  * changes color, the half fill swings in, the done circle pops and its check
@@ -74,7 +76,9 @@ export function MilestoneChip({
 export function StatusIcon({ status, size = 16 }: { status: Status | null; size?: number }) {
   const done = status === 'done'
   const doing = status === 'doing'
-  const ring = done ? 'text-done' : doing ? 'text-doing' : 'text-todo'
+  const waiting = status === 'waiting'
+  const later = status === 'later'
+  const ring = done ? 'text-done' : doing ? 'text-doing' : waiting ? 'text-waiting' : later ? 'text-later' : 'text-todo'
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden="true" className={`shrink-0 overflow-visible ${ring}`}>
       <circle
@@ -84,7 +88,19 @@ export function StatusIcon({ status, size = 16 }: { status: Status | null; size?
         fill="none"
         stroke="currentColor"
         strokeWidth="1.8"
+        // Later: the ring breaks into dashes.
+        strokeDasharray={later ? '3.2 2.6' : undefined}
         className="transition-colors duration-150"
+      />
+      <motion.path
+        d="M10 9v6M14 9v6"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        style={{ transformOrigin: '12px 12px' }}
+        initial={false}
+        animate={waiting ? { opacity: 1, scale: 1 } : { opacity: 0, scale: 0.5 }}
+        transition={spring.snappy}
       />
       <motion.path
         d="M12 6.5a5.5 5.5 0 0 1 0 11z"
