@@ -1,4 +1,9 @@
-# Task Manager
+<h1>
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="brand/wordmark-dark.svg">
+    <img src="brand/wordmark-light.svg" alt="Moss" height="56">
+  </picture>
+</h1>
 
 A local-first desktop app for tasks and notes. Capture anything into **Unsorted**, then sort it into a strict hierarchy: **Area → Project → Milestone → Task**, with **Notes** alongside.
 

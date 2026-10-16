@@ -1,6 +1,6 @@
-# Task app
+# Moss
 
-Local-first desktop app for tasks and notes: capture first into Unsorted, then sort into a strict hierarchy. Built with Tauri (thin Rust core) and React + Vite, on macOS. Also a portfolio piece focused on interaction polish.
+Moss is a local-first desktop app for tasks and notes: capture first into Unsorted, then sort into a strict hierarchy. Built with Tauri (thin Rust core) and React + Vite, on macOS. Also a portfolio piece focused on interaction polish.
 
 ## UI reference
 
@@ -24,6 +24,7 @@ src/            React front end
   lib/api.ts    typed wrappers for the commands. Keep in sync with src-tauri/src/lib.rs
   styles/       app.css (entry), tokens.css (Tailwind theme), base.css, motion.css
 sample-data/    the renovation example from the mockups; dev builds open a copy of it
+brand/          the Moss mark (icon.svg), README wordmarks, icon-1024.png (source for `pnpm tauri icon`)
 ```
 
 ## Commands
@@ -118,18 +119,19 @@ data/
 - Milestones are tinted chips (muted fill + matching border, no icon), using the milestone palette.
 - Due dates: calendar icon; gray normally, muted amber when due soon, muted red when overdue.
 - Window vibrancy on sidebar and background only; content panels are solid and rounded.
+- Brand: the mark is a lowercase m made of two moss mounds, a leaf and a soil line (`brand/icon.svg`, `<MossMark>` in `components/Brand.tsx`, colors `--color-brand-*`). Wordmark is "moss" in Geist SemiBold, lowercase. The app's name in text is "Moss".
 - No file paths in the UI. Every item's ⋯ menu has Reveal in Finder, Copy path, Rename, Delete.
 
 ## Build order
 
 M1 file format + Rust core + 10k-file benchmark → M2 app shell + tokens → M3 Unsorted (start using the app here) → M4 hierarchy lists → M5 drag and drop + Board → M6 notes editor (plain text + preview first). v1 is only Unsorted, the hierarchy and notes. Budget: a few weekends.
 
-Status: M1–M6 are built (core, shell, Unsorted flow, create / edit / delete with Undo, Settings, motion pass, drag and drop, rich text editor), plus area and milestone pages with List/Board and a release workflow. Next: sounds, then branding (both need decisions). Not yet draggable: the Docs tree.
+Status: M1–M6 are built (core, shell, Unsorted flow, create / edit / delete with Undo, Settings, motion pass, drag and drop, rich text editor), plus area and milestone pages with List/Board and a release workflow. Branding done (Moss). Next: sounds. Not yet draggable: the Docs tree.
 
 ## Backlog (after v1)
 
 - Timeline view (maybe).
-- Sounds, then branding.
+- Sounds.
 - Code signing for releases (Apple Developer ID + notarization, a Windows certificate).
 - Drag and drop in the Docs tree and on the area page.
 

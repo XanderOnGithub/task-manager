@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Task Manager",
+  "productName": "Moss",
   "version": "0.1.0",
-  "identifier": "com.xanderreyes.taskmanager",
+  "identifier": "com.xanderreyes.moss",
   "build": {
     "beforeDevCommand": "pnpm dev",
     "devUrl": "http://localhost:1420",
@@ -14,7 +14,7 @@
     "windows": [
       {
         "label": "main",
-        "title": "Task Manager",
+        "title": "Moss",
         "width": 1280,
         "height": 820,
         "minWidth": 900,

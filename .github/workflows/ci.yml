@@ -33,7 +33,7 @@ jobs:
       - run: |
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
-      - run: cargo clippy -p task-manager -- -D warnings
+      - run: cargo clippy -p moss -- -D warnings
 
   app-macos:
     name: Desktop app on macOS (compiles)
@@ -46,7 +46,7 @@ jobs:
         with:
           components: clippy
       - uses: Swatinem/rust-cache@v2
-      - run: cargo clippy -p task-manager -- -D warnings
+      - run: cargo clippy -p moss -- -D warnings
 
   frontend:
     name: Front end (types, lint, build)

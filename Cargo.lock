@@ -2093,6 +2093,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "moss"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "task-core",
+ "tauri",
+ "tauri-build",
+ "tauri-plugin-dialog",
+ "tauri-plugin-macos-fps",
+ "tauri-plugin-opener",
+]
+
+[[package]]
 name = "muda"
 version = "0.20.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3486,20 +3500,6 @@ dependencies = [
  "notify-debouncer-mini",
  "serde",
  "tempfile",
-]
-
-[[package]]
-name = "task-manager"
-version = "0.1.0"
-dependencies = [
- "serde",
- "serde_json",
- "task-core",
- "tauri",
- "tauri-build",
- "tauri-plugin-dialog",
- "tauri-plugin-macos-fps",
- "tauri-plugin-opener",
 ]
 
 [[package]]

@@ -7,8 +7,10 @@ import { spring } from '../lib/motion'
 import { BookOpen, Layers, ListChecks, PanelLeft, Plus, Settings, type LucideIcon } from 'lucide-react'
 import type { Item } from '../lib/api'
 import { icon } from '../lib/items'
+import { isMac } from '../lib/platform'
 import type { Actions } from '../lib/useActions'
 import { AreaTree } from './AreaTree'
+import { MossMark } from './Brand'
 import { SectionLabel } from './ui'
 
 export type Section = 'unsorted' | 'tasks' | 'docs'
@@ -40,8 +42,17 @@ export function Sidebar(props: Props) {
 
   return (
     <nav aria-label="Sidebar" className="flex w-sidebar shrink-0 flex-col gap-3.5 pt-3.5 pr-2.5 pb-3 pl-3">
-      {/* Top row: room for the traffic lights, and a drag handle for the window. */}
-      <div data-tauri-drag-region className="flex h-5 items-center justify-end">
+      {/* Top row: the traffic lights (on a Mac), the app's name, and a drag
+          handle for the window. The name doesn't take clicks, so dragging
+          there moves the window. */}
+      <div data-tauri-drag-region className="flex h-5 items-center">
+        <span
+          className={`pointer-events-none flex items-center gap-1.5 select-none ${isMac ? 'pl-[62px]' : 'pl-1'}`}
+        >
+          <MossMark className="h-[15px] w-auto" />
+          <span className="text-[14px] leading-none font-semibold tracking-tight text-fg">moss</span>
+        </span>
+        <span data-tauri-drag-region className="flex-1 self-stretch" />
         <button
           aria-label="Toggle sidebar"
           title="Toggle sidebar"
