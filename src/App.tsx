@@ -275,7 +275,9 @@ export default function App() {
   }
 
   return (
-    <div className="flex h-full bg-window">
+    // On a Mac the background is see-through so the blur behind the window
+    // shows; other systems draw no blur, so they get the same color, solid.
+    <div className={`flex h-full ${isMac ? 'bg-window' : 'bg-window-solid'}`}>
       {/* The sidebar slides shut to zero width. Its contents keep their size
           and get clipped, so nothing reflows while it moves. */}
       <motion.div

@@ -30,6 +30,7 @@ import { listener, listenerCtx } from '@milkdown/kit/plugin/listener'
 import { trailing } from '@milkdown/kit/plugin/trailing'
 import {
   commonmark,
+  hardbreakKeymap,
   remarkPreserveEmptyLinePlugin,
   toggleEmphasisCommand,
   toggleInlineCodeCommand,
@@ -66,8 +67,10 @@ import { menuPlugin } from './editor/menuPlugin'
 
 // Milkdown keeps empty paragraphs by writing `<br />` into the file. We'd
 // rather keep files clean, so that one piece of the preset is left out.
-const preserveEmptyLines: MilkdownPlugin[] = [remarkPreserveEmptyLinePlugin].flat()
-const markdownBasics = commonmark.filter((plugin) => !preserveEmptyLines.includes(plugin))
+// Shift+Enter is handled in the key handler below instead of by the preset,
+// whose version turns a second break in a row into a new paragraph.
+const leftOut: MilkdownPlugin[] = [remarkPreserveEmptyLinePlugin, hardbreakKeymap].flat()
+const markdownBasics = commonmark.filter((plugin) => !leftOut.includes(plugin))
 
 /** How long typing has to pause before the page saves on its own. */
 const SAVE_AFTER_MS = 800
@@ -217,6 +220,19 @@ export function MarkdownEditor({
           goToNextCell(1)(view.state, view.dispatch)
         }
         return true
+      }
+      // Shift+Enter: a line break, every time you press it. (Milkdown's own
+      // version turns a second break in a row into a new paragraph, so
+      // pressing it repeatedly seemed to stop working.) On disk each break is
+      // a line ending in "\", which markdown keeps. Code blocks and tables
+      // keep their own behavior.
+      if (event.key === 'Enter' && event.shiftKey && !event.metaKey && !event.ctrlKey && !live.current.slash) {
+        const { state } = view
+        const br = state.schema.nodes.hardbreak
+        if (br && !state.selection.$from.parent.type.spec.code && !isInTable(state)) {
+          view.dispatch(state.tr.setMeta('hardbreak', true).replaceSelectionWith(br.create()).scrollIntoView())
+          return true
+        }
       }
       const { slash, blocks, slashIndex, naming } = live.current
       if (!slash || naming) return false
