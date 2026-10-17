@@ -19,6 +19,7 @@ use crate::library::{has_pages, is_date, Library, AREAS_DIR, INDEX_FILE, PAGES_D
 use crate::model::{is_icon, Item, Kind, MILESTONE_COLORS};
 use crate::names::check_title;
 use crate::order;
+use crate::trash;
 
 /// Creates a new item and returns its id.
 ///
@@ -218,8 +219,9 @@ pub fn write_body(lib: &Library, id: &str, body: &str) -> Result<()> {
     Ok(())
 }
 
-/// Moves an item (and everything inside it) to the hidden `.trash` folder.
-/// Returns where it went, so the app can offer Undo with `restore`.
+/// Moves an item (and everything inside it) to the hidden `.trash` folder,
+/// with a note of where it was (see trash.rs). Returns where it went, so the
+/// app can offer Undo with `restore`.
 pub fn trash(lib: &Library, id: &str) -> Result<String> {
     let item = find(lib, id)?;
     let name = item.path.rsplit('/').next().expect("paths have a name");
@@ -228,11 +230,18 @@ pub fn trash(lib: &Library, id: &str) -> Result<String> {
 
     fs::create_dir_all(lib.abs(".trash"))?;
     fs::rename(lib.abs(&item.path), lib.abs(&trash_rel))?;
+    trash::note_origin(&lib.root, &trash_rel, &item.path)?;
     remove_if_empty_pages_folder(lib, &item.path);
     Ok(trash_rel)
 }
 
-/// Puts a trashed item back where it was (the Undo after Delete).
+/// Puts a trashed item back where it was (Undo after Delete, or Restore in
+/// the Trash view).
+///
+/// The place it goes back into has to exist: restoring a task whose project
+/// was deleted too would make a folder with no project in it, so that's
+/// refused until the project is restored. The one exception is a `Pages`
+/// folder, which is just made again.
 pub fn restore(lib: &Library, trash_rel: &str, original_rel: &str) -> Result<()> {
     let target = lib.abs(original_rel);
     if target.exists() {
@@ -240,9 +249,24 @@ pub fn restore(lib: &Library, trash_rel: &str, original_rel: &str) -> Result<()>
         return Err(Error::NameTaken(name.trim_end_matches(".md").to_owned()));
     }
     if let Some(dir) = target.parent() {
-        fs::create_dir_all(dir)?;
+        if !dir.exists() {
+            let is_pages = dir.file_name().is_some_and(|n| n == PAGES_DIR);
+            let owner_exists = dir.parent().is_some_and(Path::exists);
+            if is_pages && owner_exists {
+                fs::create_dir_all(dir)?;
+            } else {
+                let parent = dir
+                    .file_name()
+                    .map(|n| n.to_string_lossy().into_owned())
+                    .unwrap_or_default();
+                return Err(Error::NotAllowed(format!(
+                    "\"{parent}\" was deleted too. Restore it first."
+                )));
+            }
+        }
     }
     fs::rename(lib.abs(trash_rel), target)?;
+    trash::forget_origin(&lib.root, trash_rel);
     Ok(())
 }
 

@@ -8,7 +8,7 @@
 import { useState, type ReactNode } from 'react'
 import { motion } from 'motion/react'
 import { spring } from '../lib/motion'
-import { FileText, Layers, ListChecks, PanelLeft, Plus, Settings, type LucideIcon } from 'lucide-react'
+import { FileText, Layers, ListChecks, PanelLeft, Plus, Settings, Trash2, type LucideIcon } from 'lucide-react'
 import type { Item } from '../lib/api'
 import { icon } from '../lib/items'
 import { isMac } from '../lib/platform'
@@ -18,11 +18,13 @@ import { MossWordmark } from './Brand'
 import { SectionLabel } from './ui'
 
 /** The overviews at the top of the sidebar. */
-export type Overview = 'unsorted' | 'tasks' | 'pages'
+export type Overview = 'unsorted' | 'tasks' | 'pages' | 'trash'
 
 interface Props {
   items: Item[]
   unsortedCount: number
+  /** Things in the trash; the Trash row shows above Settings while there are any. */
+  trashCount: number
   /** The open overview, or null when an area, project or page is open. */
   overview: Overview | null
   onOverview: (overview: Overview) => void
@@ -114,7 +116,11 @@ export function Sidebar(props: Props) {
         />
       </div>
 
-      <div className="mt-auto">
+      <div className="mt-auto flex flex-col gap-0.5">
+        <NavItem Icon={Trash2} active={overview === 'trash'} onClick={() => onOverview('trash')}>
+          Trash
+          {props.trashCount > 0 && <span className="ml-auto text-label font-normal text-fg-3">{props.trashCount}</span>}
+        </NavItem>
         <NavItem Icon={Settings} active={false} onClick={props.onSettings}>
           Settings
         </NavItem>

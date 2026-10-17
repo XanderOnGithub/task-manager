@@ -37,7 +37,9 @@ import { ScopeView, type Layout } from './components/ScopeView'
 import { DetailsPanel } from './components/DetailsPanel'
 import { UnsortedView } from './components/Unsorted'
 import { PagesOverview, PageView } from './components/Pages'
-import { QuickCapture, Settings } from './components/Dialogs'
+import { TrashView } from './components/Trash'
+import { useTrash } from './lib/useTrash'
+import { ConfirmHost, QuickCapture, Settings } from './components/Dialogs'
 import { Onboarding } from './components/Onboarding'
 import { Panel } from './components/ui'
 
@@ -47,7 +49,8 @@ const SIDEBAR_WIDTH = 244
 
 export default function App() {
   const { snapshot, error, needsFolder, byId, reload } = useLibrary()
-  const actions = useActions(reload)
+  const actions = useActions(reload, snapshot?.items ?? [])
+  const trash = useTrash(snapshot)
 
   // What's open: an overview (Unsorted, Tasks, Pages), or an area, project,
   // milestone or page by id. `page` remembers which overview to fall back to
@@ -252,6 +255,7 @@ export default function App() {
       )
     }
     if (overview === 'unsorted') return <UnsortedView entries={snapshot.unsorted} items={items} actions={actions} />
+    if (overview === 'trash') return <TrashView entries={trash} actions={actions} />
     if (overview === 'pages') return <PagesOverview items={items} onOpen={openId} actions={actions} />
     if (open?.kind === 'page') return <PageView key={open.id} items={items} page={open} onOpen={openId} actions={actions} />
     return (
@@ -319,6 +323,7 @@ export default function App() {
         <Sidebar
           items={items}
           unsortedCount={snapshot?.unsorted.length ?? 0}
+          trashCount={trash.length}
           overview={overview}
           onOverview={openOverview}
           openId={sidebarOpenId}
@@ -393,6 +398,7 @@ export default function App() {
         )}
       </AnimatePresence>
       <ContextMenu menuFor={menuFor} />
+      <ConfirmHost />
       {dialog === 'capture' && <QuickCapture onCapture={actions.capture} onClose={() => setDialog(null)} />}
       {dialog === 'settings' && (
         <Settings dataFolder={snapshot?.dataFolder ?? null} onClose={() => setDialog(null)} onFolderChanged={reload} />

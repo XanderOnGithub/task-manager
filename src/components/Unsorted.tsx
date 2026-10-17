@@ -16,6 +16,7 @@ import type { Actions } from '../lib/useActions'
 import { InlineAdd, Segmented } from './controls'
 import { MilestoneChip, Panel, PanelHeader, StatusIcon } from './ui'
 import { play } from '../lib/sounds'
+import { stampLabel } from '../lib/dates'
 
 type FileAs = 'task' | 'page' | 'project'
 
@@ -98,7 +99,7 @@ export function UnsortedView({ entries, items, actions }: { entries: UnsortedEnt
                     >
                       <span aria-hidden="true" className="size-1.5 shrink-0 rounded-full bg-fg-3" />
                       <span className="flex-1 truncate text-[14px]">{entry.text}</span>
-                      {entry.added && <span className="text-meta font-normal text-fg-3">{timeLabel(entry.added)}</span>}
+                      {entry.added && <span className="text-meta font-normal text-fg-3">{stampLabel(entry.added)}</span>}
                     </button>
 
                     <Collapse open={isOpen}>
@@ -300,18 +301,4 @@ function destinations(items: Item[], fileAs: FileAs): Destination[] {
 
 function emptyMessage(fileAs: FileAs): string {
   return fileAs === 'task' ? 'Add a project first' : 'Add an area first'
-}
-
-/** "10:42 PM" today, "Yesterday", otherwise "Oct 12". */
-function timeLabel(stamp: string): string {
-  const [date, time] = stamp.split(' ')
-  const [y, m, d] = date.split('-').map(Number)
-  const [hh, mm] = time.split(':').map(Number)
-  const when = new Date(y, m - 1, d, hh, mm)
-  const startOfToday = new Date()
-  startOfToday.setHours(0, 0, 0, 0)
-  const days = Math.round((startOfToday.getTime() - new Date(y, m - 1, d).getTime()) / 86_400_000)
-  if (days === 0) return when.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
-  if (days === 1) return 'Yesterday'
-  return when.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 }
