@@ -13,12 +13,15 @@ import App from './App.tsx'
 import { spring } from './lib/motion'
 import { applyTheme } from './lib/theme'
 import { listenForTyping } from './lib/sounds'
+import { installWindowDrag } from './lib/windowDrag'
 import { ToastProvider } from './components/Toasts'
 
 // Apply the saved theme before the first paint, so there's no flash.
 applyTheme()
 // Keyboard sounds while typing, if turned on (Settings → Sounds → Fun).
 listenForTyping()
+// Drag the window by its empty space (replaces Tauri's handler; see the file).
+installWindowDrag()
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
