@@ -41,6 +41,7 @@ import { UnsortedView } from './components/Unsorted'
 import { PagesOverview, PageView } from './components/Pages'
 import { TrashView } from './components/Trash'
 import { useTrash } from './lib/useTrash'
+import { useRowKeys } from './lib/rowKeys'
 import { useLaunchCheck } from './lib/updates'
 import { ConfirmHost, QuickCapture, Settings } from './components/Dialogs'
 import { Onboarding } from './components/Onboarding'
@@ -282,9 +283,19 @@ export default function App() {
 
   // Stable, so memoized rows don't redraw just because App did.
   const cycleStatus = useCallback(
-    (task: Item) => void actions.setStatus(task, NEXT_STATUS[(task.status as TaskStatus | null) ?? 'todo']),
+    (task: Item) => actions.setStatus(task, NEXT_STATUS[(task.status as TaskStatus | null) ?? 'todo']),
     [actions],
   )
+
+  // Arrows, Enter, S, Delete and Esc on the focused row (lib/rowKeys.ts).
+  useRowKeys({
+    byId,
+    open: openId,
+    select: setSelectedId,
+    selectedId,
+    cycleStatus,
+    trash: actions.trash,
+  })
 
   const content = () => {
     if (error || !snapshot) {

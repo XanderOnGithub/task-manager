@@ -42,6 +42,7 @@ export function AreaList({ items, area, selectedId, onSelect, onCycleStatus, onO
           <section key={project.id} className="flex flex-col gap-0.5">
             <div
               data-item={project.id}
+              tabIndex={-1}
               className="group flex h-row items-center gap-1 rounded-row pr-1 pl-0.5 transition-colors duration-100 hover:bg-hover"
             >
               <button
@@ -137,6 +138,7 @@ const AreaTaskRow = memo(function AreaTaskRow({
   return (
     <div
       data-item={task.id}
+      tabIndex={-1}
       className={`flex h-row items-center gap-2.5 rounded-row pr-2.5 pl-7 transition-colors duration-100 ${
         selected ? 'bg-selected' : 'hover:bg-hover'
       }`}

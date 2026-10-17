@@ -296,6 +296,7 @@ function PageListRows({
           <ListRow key={page.id} className="flex flex-col gap-0.5">
             <div
               data-item={page.id}
+              tabIndex={-1}
               className="flex h-row items-center gap-1 rounded-row pr-2.5 transition-colors duration-100 hover:bg-hover"
               style={{ paddingLeft: 4 + depth * 20 }}
             >
