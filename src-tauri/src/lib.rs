@@ -533,6 +533,10 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
+        // In-app updates: checks the latest GitHub release (see "updater" in
+        // tauri.conf.json), and restarts into the new version.
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_process::init())
         // Keep the plugin available for manual control through Settings.
         .plugin(tauri_plugin_macos_fps::init())
         .setup(|app| {

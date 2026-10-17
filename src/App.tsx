@@ -41,6 +41,7 @@ import { UnsortedView } from './components/Unsorted'
 import { PagesOverview, PageView } from './components/Pages'
 import { TrashView } from './components/Trash'
 import { useTrash } from './lib/useTrash'
+import { useLaunchCheck } from './lib/updates'
 import { ConfirmHost, QuickCapture, Settings } from './components/Dialogs'
 import { Onboarding } from './components/Onboarding'
 import { Panel } from './components/ui'
@@ -53,6 +54,7 @@ export default function App() {
   const { snapshot, error, needsFolder, byId, reload } = useLibrary()
   const actions = useActions(reload, snapshot?.items ?? [])
   const trash = useTrash(snapshot)
+  useLaunchCheck()
 
   // What's open: an overview (Unsorted, Tasks, Pages), or an area, project,
   // milestone or page by id. `page` remembers which overview to fall back to

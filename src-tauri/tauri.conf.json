@@ -36,6 +36,11 @@
   "plugins": {
     "macos-fps": {
       "enabled": false
+    },
+    "updater": {
+      "pubkey": "PASTE_THE_PUBLIC_KEY_HERE",
+      "endpoints": ["https://github.com/XanderOnGithub/task-manager/releases/latest/download/latest.json"],
+      "windows": { "installMode": "passive" }
     }
   },
   "bundle": {
