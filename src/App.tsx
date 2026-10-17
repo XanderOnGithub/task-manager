@@ -361,7 +361,9 @@ export default function App() {
   return (
     // On a Mac the background is see-through so the blur behind the window
     // shows; other systems draw no blur, so they get the same color, solid.
-    <div className={`flex h-full ${isMac ? 'bg-window' : 'bg-window-solid'}`}>
+    // data-tauri-drag-region: the gaps around the panels drag the window. (It
+    // only counts where you press on the element itself, not on what's inside.)
+    <div data-tauri-drag-region className={`flex h-full ${isMac ? 'bg-window' : 'bg-window-solid'}`}>
       {/* The sidebar slides shut to zero width. Its contents keep their size
           and get clipped, so nothing reflows while it moves. */}
       <motion.div
@@ -418,6 +420,7 @@ export default function App() {
       </AnimatePresence>
 
       <main
+        data-tauri-drag-region
         className={`flex min-w-0 flex-1 py-2 pr-2 transition-[padding] duration-150 ease-snappy ${
           sidebarOpen
             ? ''

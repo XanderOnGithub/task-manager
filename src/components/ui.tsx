@@ -25,9 +25,10 @@ export function Panel({ label, className = '', children }: { label: string; clas
  * controls inside can go compact when the panel is narrow: put
  * `@max-[34rem]/header:sr-only` on a label to keep only its icon.
  */
+/** A panel's top bar. Its empty space drags the window, like a Mac toolbar. */
 export function PanelHeader({ children }: { children: ReactNode }) {
   return (
-    <header className="@container/header flex h-12 shrink-0 items-center gap-2.5 border-b border-border pr-3.5 pl-[18px]">
+    <header data-tauri-drag-region className="@container/header flex h-12 shrink-0 items-center gap-2.5 border-b border-border pr-3.5 pl-[18px]">
       {children}
     </header>
   )

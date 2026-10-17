@@ -24,8 +24,8 @@
         "hiddenTitle": true,
         "trafficLightPosition": { "x": 18, "y": 24 },
         "windowEffects": {
-          "effects": ["sidebar"],
-          "state": "followsWindowActiveState"
+          "effects": ["hudWindow"],
+          "state": "active"
         }
       }
     ],
