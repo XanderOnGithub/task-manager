@@ -34,12 +34,12 @@ brand/          the Moss mark (icon.svg), the moss° wordmarks (wordmark.py draw
 - `cargo run --release -p task-core --example bench`: loading benchmark
 - `cargo clippy --workspace --all-targets` and `cargo fmt --all`: lint and format Rust
 - `pnpm lint` and `pnpm build`: lint and type-check the front end
-- Releases: see Branches and releases below. Builds aren't code-signed yet.
+- Releases: see Branches and releases below. No Developer ID or Windows certificate yet; the Mac app is signed ad hoc (`bundle.macOS.signingIdentity: "-"`) so macOS offers Open Anyway instead of saying it's damaged.
 
 ## Branches and releases
 
 Moss is in alpha (`"stage": "alpha"` in package.json; Settings shows "Alpha 0.1.0").
-- Never commit to `main` directly. Work happens on `feature/…`, `fix/…` or `refactor/…` branches, each merged by pull request into the current release branch (now `release/alpha-0.1`).
+- Never commit to `main` directly. Work happens on `feature/…`, `fix/…` or `refactor/…` branches, each merged by pull request into the current release branch (now `release/alpha-0.1.3`).
 - When the release branch is ready, a pull request from it into `main` ships it. `.github/workflows/release.yml` runs on every push to `main`: if the version in `src-tauri/tauri.conf.json` isn't released yet, it builds macOS (Apple silicon + Intel), Windows (installers + a portable .exe) and Linux installers and publishes "Moss alpha X.Y.Z" with notes from the PRs. Otherwise it does nothing.
 - Next version: branch `release/alpha-0.2` from `main` and bump `version` in tauri.conf.json, package.json and both Cargo.toml files on it.
 - In-app updates: `tauri-plugin-updater` reads `latest.json` from the newest GitHub release (`src/lib/updates.ts`; checks a few seconds after launch in real builds, "Update to X" in the sidebar, "Check for updates" in Settings). Update files are signed: the private key lives only in the repo secrets `TAURI_SIGNING_PRIVATE_KEY` + `_PASSWORD`, the public key in `tauri.conf.json` → `plugins.updater.pubkey`. Never commit the private key. Lose it and installed copies can't update any more.
