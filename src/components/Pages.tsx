@@ -16,6 +16,7 @@ import { ArrowUpRight, Folder, Target } from 'lucide-react'
 import { childrenOf, type Item } from '../lib/api'
 import { trailOf } from '../lib/items'
 import { usePref } from '../lib/prefs'
+import { useRenameRequest } from '../lib/rename'
 import type { Actions } from '../lib/useActions'
 import { BodyEditor, EditableTitle, InlineAdd, Menu } from './controls'
 import type { TextStats } from './MarkdownEditor'
@@ -42,6 +43,7 @@ export function PageView({
   actions: Actions
 }) {
   const [renaming, setRenaming] = useState(0)
+  useRenameRequest(page.id, () => setRenaming((n) => n + 1))
   const [addingSub, setAddingSub] = useState(false)
   const [stats, setStats] = useState<TextStats | null>(null)
   const [showCount] = usePref('wordCount', true)
@@ -203,6 +205,7 @@ export function OwnerHeading({ owner, onOpen }: { owner: Item; onOpen: (id: stri
   const Icon = owner.kind === 'area' ? Folder : Target
   return (
     <button
+      data-item={owner.id}
       onClick={() => onOpen(owner.id)}
       className="group flex h-row w-fit items-center gap-2 rounded-row pr-2 pl-1 text-left"
     >
@@ -290,6 +293,7 @@ function PageListRows({
         return (
           <ListRow key={page.id} className="flex flex-col gap-0.5">
             <div
+              data-item={page.id}
               className="flex h-row items-center gap-1 rounded-row pr-2.5 transition-colors duration-100 hover:bg-hover"
               style={{ paddingLeft: 4 + depth * 20 }}
             >

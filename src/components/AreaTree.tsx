@@ -223,6 +223,7 @@ function SortableArea({
   return (
     <div ref={sortable.setNodeRef} style={style} className="flex flex-col gap-0.5">
       <div
+        data-item={area.id}
         className={`group relative flex h-7 items-center rounded-control transition-colors duration-100 ${
           sortable.isDragging ? 'bg-hover [&>*]:invisible' : pageTarget ? 'bg-selected' : active ? '' : 'hover:bg-hover'
         }`}
@@ -336,6 +337,7 @@ function SortableProject({
   return (
     <div ref={sortable.setNodeRef} style={style} className="flex flex-col gap-0.5">
       <div
+        data-item={project.id}
         className={`group relative flex h-7 shrink-0 items-center rounded-control transition-colors duration-100 ${
           sortable.isDragging
             ? 'bg-hover [&>*]:invisible'

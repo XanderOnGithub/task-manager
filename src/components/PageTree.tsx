@@ -142,6 +142,7 @@ function PageRow({
       {...draggable.attributes}
       {...draggable.listeners}
       aria-label={`${page.title}, page. Press space to move.`}
+      data-item={page.id}
       className={`group/page relative flex h-7 items-center gap-1 rounded-control pr-7 transition-colors duration-100 ${
         draggable.isDragging
           ? 'bg-hover [&>*]:invisible'

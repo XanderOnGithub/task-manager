@@ -7,9 +7,13 @@ import { spring } from './lib/motion'
 import { childrenOf, type Item, type TaskStatus } from './lib/api'
 import { trailOf } from './lib/items'
 import { NEXT_STATUS } from './lib/lanes'
+import { requestRename } from './lib/rename'
+import { itemMenu } from './components/itemMenu'
+import { ContextMenu, type MenuItem } from './components/controls'
 import { isMac } from './lib/platform'
 import { readPref, writePref } from './lib/prefs'
 import {
+  ArrowUpRight,
   FilePlus,
   FileText,
   Layers,
@@ -221,6 +225,21 @@ export default function App() {
     return out
   }
 
+  // Right-click on any row (it carries data-item): open it, or its ⋯ menu.
+  const menuFor = (target: HTMLElement): (MenuItem | 'divider')[] | null => {
+    const id = target.closest<HTMLElement>('[data-item]')?.dataset.item
+    const item = id ? byId.get(id) : undefined
+    if (!item) return null
+    return [
+      { label: 'Open', Icon: ArrowUpRight, onSelect: () => openId(item.id) },
+      'divider',
+      ...itemMenu(item, actions, () => {
+        openId(item.id)
+        requestRename(item.id)
+      }),
+    ]
+  }
+
   const cycleStatus = (task: Item) =>
     void actions.setStatus(task, NEXT_STATUS[(task.status as TaskStatus | null) ?? 'todo'])
 
@@ -275,7 +294,14 @@ export default function App() {
   }
 
   // First launch: no folder yet, so the welcome screens fill the window.
-  if (needsFolder) return <Onboarding onDone={reload} />
+  if (needsFolder) {
+    return (
+      <>
+        <Onboarding onDone={reload} />
+        <ContextMenu menuFor={() => null} />
+      </>
+    )
+  }
 
   return (
     // On a Mac the background is see-through so the blur behind the window
@@ -366,6 +392,7 @@ export default function App() {
           />
         )}
       </AnimatePresence>
+      <ContextMenu menuFor={menuFor} />
       {dialog === 'capture' && <QuickCapture onCapture={actions.capture} onClose={() => setDialog(null)} />}
       {dialog === 'settings' && (
         <Settings dataFolder={snapshot?.dataFolder ?? null} onClose={() => setDialog(null)} onFolderChanged={reload} />
