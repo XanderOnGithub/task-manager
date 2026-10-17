@@ -6,14 +6,13 @@ import { FolderOpen, Layers, Play } from 'lucide-react'
 import { spring } from '../lib/motion'
 import { getVersion } from '@tauri-apps/api/app'
 import { getHighRefresh, setDataFolder, setHighRefresh, type HighRefresh } from '../lib/api'
-import { useFrameRate } from '../lib/useFrameRate'
 import { useTheme, type Theme } from '../lib/theme'
 import { useToast } from '../lib/toast'
 import { pickFolder } from '../lib/folders'
 import { useConfirmRequest } from '../lib/confirm'
 import { checkForUpdate, installUpdate, useUpdates } from '../lib/updates'
 import { usePref } from '../lib/prefs'
-import { keys } from '../lib/platform'
+import { isMac, keys } from '../lib/platform'
 import { LANES, OPTIONAL, useOptionalLanes } from '../lib/lanes'
 import { Modal, Segmented, Switch } from './controls'
 import { StatusIcon } from './ui'
@@ -118,7 +117,9 @@ export function Settings({
 
             <LanesSetting />
 
-            <HighRefreshSetting />
+            {/* Only macOS caps the web view at 60fps; Windows and Linux already
+                draw at the display's refresh rate, so there's nothing to switch. */}
+            {isMac && <HighRefreshSetting />}
 
             <div className="flex flex-col gap-2">
               <div className="text-meta text-fg-2">Appearance</div>
@@ -393,14 +394,13 @@ function WordCountSetting() {
 }
 
 /**
- * Experimental: draw at 120fps on ProMotion displays (macOS). The live readout
- * shows what the window is actually doing, so you can tell whether it worked.
+ * Experimental: draw at 120fps on ProMotion displays. macOS only (the
+ * Settings dialog doesn't render it anywhere else).
  */
 function HighRefreshSetting() {
   const [state, setState] = useState<HighRefresh | null>(null)
   const [busy, setBusy] = useState(false)
   const toast = useToast()
-  const fps = useFrameRate()
 
   useEffect(() => {
     getHighRefresh()
@@ -420,27 +420,23 @@ function HighRefreshSetting() {
     }
   }
 
+  // If the Rust side says it can't flip the flag, don't offer a dead switch.
+  if (state && !state.supported) return null
+
   return (
-    <div className="flex flex-col gap-2">
-      <div className="flex items-center gap-3">
-        <div className="flex flex-1 flex-col gap-0.5">
-          <span className="text-meta text-fg-2">Smoother animation (120fps)</span>
-          <span className="text-meta font-normal text-fg-3">
-            {state && !state.supported
-              ? 'Only available on macOS'
-              : 'Experimental. Uses a little more battery on ProMotion displays.'}
-          </span>
-        </div>
-        <Switch
-          label="Smoother animation"
-          checked={state?.enabled ?? false}
-          disabled={!state?.supported || busy}
-          onChange={(enabled) => void change(enabled)}
-        />
+    <div className="flex items-center gap-3">
+      <div className="flex flex-1 flex-col gap-0.5">
+        <span className="text-meta text-fg-2">Smoother animation (120fps)</span>
+        <span className="text-meta font-normal text-fg-3">
+          Experimental. Uses a little more battery on ProMotion displays.
+        </span>
       </div>
-      <span className="font-mono text-label font-normal text-fg-3">
-        {fps === null ? 'Measuring frame rate' : `Drawing at ${fps} fps`}
-      </span>
+      <Switch
+        label="Smoother animation"
+        checked={state?.enabled ?? false}
+        disabled={!state || busy}
+        onChange={(enabled) => void change(enabled)}
+      />
     </div>
   )
 }
