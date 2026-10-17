@@ -34,12 +34,12 @@ brand/          the Moss mark (icon.svg), the moss° wordmarks (wordmark.py draw
 - `cargo run --release -p task-core --example bench`: loading benchmark
 - `cargo clippy --workspace --all-targets` and `cargo fmt --all`: lint and format Rust
 - `pnpm lint` and `pnpm build`: lint and type-check the front end
-- Releases: see Branches and releases below. Builds aren't code-signed yet.
+- Releases: see Branches and releases below. No Developer ID or Windows certificate yet; the Mac app is signed ad hoc (`bundle.macOS.signingIdentity: "-"`) so macOS offers Open Anyway instead of saying it's damaged.
 
 ## Branches and releases
 
 Moss is in alpha (`"stage": "alpha"` in package.json; Settings shows "Alpha 0.1.0").
-- Never commit to `main` directly. Work happens on `feature/…`, `fix/…` or `refactor/…` branches, each merged by pull request into the current release branch (now `release/alpha-0.1`).
+- Never commit to `main` directly. Work happens on `feature/…`, `fix/…` or `refactor/…` branches, each merged by pull request into the current release branch (now `release/alpha-0.1.3`).
 - When the release branch is ready, a pull request from it into `main` ships it. `.github/workflows/release.yml` runs on every push to `main`: if the version in `src-tauri/tauri.conf.json` isn't released yet, it builds macOS (Apple silicon + Intel), Windows (installers + a portable .exe) and Linux installers and publishes "Moss alpha X.Y.Z" with notes from the PRs. Otherwise it does nothing.
 - Next version: branch `release/alpha-0.2` from `main` and bump `version` in tauri.conf.json, package.json and both Cargo.toml files on it.
 - In-app updates: `tauri-plugin-updater` reads `latest.json` from the newest GitHub release (`src/lib/updates.ts`; checks a few seconds after launch in real builds, "Update to X" in the sidebar, "Check for updates" in Settings). Update files are signed: the private key lives only in the repo secrets `TAURI_SIGNING_PRIVATE_KEY` + `_PASSWORD`, the public key in `tauri.conf.json` → `plugins.updater.pubkey`. Never commit the private key. Lose it and installed copies can't update any more.
@@ -74,6 +74,7 @@ Moss is in alpha (`"stage": "alpha"` in package.json; Settings shows "Alpha 0.1.
 - First launch: `Onboarding.tsx` (welcome, then the data folder: Documents/Moss or any folder, optionally with the example). The example is `sample-data/`, built into the app binary (`include_dir!` in src-tauri; after changing sample-data run `cargo clean -p moss`) and written only into an empty folder (`core/src/example.rs`). Dev builds skip it unless started with `MOSS_ONBOARDING=1`.
 - Right-click: `ContextMenu` (controls.tsx) replaces the web view's menu everywhere. Rows carry `data-item={id}`; right-clicking one opens Open + its ⋯ menu (App.tsx `menuFor`). Text fields and the editor keep the system menu; Shift-right-click in dev shows the web view's (Inspect). Rename from there opens the item and asks its view to edit the title; "New …" (only what fits inside: area → project/page, project → task or milestone/page, milestone → task, page → subpage) opens it and focuses its "Add a …" field (`lib/requests.ts`; fields have ids like `add-task-<id>`). Give new item rows `data-item` too.
 - Trash: deleting moves the item into `.trash/` with a `<name>.from` note of where it was (`core/src/trash.rs`), so the Trash view (above Settings, `Trash.tsx`, `lib/useTrash.ts`) can restore it any time in its 30 days, delete it for good, or empty everything. Restoring refuses if the place it goes back into was deleted too. Deleting something with items inside asks first (`lib/confirm.ts` + `ConfirmHost`); single tasks and empty pages delete straight away (Undo covers them).
+- Keyboard rows: `lib/rowKeys.ts` (hooked up in App.tsx). Any `data-item` row: ↑↓ (same column on the board), ←→ (board columns), Enter opens (tasks and milestones in the details panel, which then follows the arrows), S next status, Delete/Backspace deletes, Esc closes details. Rows are found on screen, so folding and order match what you see. Rows that aren't draggable get `tabIndex={-1}` so the arrows can land on them. Enter no longer starts a keyboard drag (Space only, `drag.ts`). The list is in Settings → Keyboard.
 - Cursor: everything clickable shows the pointer (one rule in `styles/base.css`).
 - Shortcut labels: always `keys('N')` from `lib/platform.ts` ("⌘N" on a Mac, "Ctrl+N" elsewhere), never a literal ⌘.
 - Toasts: `useToast()`; ⌘Z runs the visible toast's Undo. ⌘N opens Quick capture. ⌘\ hides the sidebar (remembered via `lib/prefs.ts`).
