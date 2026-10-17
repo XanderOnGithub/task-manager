@@ -10,7 +10,7 @@ import { NEXT_STATUS } from './lib/lanes'
 import { requestAdd, requestRename, type AddWhat } from './lib/requests'
 import { itemMenu } from './components/itemMenu'
 import { ContextMenu, type MenuItem } from './components/controls'
-import { isMac } from './lib/platform'
+import { isMac, keys } from './lib/platform'
 import { readPref, writePref } from './lib/prefs'
 import {
   ArrowUpRight,
@@ -167,7 +167,7 @@ export default function App() {
     : undefined
 
   const paletteActions: PaletteAction[] = [
-    { id: 'capture', label: 'Quick capture', Icon: Plus, keywords: 'add new unsorted', shortcut: '⌘N', run: () => setDialog('capture') },
+    { id: 'capture', label: 'Quick capture', Icon: Plus, keywords: 'add new unsorted', shortcut: keys('N'), run: () => setDialog('capture') },
     { id: 'unsorted', label: 'Go to Unsorted', Icon: Layers, keywords: 'inbox', run: () => openOverview('unsorted') },
     { id: 'tasks', label: 'Go to Tasks', Icon: ListChecks, keywords: 'projects all board', run: () => openOverview('tasks') },
     { id: 'pages', label: 'Go to Pages', Icon: FileText, keywords: 'docs notes all', run: () => openOverview('pages') },
@@ -176,7 +176,7 @@ export default function App() {
       label: sidebarOpen ? 'Hide sidebar' : 'Show sidebar',
       Icon: PanelLeft,
       keywords: 'toggle',
-      shortcut: '⌘\\',
+      shortcut: keys('\\'),
       run: toggleSidebar,
     },
     {
@@ -391,7 +391,7 @@ export default function App() {
             transition={spring.snappy}
             onClick={toggleSidebar}
             aria-label="Show sidebar"
-            title="Show sidebar (⌘\)"
+            title={`Show sidebar (${keys('\\')})`}
             className={`fixed top-[19px] z-20 flex rounded-md p-1 text-fg-3 transition-colors duration-100 hover:bg-hover hover:text-fg-2 ${
               isMac ? 'left-[84px]' : 'left-4'
             }`}
