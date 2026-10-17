@@ -11,7 +11,7 @@ import { Check, FileText, FolderOpen, Layers, Target, type LucideIcon } from 'lu
 import { startDataFolder, suggestedDataFolder } from '../lib/api'
 import { pickFolder } from '../lib/folders'
 import { spring } from '../lib/motion'
-import { isMac } from '../lib/platform'
+import { isMac, keys } from '../lib/platform'
 import { useToast } from '../lib/toast'
 import { MossWordmark } from './Brand'
 
@@ -60,7 +60,7 @@ function Welcome({ onNext }: { onNext: () => void }) {
       </div>
       <ul className="flex flex-col gap-3.5">
         <Idea Icon={Layers} title="Capture first">
-          Anything goes into Unsorted. <kbd className="font-mono text-meta font-normal">⌘N</kbd> from anywhere.
+          Anything goes into Unsorted. <kbd className="font-mono text-meta font-normal">{keys('N')}</kbd> from anywhere.
         </Idea>
         <Idea Icon={Target} title="Sort when you're ready">
           Into areas, projects, milestones and tasks.

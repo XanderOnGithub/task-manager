@@ -11,6 +11,7 @@ import { createPortal } from 'react-dom'
 import { motion } from 'motion/react'
 import { Bold, Code, CornerDownLeft, Italic, Link, Strikethrough, Trash2 } from 'lucide-react'
 import { spring } from '../../lib/motion'
+import { keys } from '../../lib/platform'
 import type { Block } from './blocks'
 import type { Shortcode } from './emojiShortcodes'
 
@@ -95,10 +96,10 @@ export function SelectionToolbar({
         </form>
       ) : (
         <div className="flex items-center gap-0.5">
-          <ToolButton label="Bold (⌘B)" active={state.active.strong} onClick={() => onMark('strong')}>
+          <ToolButton label={`Bold (${keys('B')})`} active={state.active.strong} onClick={() => onMark('strong')}>
             <Bold size={15} strokeWidth={2.25} aria-hidden="true" />
           </ToolButton>
-          <ToolButton label="Italic (⌘I)" active={state.active.em} onClick={() => onMark('em')}>
+          <ToolButton label={`Italic (${keys('I')})`} active={state.active.em} onClick={() => onMark('em')}>
             <Italic size={15} strokeWidth={2} aria-hidden="true" />
           </ToolButton>
           <ToolButton label="Strikethrough" active={state.active.strike} onClick={() => onMark('strike')}>

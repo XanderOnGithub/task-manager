@@ -11,7 +11,7 @@ import { spring } from '../lib/motion'
 import { FileText, Layers, ListChecks, PanelLeft, Plus, Settings, Trash2, type LucideIcon } from 'lucide-react'
 import type { Item } from '../lib/api'
 import { icon } from '../lib/items'
-import { isMac } from '../lib/platform'
+import { isMac, keys } from '../lib/platform'
 import type { Actions } from '../lib/useActions'
 import { AreaTree, type Adding } from './AreaTree'
 import { MossWordmark } from './Brand'
@@ -63,7 +63,7 @@ export function Sidebar(props: Props) {
         <button
           onClick={props.onToggleSidebar}
           aria-label="Hide sidebar"
-          title="Hide sidebar (⌘\)"
+          title={`Hide sidebar (${keys('\\')})`}
           className="flex rounded-md p-1 text-fg-3 transition-colors duration-100 hover:bg-hover hover:text-fg-2"
         >
           <PanelLeft {...icon} />
@@ -76,7 +76,7 @@ export function Sidebar(props: Props) {
       >
         <Plus size={15} strokeWidth={1.75} aria-hidden="true" />
         <span className="flex-1">Quick capture</span>
-        <kbd className="font-mono text-label font-normal text-fg-3">⌘N</kbd>
+        <kbd className="font-mono text-label font-normal text-fg-3">{keys('N')}</kbd>
       </button>
 
       <div className="flex flex-col gap-0.5">

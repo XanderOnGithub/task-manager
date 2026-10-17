@@ -110,7 +110,7 @@ export const SOUND_INFO: { name: Exclude<SoundName, TypingSound>; label: string;
   { name: 'check', label: 'Checkbox', when: 'Ticking a checkbox in a page' },
   { name: 'delete', label: 'Delete', when: 'Deleting something' },
   { name: 'undo', label: 'Undo', when: 'Undoing it' },
-  { name: 'open', label: 'Search', when: 'Opening search with ⌘K' },
+  { name: 'open', label: 'Search', when: 'Opening search (⌘K, or Ctrl+K)' },
 ]
 
 export interface SoundSettings {
