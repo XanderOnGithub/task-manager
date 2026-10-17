@@ -16,7 +16,7 @@ import { ArrowUpRight, Folder, Target } from 'lucide-react'
 import { childrenOf, type Item } from '../lib/api'
 import { trailOf } from '../lib/items'
 import { usePref } from '../lib/prefs'
-import { useRenameRequest } from '../lib/rename'
+import { useAddRequest, useRenameRequest } from '../lib/requests'
 import type { Actions } from '../lib/useActions'
 import { BodyEditor, EditableTitle, InlineAdd, Menu } from './controls'
 import type { TextStats } from './MarkdownEditor'
@@ -45,6 +45,7 @@ export function PageView({
   const [renaming, setRenaming] = useState(0)
   useRenameRequest(page.id, () => setRenaming((n) => n + 1))
   const [addingSub, setAddingSub] = useState(false)
+  useAddRequest(page.id, () => setAddingSub(true))
   const [stats, setStats] = useState<TextStats | null>(null)
   const [showCount] = usePref('wordCount', true)
   // Breadcrumb: the area, project and parent pages, top first.
@@ -260,6 +261,7 @@ function PageList({
         </div>
       ))}
       <InlineAdd
+        id={`add-page-${owner.id}`}
         label={`Add a page to ${owner.title}`}
         onAdd={async (title) => {
           const id = await actions.create('page', owner.id, title)

@@ -132,6 +132,7 @@ export function ProjectList({ items, container, collapsed, onToggle, selectedId,
             hold only tasks. */}
         {looseTasks.length === 0 && container.kind === 'project' && (
           <InlineAdd
+            id={`add-milestone-${container.id}`}
             label="Add a milestone"
             onAdd={(title) => actions.create('milestone', container.id, title)}
             className={milestones.length === 0 ? '' : 'mt-[22px]'}

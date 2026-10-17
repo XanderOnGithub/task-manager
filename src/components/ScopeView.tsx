@@ -14,7 +14,7 @@ import { AreaList } from './AreaList'
 import { dueLabel } from '../lib/dates'
 import { statusLabel, taskCounts, trailOf } from '../lib/items'
 import type { Actions } from '../lib/useActions'
-import { useRenameRequest } from '../lib/rename'
+import { useAddRequest, useRenameRequest } from '../lib/requests'
 import { Board } from './Board'
 import { BodyEditor, EditableTitle, Menu, Segmented } from './controls'
 import { itemMenu } from './itemMenu'
@@ -80,6 +80,14 @@ function OneScopeView(props: Props & { scope: Item }) {
     })
     requestAnimationFrame(() => document.getElementById(`add-task-${target.id}`)?.focus())
   }
+
+  // "New …" from the right-click menu: focus the matching "Add a …" field.
+  useAddRequest(scope.id, (what) => {
+    if (what === 'task' || what === 'project') return addTask()
+    onLayout('list')
+    const field = what === 'milestone' ? `add-milestone-${scope.id}` : `add-page-${scope.id}`
+    requestAnimationFrame(() => document.getElementById(field)?.focus())
+  })
 
   const toggle = (id: string) =>
     setCollapsed((c) => {
