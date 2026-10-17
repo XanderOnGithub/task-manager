@@ -36,6 +36,16 @@ No account, no database, no sync service. Point any folder sync at it if you wan
 
 Built with [Tauri](https://tauri.app) (Rust) and React.
 
+## Installing
+
+Download the latest build from [Releases](https://github.com/XanderOnGithub/task-manager/releases/latest).
+
+- **macOS:** open the `.dmg` (`aarch64` for Apple silicon, `x64` for Intel) and drag Moss to Applications. Moss isn't signed with an Apple Developer ID yet, so the first time macOS says it can't be opened: go to System Settings → Privacy & Security and click **Open Anyway**.
+- **Windows:** run the `-setup.exe` or the `.msi` (stick with the same one when you reinstall). If SmartScreen warns, click **More info → Run anyway**. The `_portable.exe` runs without installing.
+- **Linux:** the `.AppImage`, `.deb` or `.rpm`.
+
+From 0.1.2 on, Moss updates itself: when a new version is out, **Update to …** appears in the sidebar (or use **Check for updates** in Settings). The portable `.exe`, `.deb` and `.rpm` don't update themselves; download those again.
+
 ## Development
 
 Requirements: Rust (stable), Node 22, pnpm 10, and on macOS the Xcode command line tools.
@@ -78,5 +88,7 @@ To start the next version, branch `release/alpha-0.2` from `main` and bump
 `version` in `src-tauri/tauri.conf.json`, `package.json` and both `Cargo.toml`
 files there. The stage (`alpha`) is `"stage"` in `package.json`.
 
-The builds aren't code-signed yet, so macOS asks you to right-click → Open the
-first time and Windows SmartScreen warns.
+The builds aren't signed with a Developer ID or Windows certificate yet. The
+Mac app is signed ad hoc (`"signingIdentity": "-"`), so macOS offers "Open
+Anyway" rather than calling it damaged; Windows SmartScreen warns. Update files
+are signed separately with the updater key (see CLAUDE.md).
