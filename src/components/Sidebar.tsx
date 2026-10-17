@@ -8,7 +8,8 @@
 import { useState, type ReactNode } from 'react'
 import { motion } from 'motion/react'
 import { spring } from '../lib/motion'
-import { FileText, Layers, ListChecks, PanelLeft, Plus, Settings, Trash2, type LucideIcon } from 'lucide-react'
+import { ArrowDownToLine, FileText, Layers, ListChecks, PanelLeft, Plus, Settings, Trash2, type LucideIcon } from 'lucide-react'
+import { installUpdate, useUpdates } from '../lib/updates'
 import type { Item } from '../lib/api'
 import { icon } from '../lib/items'
 import { isMac, keys } from '../lib/platform'
@@ -117,6 +118,7 @@ export function Sidebar(props: Props) {
       </div>
 
       <div className="mt-auto flex flex-col gap-0.5">
+        <UpdateRow />
         <NavItem Icon={Trash2} active={overview === 'trash'} onClick={() => onOverview('trash')}>
           Trash
           {props.trashCount > 0 && <span className="ml-auto text-label font-normal text-fg-3">{props.trashCount}</span>}
@@ -126,6 +128,26 @@ export function Sidebar(props: Props) {
         </NavItem>
       </div>
     </nav>
+  )
+}
+
+/** "Update to 0.1.3" when a new version is out; shows progress while it installs. */
+function UpdateRow() {
+  const update = useUpdates()
+  if (update.status !== 'available' && update.status !== 'installing') return null
+  const installing = update.status === 'installing'
+  return (
+    <button
+      onClick={() => void installUpdate()}
+      disabled={installing}
+      className="flex h-[30px] w-full items-center gap-2.5 rounded-control px-2.5 text-left font-medium text-accent transition-colors duration-100 hover:bg-hover disabled:hover:bg-transparent"
+    >
+      <ArrowDownToLine {...icon} />
+      <span className="flex-1">{installing ? 'Updating' : `Update to ${update.version}`}</span>
+      {installing && update.percent !== null && (
+        <span className="text-label font-normal text-fg-3 tabular-nums">{update.percent}%</span>
+      )}
+    </button>
   )
 }
 

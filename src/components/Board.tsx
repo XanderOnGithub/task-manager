@@ -3,7 +3,7 @@
 // Drag a card into another column to change its status. Clicking a card's
 // circle also changes status, and the card flies to its new column.
 
-import { useEffect, useState } from 'react'
+import { memo, useEffect, useState } from 'react'
 import {
   closestCenter,
   DndContext,
@@ -100,7 +100,8 @@ export function Board({ items, scope, selectedId, onSelect, onCycleStatus, actio
                   .map(({ task, milestone, project }) => (
                     <Card
                       key={task.id}
-                      task={{ ...task, status: statusOf(task) }}
+                      // Same object when nothing's remapped, so the card's memo holds.
+                      task={statusOf(task) === task.status ? task : { ...task, status: statusOf(task) }}
                       milestone={showMilestone ? milestone : null}
                       project={showProject ? project : null}
                       selected={task.id === selectedId}
@@ -167,7 +168,8 @@ function Column({
   )
 }
 
-function Card({
+/** Memoized: a reload only redraws the cards whose task changed (see lib/share.ts). */
+const Card = memo(function Card({
   task,
   milestone,
   project,
@@ -209,9 +211,10 @@ function Card({
       />
     </motion.div>
   )
-}
+})
 
-function CardFace({
+/** Memoized separately from Card: dnd-kit redraws every draggable card when the board changes, and this keeps those redraws to the outer wrapper. */
+const CardFace = memo(function CardFace({
   task,
   milestone,
   project = null,
@@ -260,4 +263,4 @@ function CardFace({
       )}
     </div>
   )
-}
+})

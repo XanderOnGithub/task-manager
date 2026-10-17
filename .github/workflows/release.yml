@@ -12,7 +12,8 @@
 #   2. builds installers for macOS (Apple silicon + Intel), Windows and Linux
 #      and uploads them to it,
 #   3. publishes it once every build has succeeded (so a half-built release
-#      never shows up).
+#      never shows up). With the signing key set, it also carries latest.json,
+#      which is how installed copies find the update.
 # So shipping = bump the version on the release branch, merge it into main.
 # It can also be run by hand from the Actions tab.
 #
@@ -132,14 +133,32 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
+      # In-app updates: with the signing key in the repo's secrets, the build
+      # also makes signed update files, and tauri-action uploads a latest.json
+      # that lists them. The app reads that file to find new versions (see
+      # src/lib/updates.ts). Without the key, the release still builds, just
+      # without update files.
+      - name: Turn on update files if the signing key is set
+        shell: bash
+        env:
+          HAS_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY != '' }}
+        run: |
+          if [ "$HAS_KEY" = "true" ]; then
+            echo "UPDATER_ARGS=--config ${{ github.workspace }}/src-tauri/tauri.updater.conf.json" >> "$GITHUB_ENV"
+          else
+            echo "No TAURI_SIGNING_PRIVATE_KEY secret: building without update files."
+          fi
+
       # Builds the front end and the app, bundles installers (.dmg, .msi/.exe,
       # .deb/.rpm/.AppImage) and uploads them to the draft made above.
       - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           releaseId: ${{ needs.prepare.outputs.release_id }}
-          args: ${{ matrix.args }}
+          args: ${{ matrix.args }} ${{ env.UPDATER_ARGS }}
 
       # Windows also gets a portable .exe: the app on its own, no installer.
       # (It needs WebView2, which Windows 10 and 11 already have; the example

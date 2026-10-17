@@ -11,6 +11,7 @@ import { useTheme, type Theme } from '../lib/theme'
 import { useToast } from '../lib/toast'
 import { pickFolder } from '../lib/folders'
 import { useConfirmRequest } from '../lib/confirm'
+import { checkForUpdate, installUpdate, useUpdates } from '../lib/updates'
 import { usePref } from '../lib/prefs'
 import { LANES, OPTIONAL, useOptionalLanes } from '../lib/lanes'
 import { Modal, Segmented, Switch } from './controls'
@@ -276,12 +277,43 @@ function VersionInfo() {
   return (
     // A quiet footer under both tabs.
     <div className="flex items-center gap-2 border-t border-border px-5 py-3 text-meta font-normal text-fg-3">
-      <span className="flex-1">Moss</span>
+      <span>Moss</span>
       <span className="select-text">
         {stage} <span className="font-mono">{version ?? '…'}</span>
       </span>
+      <span className="flex-1" />
+      <UpdateStatus />
     </div>
   )
+}
+
+/** Settings footer: check for a new version, and what came of it. */
+function UpdateStatus() {
+  const update = useUpdates()
+  const button = (label: string, onClick: () => void) => (
+    <button onClick={onClick} className="rounded-control px-1.5 py-0.5 text-fg-2 transition-colors duration-100 hover:bg-hover hover:text-fg">
+      {label}
+    </button>
+  )
+  switch (update.status) {
+    case 'checking':
+      return <span>Checking</span>
+    case 'none':
+      return <span>Up to date</span>
+    case 'available':
+      return button(`Update to ${update.version}`, () => void installUpdate())
+    case 'installing':
+      return <span className="tabular-nums">Updating{update.percent !== null ? ` ${update.percent}%` : ''}</span>
+    case 'error':
+      return (
+        <span className="flex items-center gap-1.5">
+          <span className="text-danger">{update.message}</span>
+          {button('Try again', () => void checkForUpdate(true))}
+        </span>
+      )
+    default:
+      return button('Check for updates', () => void checkForUpdate(true))
+  }
 }
 
 /** Extra task lanes: Later and Waiting, on top of Todo, Doing and Done. */

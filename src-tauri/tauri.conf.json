@@ -36,6 +36,11 @@
   "plugins": {
     "macos-fps": {
       "enabled": false
+    },
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDQwNDlEQUEyMjU1RkFFOEQKUldTTnJsOGxvdHBKUUIvVFhORVdxSFF4UFVQbkxWWFYxZGlWVG1NWHFweW5sRjB3bDNDZit2eHMK",
+      "endpoints": ["https://github.com/XanderOnGithub/task-manager/releases/latest/download/latest.json"],
+      "windows": { "installMode": "passive" }
     }
   },
   "bundle": {

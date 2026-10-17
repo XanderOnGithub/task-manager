@@ -6,7 +6,7 @@
 // - Drag a milestone by its header to reorder milestones. While you do, every
 //   milestone folds shut so they're easy to move around, then reopens.
 
-import { useCallback, useMemo, type CSSProperties } from 'react'
+import { memo, useCallback, useMemo, type CSSProperties } from 'react'
 import { DndContext, DragOverlay } from '@dnd-kit/core'
 import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
@@ -267,7 +267,8 @@ function SortableMilestone({
   )
 }
 
-function SortableTask({
+/** Memoized: a reload only redraws the rows whose task changed (see lib/share.ts). */
+const SortableTask = memo(function SortableTask({
   task,
   selected,
   onSelect,
@@ -285,8 +286,6 @@ function SortableTask({
     transform: CSS.Translate.toString(sortable.transform),
     transition: sortable.transition,
   }
-  const done = task.status === 'done'
-
   return (
     <div
       ref={sortable.setNodeRef}
@@ -300,6 +299,27 @@ function SortableTask({
         indent ? 'pl-7' : 'pl-2.5'
       } ${sortable.isDragging ? 'bg-hover [&>*]:invisible' : selected ? 'bg-selected' : 'hover:bg-hover'}`}
     >
+      <TaskRowContent task={task} onSelect={onSelect} onCycleStatus={onCycleStatus} />
+    </div>
+  )
+})
+
+/**
+ * What's inside a task row. dnd-kit redraws every sortable row whenever the
+ * list changes (its context changes), memo or not; keeping the row's insides
+ * separate means those redraws stop at the outer div.
+ */
+const TaskRowContent = memo(function TaskRowContent({
+  task,
+  onSelect,
+  onCycleStatus,
+}: {
+  task: Item
+  onSelect: (id: string) => void
+  onCycleStatus: (task: Item) => void
+}) {
+  return (
+    <>
       <button
         onClick={() => onCycleStatus(task)}
         aria-label={`Status: ${statusLabel(task.status)}. Change status`}
@@ -309,9 +329,9 @@ function SortableTask({
         <StatusIcon status={task.status} />
       </button>
       <button onClick={() => onSelect(task.id)} className="flex h-full min-w-0 flex-1 items-center gap-2.5 text-left">
-        <TaskTitle title={task.title} done={done} />
+        <TaskTitle title={task.title} done={task.status === 'done'} />
         <DueDate item={task} />
       </button>
-    </div>
+    </>
   )
-}
+})
