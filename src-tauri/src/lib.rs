@@ -20,6 +20,7 @@ use std::sync::{Mutex, MutexGuard};
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Emitter, Manager, State};
 
+use task_core::trash::{self, TrashEntry};
 use task_core::unsorted::{self, Entry};
 use task_core::watch::{self, Watcher};
 use task_core::{example, fix, fsutil, migrate, ops, search, Issue, Item, Kind, Library};
@@ -281,6 +282,24 @@ async fn restore_item(
     original_path: String,
 ) -> CmdResult<()> {
     write(&state, |lib| ops::restore(lib, &trash_path, &original_path))
+}
+
+/// Everything in the trash, newest first (the Trash view).
+#[tauri::command]
+async fn list_trash(state: State<'_, AppState>) -> CmdResult<Vec<TrashEntry>> {
+    read(&state, |lib| trash::list(&lib.root))
+}
+
+/// Deletes one thing in the trash for good.
+#[tauri::command]
+async fn delete_forever(state: State<'_, AppState>, path: String) -> CmdResult<()> {
+    write(&state, |lib| trash::delete_forever(&lib.root, &path))
+}
+
+/// Deletes everything in the trash for good. Returns how many things went.
+#[tauri::command]
+async fn empty_trash(state: State<'_, AppState>) -> CmdResult<usize> {
+    write(&state, |lib| trash::empty(&lib.root))
 }
 
 /// Shows the item's file or folder in Finder.
@@ -555,6 +574,9 @@ pub fn run() {
             write_body,
             trash_item,
             restore_item,
+            list_trash,
+            delete_forever,
+            empty_trash,
             reveal_in_finder,
             item_path,
             add_unsorted,

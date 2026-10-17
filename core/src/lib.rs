@@ -11,6 +11,7 @@
 //! - `issues`      problems found while loading, shown instead of crashing
 //! - `fix`         writes ids for files that are missing one
 //! - `search`      find text inside items (titles are searched by the app)
+//! - `trash`       the Trash: what was deleted, from where; restore or delete for good
 //! - `ops`         create / rename / move / set field / body / trash (and emptying old trash)
 //! - `unsorted`    the `unsorted.md` capture list
 //! - `watch`       notices changes made outside the app
@@ -47,6 +48,7 @@ pub mod names;
 pub mod ops;
 pub mod order;
 pub mod search;
+pub mod trash;
 pub mod unsorted;
 pub mod watch;
 

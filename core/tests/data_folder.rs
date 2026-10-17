@@ -838,3 +838,55 @@ fn the_example_only_goes_into_an_empty_folder() {
     assert!(!task_core::example::add_example(&source, &used).unwrap());
     assert!(!used.join("areas").exists());
 }
+
+#[test]
+fn the_trash_lists_restores_and_empties() {
+    use task_core::trash;
+    let (_dir, root) = sample();
+    let lib = load(&root);
+
+    // Deleting keeps a note of where it was, so the Trash can show and restore it.
+    let tile = ops::trash(&lib, "TSKTILE001").unwrap();
+    let entries = trash::list(&root).unwrap();
+    assert_eq!(entries.len(), 1);
+    let entry = &entries[0];
+    assert_eq!(entry.path, tile);
+    assert_eq!(entry.title, "Pick tile");
+    assert_eq!(entry.kind, Some(Kind::Task));
+    assert_eq!(entry.from, ["Home", "Redo the bathroom"]);
+    assert_eq!(entry.deleted.len(), 16);
+
+    let lib = load(&root);
+    ops::restore(&lib, &entry.path, entry.original.as_deref().unwrap()).unwrap();
+    assert!(trash::list(&root).unwrap().is_empty(), "the note goes with it");
+    assert!(load(&root).items.iter().any(|i| i.id == "TSKTILE001"));
+
+    // A task can't come back while the milestone it was in is still in the trash.
+    let lib = load(&root);
+    let sink = by_title(&lib, "Replace the sink").id.clone();
+    let task = ops::trash(&lib, "TSKINSTL01").unwrap();
+    let lib = load(&root);
+    let milestone = ops::trash(&lib, &sink).unwrap();
+    let lib = load(&root);
+    let original = trash::list(&root)
+        .unwrap()
+        .into_iter()
+        .find(|e| e.path == task)
+        .unwrap()
+        .original
+        .unwrap();
+    assert!(matches!(
+        ops::restore(&lib, &task, &original),
+        Err(Error::NotAllowed(_))
+    ));
+
+    // Delete forever, then empty the rest.
+    trash::delete_forever(&root, &milestone).unwrap();
+    assert_eq!(trash::list(&root).unwrap().len(), 1);
+    assert!(
+        trash::delete_forever(&root, "areas/Home").is_err(),
+        "only things in the trash"
+    );
+    assert_eq!(trash::empty(&root).unwrap(), 1);
+    assert!(trash::list(&root).unwrap().is_empty());
+}
