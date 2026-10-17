@@ -7,7 +7,7 @@ import { spring } from './lib/motion'
 import { childrenOf, type Item, type TaskStatus } from './lib/api'
 import { trailOf } from './lib/items'
 import { NEXT_STATUS } from './lib/lanes'
-import { requestRename } from './lib/rename'
+import { requestAdd, requestRename, type AddWhat } from './lib/requests'
 import { itemMenu } from './components/itemMenu'
 import { ContextMenu, type MenuItem } from './components/controls'
 import { isMac } from './lib/platform'
@@ -15,6 +15,8 @@ import { readPref, writePref } from './lib/prefs'
 import {
   ArrowUpRight,
   FilePlus,
+  Flag,
+  Target,
   FileText,
   Layers,
   ListChecks,
@@ -233,14 +235,47 @@ export default function App() {
     const id = target.closest<HTMLElement>('[data-item]')?.dataset.item
     const item = id ? byId.get(id) : undefined
     if (!item) return null
+    const add = (what: AddWhat) => () => {
+      openId(item.id)
+      requestAdd(item.id, what)
+    }
     return [
       { label: 'Open', Icon: ArrowUpRight, onSelect: () => openId(item.id) },
+      ...newItems(item, add),
       'divider',
       ...itemMenu(item, actions, () => {
         openId(item.id)
         requestRename(item.id)
       }),
     ]
+  }
+
+  // "New …" in the right-click menu: only what can go inside this item. A
+  // project holds milestones or loose tasks, never both (see CLAUDE.md).
+  const newItems = (item: Item, add: (what: AddWhat) => () => void): MenuItem[] => {
+    const children = childrenOf(items, item.id)
+    switch (item.kind) {
+      case 'area':
+        return [
+          { label: 'New project', Icon: Target, onSelect: add('project') },
+          { label: 'New page', Icon: FilePlus, onSelect: add('page') },
+        ]
+      case 'project': {
+        const hasMilestones = children.some((c) => c.kind === 'milestone')
+        const hasTasks = children.some((c) => c.kind === 'task')
+        return [
+          ...(hasMilestones ? [] : [{ label: 'New task', Icon: Plus, onSelect: add('task') }]),
+          ...(hasTasks ? [] : [{ label: 'New milestone', Icon: Flag, onSelect: add('milestone') }]),
+          { label: 'New page', Icon: FilePlus, onSelect: add('page') },
+        ]
+      }
+      case 'milestone':
+        return [{ label: 'New task', Icon: Plus, onSelect: add('task') }]
+      case 'page':
+        return [{ label: 'New subpage', Icon: FilePlus, onSelect: add('page') }]
+      default:
+        return []
+    }
   }
 
   const cycleStatus = (task: Item) =>

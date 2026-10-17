@@ -6,7 +6,7 @@ import { childrenOf, MILESTONE_COLORS, type Item, type MilestoneColor, type Stat
 import { shortDate } from '../lib/dates'
 import { statusLabel } from '../lib/items'
 import { useLanes } from '../lib/lanes'
-import { useRenameRequest } from '../lib/rename'
+import { useRenameRequest } from '../lib/requests'
 import type { Actions } from '../lib/useActions'
 import { BodyEditor, DateField, EditableTitle, InlineAdd, Menu, Segmented } from './controls'
 import { itemMenu } from './itemMenu'
