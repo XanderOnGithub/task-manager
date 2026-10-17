@@ -1,9 +1,10 @@
 //! The example data folder: a small home renovation (the same one as
 //! `sample-data/` in the repo), offered when you first open Moss.
 //!
-//! The app ships a copy of it and calls `add_example` with where that copy is
-//! and the folder you picked. It's only ever added to an empty folder, so it
-//! can never mix into, or overwrite, your own files.
+//! The app carries the example inside itself (so even a lone portable .exe
+//! has it) and hands its files to `add_example_files`; development builds
+//! copy the repo's folder with `add_example`. Either way it's only ever added
+//! to an empty folder, so it can never mix into, or overwrite, your files.
 
 use std::fs;
 use std::io;
@@ -16,6 +17,29 @@ pub fn add_example(source: &Path, target: &Path) -> io::Result<bool> {
         return Ok(false);
     }
     copy_dir(source, target)?;
+    Ok(true)
+}
+
+/// Writes the example from a list of (path inside the example, contents)
+/// into `target`, if `target` is empty (or doesn't exist yet). Paths use `/`.
+/// Hidden files are left out. Returns true if it was added.
+pub fn add_example_files<'a>(
+    files: impl IntoIterator<Item = (&'a str, &'a [u8])>,
+    target: &Path,
+) -> io::Result<bool> {
+    if !is_empty(target)? {
+        return Ok(false);
+    }
+    for (rel, contents) in files {
+        if rel.split('/').any(|part| part.starts_with('.') || part == "..") {
+            continue;
+        }
+        let path = target.join(rel);
+        if let Some(dir) = path.parent() {
+            fs::create_dir_all(dir)?;
+        }
+        fs::write(path, contents)?;
+    }
     Ok(true)
 }
 

@@ -138,8 +138,7 @@ fn start_data_folder(
     let root = PathBuf::from(&path);
     fs::create_dir_all(&root).map_err(|e| format!("Couldn't make {path}: {e}"))?;
     let added = if example {
-        let source = example_source(&app).ok_or("The example isn't available in this build")?;
-        example::add_example(&source, &root).map_err(|e| e.to_string())?
+        example::add_example_files(example_files(), &root).map_err(|e| e.to_string())?
     } else {
         false
     };
@@ -147,14 +146,26 @@ fn start_data_folder(
     Ok(added)
 }
 
-/// Where the app's copy of the example is: bundled with the app (see
-/// "resources" in tauri.conf.json), or the repo's sample-data/ in development.
-fn example_source(app: &AppHandle) -> Option<PathBuf> {
-    if cfg!(debug_assertions) {
-        return Some(Path::new(env!("CARGO_MANIFEST_DIR")).join("../sample-data"));
+/// The example (the repo's sample-data/), built into the app itself so every
+/// download has it, even the portable Windows .exe. If you change
+/// sample-data/, run `cargo clean -p moss` so the next build picks it up.
+static EXAMPLE: include_dir::Dir = include_dir::include_dir!("$CARGO_MANIFEST_DIR/../sample-data");
+
+/// Every file in the built-in example, as (path inside it, contents).
+fn example_files() -> Vec<(&'static str, &'static [u8])> {
+    fn walk(dir: &'static include_dir::Dir<'static>, out: &mut Vec<(&'static str, &'static [u8])>) {
+        for file in dir.files() {
+            if let Some(path) = file.path().to_str() {
+                out.push((path, file.contents()));
+            }
+        }
+        for sub in dir.dirs() {
+            walk(sub, out);
+        }
     }
-    let bundled = app.path().resource_dir().ok()?.join("example");
-    bundled.is_dir().then_some(bundled)
+    let mut out = Vec::new();
+    walk(&EXAMPLE, &mut out);
+    out
 }
 
 /// Switches to another data folder and remembers it for next time.
