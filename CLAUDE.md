@@ -48,6 +48,8 @@ Moss is in alpha (`"stage": "alpha"` in package.json; Settings shows "Alpha 0.1.
 
 - All file reading and writing goes through `core`. The front end never touches files directly.
 - Writes don't update the in-memory library. The app drops its cache and reloads; files are the single source of truth.
+- The watcher ignores reads (Linux reports every file open; counting them made each load trigger another) and the app skips the watcher's echo of its own writes for a second (`OWN_WRITE_WINDOW` in src-tauri), so one action is one reload.
+- Reloads keep unchanged items as the same objects (`lib/share.ts`), and task rows and board cards are `memo`ized with their insides split from the dnd-kit wrapper, so a change redraws only the rows it touched. Keep callbacks passed to rows stable (`useCallback`), and don't create new item objects for rows.
 - Problems in the data folder become `Issue`s, never crashes. Only id-related issues are fixed automatically.
 - Every change to core behavior gets a test in `core/tests/data_folder.rs` or next to the code.
 

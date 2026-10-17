@@ -4,7 +4,8 @@
 import { useEffect, useState } from 'react'
 import { listTrash, type Snapshot, type TrashEntry } from './api'
 
-export function useTrash(snapshot: Snapshot | null): TrashEntry[] {
+/** `loads` (from useLibrary) changes on every reload, even when no item did. */
+export function useTrash(snapshot: Snapshot | null, loads: number): TrashEntry[] {
   const [entries, setEntries] = useState<TrashEntry[]>([])
   useEffect(() => {
     if (!snapshot) return
@@ -15,6 +16,6 @@ export function useTrash(snapshot: Snapshot | null): TrashEntry[] {
     return () => {
       current = false
     }
-  }, [snapshot])
+  }, [snapshot, loads])
   return entries
 }

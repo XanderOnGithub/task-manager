@@ -6,6 +6,7 @@ import { getCurrentWindow } from '@tauri-apps/api/window'
 
 export type Theme = 'system' | 'light' | 'dark'
 
+// Also read by the inline script in index.html; keep the two in step.
 const KEY = 'theme'
 
 function read(): Theme {

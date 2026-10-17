@@ -644,6 +644,26 @@ fn the_watcher_reports_outside_changes() {
 }
 
 #[test]
+fn reading_the_folder_is_not_a_change() {
+    // Linux reports every time a file is opened. If loading counted as a
+    // change, the app would reload itself over and over.
+    let (_dir, root) = sample();
+    let (tx, rx) = mpsc::channel();
+    let _watcher = task_core::watch::watch(&root, move |paths| {
+        let _ = tx.send(paths);
+    })
+    .unwrap();
+    std::thread::sleep(Duration::from_millis(100));
+    // Ignore anything reported while the watcher was starting up.
+    while rx.recv_timeout(Duration::from_millis(600)).is_ok() {}
+
+    Library::load(&root).unwrap();
+    if let Ok(paths) = rx.recv_timeout(Duration::from_millis(800)) {
+        panic!("loading was reported as a change: {paths:?}");
+    }
+}
+
+#[test]
 fn old_trash_is_emptied_and_recent_trash_kept() {
     let (_dir, root) = sample();
     let trash = root.join(".trash");

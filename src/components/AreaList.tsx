@@ -3,7 +3,7 @@
 // header but not listed (open the project to see them). Drag and drop lives in
 // the project and milestone pages, where there's one place to drop into.
 
-import { useState } from 'react'
+import { memo, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import { ArrowUpRight, ChevronDown, Target } from 'lucide-react'
 import { childrenOf, type Item } from '../lib/api'
@@ -88,35 +88,13 @@ export function AreaList({ items, area, selectedId, onSelect, onCycleStatus, onO
               <AnimatePresence initial={false}>
                 {open.map(({ task, milestone }) => (
                   <ListRow key={task.id}>
-                    <div
-                      data-item={task.id}
-                      className={`flex h-row items-center gap-2.5 rounded-row pr-2.5 pl-7 transition-colors duration-100 ${
-                        task.id === selectedId ? 'bg-selected' : 'hover:bg-hover'
-                      }`}
-                    >
-                      <button
-                        onClick={() => onCycleStatus(task)}
-                        aria-label={`Status: ${statusLabel(task.status)}. Change status`}
-                        title="Change status"
-                        className="-m-1 rounded-full p-1 transition-transform duration-100 ease-pop active:scale-90"
-                      >
-                        <StatusIcon status={task.status} />
-                      </button>
-                      <button
-                        onClick={() => onSelect(task.id)}
-                        className="@container flex h-full min-w-0 flex-1 items-center gap-2.5 text-left"
-                      >
-                        <TaskTitle title={task.title} done={false} />
-                        {milestone && (
-                          <MilestoneChip
-                            title={milestone.title}
-                            color={milestone.color}
-                            className="max-w-[45%] @max-[14rem]:hidden"
-                          />
-                        )}
-                        <DueDate item={task} />
-                      </button>
-                    </div>
+                    <AreaTaskRow
+                      task={task}
+                      milestone={milestone}
+                      selected={task.id === selectedId}
+                      onSelect={onSelect}
+                      onCycleStatus={onCycleStatus}
+                    />
                   </ListRow>
                 ))}
               </AnimatePresence>
@@ -141,3 +119,43 @@ export function AreaList({ items, area, selectedId, onSelect, onCycleStatus, onO
     </div>
   )
 }
+
+/** One open task under its project. Memoized: a reload only redraws the rows whose task changed (see lib/share.ts). */
+const AreaTaskRow = memo(function AreaTaskRow({
+  task,
+  milestone,
+  selected,
+  onSelect,
+  onCycleStatus,
+}: {
+  task: Item
+  milestone: Item | null
+  selected: boolean
+  onSelect: (id: string) => void
+  onCycleStatus: (task: Item) => void
+}) {
+  return (
+    <div
+      data-item={task.id}
+      className={`flex h-row items-center gap-2.5 rounded-row pr-2.5 pl-7 transition-colors duration-100 ${
+        selected ? 'bg-selected' : 'hover:bg-hover'
+      }`}
+    >
+      <button
+        onClick={() => onCycleStatus(task)}
+        aria-label={`Status: ${statusLabel(task.status)}. Change status`}
+        title="Change status"
+        className="-m-1 rounded-full p-1 transition-transform duration-100 ease-pop active:scale-90"
+      >
+        <StatusIcon status={task.status} />
+      </button>
+      <button onClick={() => onSelect(task.id)} className="@container flex h-full min-w-0 flex-1 items-center gap-2.5 text-left">
+        <TaskTitle title={task.title} done={false} />
+        {milestone && (
+          <MilestoneChip title={milestone.title} color={milestone.color} className="max-w-[45%] @max-[14rem]:hidden" />
+        )}
+        <DueDate item={task} />
+      </button>
+    </div>
+  )
+})
