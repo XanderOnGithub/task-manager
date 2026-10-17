@@ -16,6 +16,7 @@ mod high_refresh;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::{Mutex, MutexGuard};
+use std::time::{Duration, Instant};
 
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Emitter, Manager, State};
@@ -43,7 +44,19 @@ struct Data {
     library: Option<Library>,
     /// Keeps the folder watcher running. Replaced when the folder changes.
     watcher: Option<Watcher>,
+    /// When a command last wrote files. The watcher sees those writes too, a
+    /// moment later; this lets it tell them apart from outside changes.
+    last_write: Option<Instant>,
 }
+
+/// How long after one of our own writes the watcher treats changes as ours.
+/// The watcher reports a batch once things have been quiet for
+/// `watch::QUIET_PERIOD` (250ms), so our writes show up about then. The
+/// window is generous so a busy disk doesn't slip past it.
+///
+/// The trade-off: an outside change landing in that same second (say, your
+/// phone adding to Unsorted) isn't shown until the next change of any kind.
+const OWN_WRITE_WINDOW: Duration = Duration::from_millis(1000);
 
 /// The small settings file (app config folder / settings.json).
 #[derive(Default, Serialize, Deserialize)]
@@ -387,7 +400,9 @@ fn read<T>(state: &State<'_, AppState>, f: impl FnOnce(&Library) -> task_core::R
 /// (even if the command failed halfway) so the next read sees the new state.
 fn write<T>(state: &State<'_, AppState>, f: impl FnOnce(&Library) -> task_core::Result<T>) -> CmdResult<T> {
     let result = read(state, f);
-    lock(state)?.library = None;
+    let mut data = lock(state)?;
+    data.library = None;
+    data.last_write = Some(Instant::now());
     result
 }
 
@@ -416,10 +431,16 @@ fn open_folder(app: &AppHandle, data: &mut Data, root: PathBuf) {
 
     let handle = app.clone();
     match watch::watch(&root, move |paths| {
-        // Forget the cached library, then tell the UI to load again.
         if let Ok(mut data) = handle.state::<AppState>().data.lock() {
+            // Our own save, seen a moment later: the UI already reloaded right
+            // after the command, so a second reload would only redo that work.
+            if data.last_write.is_some_and(|at| at.elapsed() < OWN_WRITE_WINDOW) {
+                return;
+            }
+            // Someone else changed the files: forget the cached library.
             data.library = None;
         }
+        // Then tell the UI to load again.
         let _ = handle.emit(DATA_CHANGED, paths);
     }) {
         Ok(watcher) => data.watcher = Some(watcher),

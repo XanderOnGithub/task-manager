@@ -1,7 +1,7 @@
 // The app shell: sidebar on the window's vibrancy, solid panels on the right.
 // Layout follows the design canvas linked in CLAUDE.md.
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import { spring } from './lib/motion'
 import { childrenOf, type Item, type TaskStatus } from './lib/api'
@@ -51,9 +51,9 @@ const SIDEBAR_WIDTH = 244
 
 
 export default function App() {
-  const { snapshot, error, needsFolder, byId, reload } = useLibrary()
+  const { snapshot, error, needsFolder, byId, loads, reload } = useLibrary()
   const actions = useActions(reload, snapshot?.items ?? [])
-  const trash = useTrash(snapshot)
+  const trash = useTrash(snapshot, loads)
   useLaunchCheck()
 
   // What's open: an overview (Unsorted, Tasks, Pages), or an area, project,
@@ -280,8 +280,11 @@ export default function App() {
     }
   }
 
-  const cycleStatus = (task: Item) =>
-    void actions.setStatus(task, NEXT_STATUS[(task.status as TaskStatus | null) ?? 'todo'])
+  // Stable, so memoized rows don't redraw just because App did.
+  const cycleStatus = useCallback(
+    (task: Item) => void actions.setStatus(task, NEXT_STATUS[(task.status as TaskStatus | null) ?? 'todo']),
+    [actions],
+  )
 
   const content = () => {
     if (error || !snapshot) {
