@@ -153,6 +153,13 @@ Status: M1–M6 are built (core, shell, Unsorted flow, create / edit / delete wi
 
 ## Backlog (after v1)
 
+- **Git sync (planned for alpha 0.2).** A Git repo as the source of truth, chosen in Settings → Sync or at onboarding ("Clone from a Git repo"). Decided so far:
+  - Uses the `git` installed on the computer (shelled out from Rust), so existing SSH keys and logins work and Moss never stores credentials. Without git: "Install Git to use sync".
+  - Commits after about a minute with no changes (and when Moss closes), one commit for everything since the last ("Moss: 4 changes"). Separate from the editor's save delay.
+  - Pulls when Moss opens, when its window comes back to the front, and every few minutes (`pull --rebase --autostash`). Pulled files reach the app through the watcher like any outside change.
+  - `.gitattributes`: `unsorted.md merge=union`, so lines added on the phone and the computer both survive. `.trash/` goes in `.gitignore`.
+  - A real conflict never blocks or loses text: keep ours, save theirs as "Title (from other computer).md", and show it as an Issue.
+  - Status in Settings ("Synced 2 min ago", Sync now, Pause), maybe a small indicator in the sidebar.
 - Timeline view (maybe).
 - Code signing for releases (Apple Developer ID + notarization, a Windows certificate).
 - Drag and drop on the area page.
