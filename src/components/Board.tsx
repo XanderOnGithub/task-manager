@@ -196,6 +196,7 @@ function Card({
       initial={landed ? { scale: 1.02 } : false}
       animate={{ scale: 1 }}
       transition={landed ? spring.pop : spring.smooth}
+      data-item={task.id}
       className={`relative z-10 shrink-0 rounded-card ${draggable.isDragging ? 'opacity-0' : ''}`}
     >
       <CardFace

@@ -204,6 +204,7 @@ function SortableMilestone({
         {...sortable.attributes}
         {...sortable.listeners}
         aria-label={`${milestone.title}, milestone. Press space to move.`}
+        data-item={milestone.id}
         className={`group/ms flex h-row items-center gap-1 rounded-row pr-1 pl-0.5 transition-colors duration-100 ${
           sortable.isDragging ? 'bg-hover [&>*]:invisible' : selected ? 'bg-selected' : 'hover:bg-hover'
         }`}
@@ -293,6 +294,7 @@ function SortableTask({
       {...sortable.listeners}
       aria-label={`${task.title}, task. Press space to move.`}
       // While it's being dragged, its slot stays as a soft empty space.
+      data-item={task.id}
       className={`group flex h-row items-center gap-2.5 rounded-row pr-2.5 transition-colors duration-100 ${
         indent ? 'pl-7' : 'pl-2.5'
       } ${sortable.isDragging ? 'bg-hover [&>*]:invisible' : selected ? 'bg-selected' : 'hover:bg-hover'}`}

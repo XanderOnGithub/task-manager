@@ -211,35 +211,116 @@ export function Menu({
             ref={dropdown}
             role="menu"
             style={place}
-            className="z-50 flex w-52 origin-top animate-menu-in flex-col gap-px rounded-[10px] border border-border-menu bg-menu p-[5px] shadow-menu"
+            className={MENU_BOX}
           >
-            {items.map((item, i) =>
-              item === 'divider' ? (
-                <div key={`d${i}`} className="mx-1.5 my-1 h-px bg-border" />
-              ) : (
-                <button
-                  key={item.label}
-                  role="menuitem"
-                  onClick={() => {
-                    setPlace(null)
-                    item.onSelect()
-                  }}
-                  className={`flex h-[30px] items-center gap-2.5 rounded-md px-2.5 text-left transition-colors duration-100 hover:bg-hover ${
-                    item.danger ? 'text-danger' : 'text-fg'
-                  }`}
-                >
-                  {item.Icon && (
-                    <item.Icon size={15} strokeWidth={1.75} aria-hidden="true" className={item.danger ? '' : 'text-fg-2'} />
-                  )}
-                  <span className="flex-1">{item.label}</span>
-                  {item.shortcut && <kbd className="font-mono text-label font-normal text-fg-3">{item.shortcut}</kbd>}
-                </button>
-              ),
-            )}
+            <MenuItems items={items} onPicked={() => setPlace(null)} />
           </div>,
           document.body,
         )}
     </div>
+  )
+}
+
+/** The rows of a menu. Shared by the ⋯ menus and the right-click menu (ContextMenu.tsx). */
+export function MenuItems({ items, onPicked }: { items: (MenuItem | 'divider')[]; onPicked: () => void }) {
+  return (
+    <>
+      {items.map((item, i) =>
+        item === 'divider' ? (
+          <div key={`d${i}`} className="mx-1.5 my-1 h-px bg-border" />
+        ) : (
+          <button
+            key={item.label}
+            role="menuitem"
+            onClick={() => {
+              onPicked()
+              item.onSelect()
+            }}
+            className={`flex h-[30px] items-center gap-2.5 rounded-md px-2.5 text-left transition-colors duration-100 hover:bg-hover ${
+              item.danger ? 'text-danger' : 'text-fg'
+            }`}
+          >
+            {item.Icon && (
+              <item.Icon size={15} strokeWidth={1.75} aria-hidden="true" className={item.danger ? '' : 'text-fg-2'} />
+            )}
+            <span className="flex-1">{item.label}</span>
+            {item.shortcut && <kbd className="font-mono text-label font-normal text-fg-3">{item.shortcut}</kbd>}
+          </button>
+        ),
+      )}
+    </>
+  )
+}
+
+/** Classes for a menu's floating box (⋯ menus and the right-click menu). */
+const MENU_BOX =
+  'z-50 flex w-52 origin-top animate-menu-in flex-col gap-px rounded-[10px] border border-border-menu bg-menu p-[5px] shadow-menu'
+
+// ---------------------------------------------------------------------------
+// Right-click menu
+// ---------------------------------------------------------------------------
+
+/**
+ * Replaces the web view's own right-click menu (Reload, Inspect, Back) with
+ * ours. Mount once. `menuFor` gets what was right-clicked and returns the
+ * menu for it (usually the item's ⋯ menu), or null for no menu at all.
+ *
+ * Text fields and the page editor keep the system menu, which has cut, copy,
+ * paste and spelling. In development, Shift-right-click shows the web view's
+ * menu too, for Inspect Element.
+ */
+export function ContextMenu({ menuFor }: { menuFor: (target: HTMLElement) => (MenuItem | 'divider')[] | null }) {
+  const [menu, setMenu] = useState<{ x: number; y: number; items: (MenuItem | 'divider')[] } | null>(null)
+  const box = useRef<HTMLDivElement>(null)
+  const lookup = useRef(menuFor)
+  lookup.current = menuFor
+
+  useEffect(() => {
+    const onContextMenu = (e: MouseEvent) => {
+      const target = e.target as HTMLElement
+      if (import.meta.env.DEV && e.shiftKey) return
+      if (target.closest('input, textarea, [contenteditable="true"]')) return
+      e.preventDefault()
+      const items = lookup.current(target)
+      setMenu(items && items.length > 0 ? { x: e.clientX, y: e.clientY, items } : null)
+    }
+    window.addEventListener('contextmenu', onContextMenu)
+    return () => window.removeEventListener('contextmenu', onContextMenu)
+  }, [])
+
+  // Close on a click elsewhere, Escape, scrolling or resizing.
+  useEffect(() => {
+    if (!menu) return
+    const close = () => setMenu(null)
+    const onDown = (e: MouseEvent) => !box.current?.contains(e.target as Node) && close()
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && close()
+    document.addEventListener('mousedown', onDown)
+    document.addEventListener('keydown', onKey)
+    window.addEventListener('scroll', close, true)
+    window.addEventListener('resize', close)
+    window.addEventListener('blur', close)
+    return () => {
+      document.removeEventListener('mousedown', onDown)
+      document.removeEventListener('keydown', onKey)
+      window.removeEventListener('scroll', close, true)
+      window.removeEventListener('resize', close)
+      window.removeEventListener('blur', close)
+    }
+  }, [menu])
+
+  if (!menu) return null
+  // Opens at the pointer, flipped left or up when it would run off the window.
+  const height = 12 + menu.items.length * 31
+  const style: CSSProperties = {
+    position: 'fixed',
+    left: Math.min(menu.x, window.innerWidth - 216),
+    top: menu.y + height > window.innerHeight ? Math.max(8, menu.y - height) : menu.y,
+  }
+  return createPortal(
+    <div ref={box} role="menu" style={style} className={MENU_BOX}>
+      <MenuItems items={menu.items} onPicked={() => setMenu(null)} />
+    </div>,
+    document.body,
   )
 }
 

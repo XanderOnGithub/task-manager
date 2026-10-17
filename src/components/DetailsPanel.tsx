@@ -6,6 +6,7 @@ import { childrenOf, MILESTONE_COLORS, type Item, type MilestoneColor, type Stat
 import { shortDate } from '../lib/dates'
 import { statusLabel } from '../lib/items'
 import { useLanes } from '../lib/lanes'
+import { useRenameRequest } from '../lib/rename'
 import type { Actions } from '../lib/useActions'
 import { BodyEditor, DateField, EditableTitle, InlineAdd, Menu, Segmented } from './controls'
 import { itemMenu } from './itemMenu'
@@ -21,6 +22,7 @@ interface Props {
 
 export function DetailsPanel({ items, item, parent, onSelect, actions }: Props) {
   const [renaming, setRenaming] = useState(0)
+  useRenameRequest(item.id, () => setRenaming((n) => n + 1))
   const isMilestone = item.kind === 'milestone'
   const tasks = isMilestone ? childrenOf(items, item.id) : []
   const done = tasks.filter((t) => t.status === 'done').length
