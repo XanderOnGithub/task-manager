@@ -8,21 +8,24 @@
 import { useState, type ReactNode } from 'react'
 import { motion } from 'motion/react'
 import { spring } from '../lib/motion'
-import { FileText, Layers, ListChecks, PanelLeft, Plus, Settings, type LucideIcon } from 'lucide-react'
+import { ArrowDownToLine, FileText, Layers, ListChecks, PanelLeft, Plus, Settings, Trash2, type LucideIcon } from 'lucide-react'
+import { installUpdate, useUpdates } from '../lib/updates'
 import type { Item } from '../lib/api'
 import { icon } from '../lib/items'
-import { isMac } from '../lib/platform'
+import { isMac, keys } from '../lib/platform'
 import type { Actions } from '../lib/useActions'
 import { AreaTree, type Adding } from './AreaTree'
 import { MossWordmark } from './Brand'
 import { SectionLabel } from './ui'
 
 /** The overviews at the top of the sidebar. */
-export type Overview = 'unsorted' | 'tasks' | 'pages'
+export type Overview = 'unsorted' | 'tasks' | 'pages' | 'trash'
 
 interface Props {
   items: Item[]
   unsortedCount: number
+  /** Things in the trash; the Trash row shows above Settings while there are any. */
+  trashCount: number
   /** The open overview, or null when an area, project or page is open. */
   overview: Overview | null
   onOverview: (overview: Overview) => void
@@ -61,7 +64,7 @@ export function Sidebar(props: Props) {
         <button
           onClick={props.onToggleSidebar}
           aria-label="Hide sidebar"
-          title="Hide sidebar (⌘\)"
+          title={`Hide sidebar (${keys('\\')})`}
           className="flex rounded-md p-1 text-fg-3 transition-colors duration-100 hover:bg-hover hover:text-fg-2"
         >
           <PanelLeft {...icon} />
@@ -74,7 +77,7 @@ export function Sidebar(props: Props) {
       >
         <Plus size={15} strokeWidth={1.75} aria-hidden="true" />
         <span className="flex-1">Quick capture</span>
-        <kbd className="font-mono text-label font-normal text-fg-3">⌘N</kbd>
+        <kbd className="font-mono text-label font-normal text-fg-3">{keys('N')}</kbd>
       </button>
 
       <div className="flex flex-col gap-0.5">
@@ -114,12 +117,37 @@ export function Sidebar(props: Props) {
         />
       </div>
 
-      <div className="mt-auto">
+      <div className="mt-auto flex flex-col gap-0.5">
+        <UpdateRow />
+        <NavItem Icon={Trash2} active={overview === 'trash'} onClick={() => onOverview('trash')}>
+          Trash
+          {props.trashCount > 0 && <span className="ml-auto text-label font-normal text-fg-3">{props.trashCount}</span>}
+        </NavItem>
         <NavItem Icon={Settings} active={false} onClick={props.onSettings}>
           Settings
         </NavItem>
       </div>
     </nav>
+  )
+}
+
+/** "Update to 0.1.3" when a new version is out; shows progress while it installs. */
+function UpdateRow() {
+  const update = useUpdates()
+  if (update.status !== 'available' && update.status !== 'installing') return null
+  const installing = update.status === 'installing'
+  return (
+    <button
+      onClick={() => void installUpdate()}
+      disabled={installing}
+      className="flex h-[30px] w-full items-center gap-2.5 rounded-control px-2.5 text-left font-medium text-accent transition-colors duration-100 hover:bg-hover disabled:hover:bg-transparent"
+    >
+      <ArrowDownToLine {...icon} />
+      <span className="flex-1">{installing ? 'Updating' : `Update to ${update.version}`}</span>
+      {installing && update.percent !== null && (
+        <span className="text-label font-normal text-fg-3 tabular-nums">{update.percent}%</span>
+      )}
+    </button>
   )
 }
 

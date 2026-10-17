@@ -5,6 +5,7 @@ import { AnimatePresence, motion } from 'motion/react'
 import { spring } from '../lib/motion'
 import { ToastContext, type ToastInput } from '../lib/toast'
 import { play } from '../lib/sounds'
+import { keys } from '../lib/platform'
 
 /** How long a toast stays up. Longer when there's an Undo to reach for. */
 const DURATION_MS = 4000
@@ -76,7 +77,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
           {toast.undo && (
             <button
               onClick={() => void undo()}
-              title="Undo (⌘Z)"
+              title={`Undo (${keys('Z')})`}
               className="h-7 rounded-control bg-hover px-2.5 font-medium transition-colors duration-100 hover:bg-border-strong"
             >
               Undo

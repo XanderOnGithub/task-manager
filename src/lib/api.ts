@@ -110,6 +110,23 @@ export const searchText = (query: string) => invoke<TextHit[]>('search_text', { 
 export const writeBody = (id: string, body: string) => invoke<void>('write_body', { id, body })
 export const trashItem = (id: string) => invoke<Trashed>('trash_item', { id })
 export const restoreItem = (t: Trashed) => invoke<void>('restore_item', { ...t })
+
+/** One thing in the trash (see core/src/trash.rs). */
+export interface TrashEntry {
+  /** Where it is now, inside the hidden .trash folder. */
+  path: string
+  /** Where it came from; null for things deleted before the app kept notes (can't be restored here). */
+  original: string | null
+  title: string
+  kind: Kind | null
+  /** Titles of what it was inside, top first. */
+  from: string[]
+  /** "YYYY-MM-DD HH:MM" */
+  deleted: string
+}
+export const listTrash = () => invoke<TrashEntry[]>('list_trash')
+export const deleteForever = (path: string) => invoke<void>('delete_forever', { path })
+export const emptyTrash = () => invoke<number>('empty_trash')
 export const revealInFinder = (id: string) => invoke<void>('reveal_in_finder', { id })
 export const itemPath = (id: string) => invoke<string>('item_path', { id })
 

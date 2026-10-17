@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Moss",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "identifier": "com.xanderreyes.moss",
   "build": {
     "beforeDevCommand": "pnpm dev",
@@ -36,13 +36,17 @@
   "plugins": {
     "macos-fps": {
       "enabled": false
+    },
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDQwNDlEQUEyMjU1RkFFOEQKUldTTnJsOGxvdHBKUUIvVFhORVdxSFF4UFVQbkxWWFYxZGlWVG1NWHFweW5sRjB3bDNDZit2eHMK",
+      "endpoints": ["https://github.com/XanderOnGithub/task-manager/releases/latest/download/latest.json"],
+      "windows": { "installMode": "passive" }
     }
   },
   "bundle": {
     "active": true,
     "targets": "all",
     "category": "Productivity",
-    "resources": { "../sample-data/": "example/" },
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",

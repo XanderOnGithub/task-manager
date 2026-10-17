@@ -21,7 +21,7 @@ export interface PaletteAction {
   Icon: React.ComponentType<{ size?: number; strokeWidth?: number; className?: string }>
   /** Extra words that find it ("go", "new", "theme"). */
   keywords?: string
-  /** Shortcut shown on the right, e.g. "⌘N". */
+  /** Shortcut shown on the right, e.g. keys('N') from lib/platform. */
   shortcut?: string
   run: () => void
 }

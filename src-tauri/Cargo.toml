@@ -1,6 +1,6 @@
 [package]
 name = "moss"
-version = "0.1.1"
+version = "0.1.2"
 description = "Moss: tasks and notes, sorted into a strict hierarchy"
 edition = "2021"
 publish = false
@@ -22,3 +22,6 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 task-core = { path = "../core" }
 tauri-plugin-macos-fps = "0.1.0"
+include_dir = "0.7"
+tauri-plugin-updater = "2"
+tauri-plugin-process = "2"

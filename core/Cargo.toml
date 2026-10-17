@@ -1,6 +1,6 @@
 [package]
 name = "task-core"
-version = "0.1.1"
+version = "0.1.2"
 edition = "2021"
 description = "Reads, validates and writes the task app's plain-markdown data folder."
 publish = false
@@ -14,7 +14,6 @@ getrandom = "0.3"
 serde = { version = "1", features = ["derive"] }
 # Watching the data folder for changes made outside the app (phone, Finder, sync).
 notify = "8"
-notify-debouncer-mini = "0.7"
 
 [dev-dependencies]
 # Throwaway folders for tests and the benchmark.

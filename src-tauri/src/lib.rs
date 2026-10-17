@@ -16,10 +16,12 @@ mod high_refresh;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::{Mutex, MutexGuard};
+use std::time::{Duration, Instant};
 
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Emitter, Manager, State};
 
+use task_core::trash::{self, TrashEntry};
 use task_core::unsorted::{self, Entry};
 use task_core::watch::{self, Watcher};
 use task_core::{example, fix, fsutil, migrate, ops, search, Issue, Item, Kind, Library};
@@ -42,7 +44,19 @@ struct Data {
     library: Option<Library>,
     /// Keeps the folder watcher running. Replaced when the folder changes.
     watcher: Option<Watcher>,
+    /// When a command last wrote files. The watcher sees those writes too, a
+    /// moment later; this lets it tell them apart from outside changes.
+    last_write: Option<Instant>,
 }
+
+/// How long after one of our own writes the watcher treats changes as ours.
+/// The watcher reports a batch once things have been quiet for
+/// `watch::QUIET_PERIOD` (250ms), so our writes show up about then. The
+/// window is generous so a busy disk doesn't slip past it.
+///
+/// The trade-off: an outside change landing in that same second (say, your
+/// phone adding to Unsorted) isn't shown until the next change of any kind.
+const OWN_WRITE_WINDOW: Duration = Duration::from_millis(1000);
 
 /// The small settings file (app config folder / settings.json).
 #[derive(Default, Serialize, Deserialize)]
@@ -137,8 +151,7 @@ fn start_data_folder(
     let root = PathBuf::from(&path);
     fs::create_dir_all(&root).map_err(|e| format!("Couldn't make {path}: {e}"))?;
     let added = if example {
-        let source = example_source(&app).ok_or("The example isn't available in this build")?;
-        example::add_example(&source, &root).map_err(|e| e.to_string())?
+        example::add_example_files(example_files(), &root).map_err(|e| e.to_string())?
     } else {
         false
     };
@@ -146,14 +159,26 @@ fn start_data_folder(
     Ok(added)
 }
 
-/// Where the app's copy of the example is: bundled with the app (see
-/// "resources" in tauri.conf.json), or the repo's sample-data/ in development.
-fn example_source(app: &AppHandle) -> Option<PathBuf> {
-    if cfg!(debug_assertions) {
-        return Some(Path::new(env!("CARGO_MANIFEST_DIR")).join("../sample-data"));
+/// The example (the repo's sample-data/), built into the app itself so every
+/// download has it, even the portable Windows .exe. If you change
+/// sample-data/, run `cargo clean -p moss` so the next build picks it up.
+static EXAMPLE: include_dir::Dir = include_dir::include_dir!("$CARGO_MANIFEST_DIR/../sample-data");
+
+/// Every file in the built-in example, as (path inside it, contents).
+fn example_files() -> Vec<(&'static str, &'static [u8])> {
+    fn walk(dir: &'static include_dir::Dir<'static>, out: &mut Vec<(&'static str, &'static [u8])>) {
+        for file in dir.files() {
+            if let Some(path) = file.path().to_str() {
+                out.push((path, file.contents()));
+            }
+        }
+        for sub in dir.dirs() {
+            walk(sub, out);
+        }
     }
-    let bundled = app.path().resource_dir().ok()?.join("example");
-    bundled.is_dir().then_some(bundled)
+    let mut out = Vec::new();
+    walk(&EXAMPLE, &mut out);
+    out
 }
 
 /// Switches to another data folder and remembers it for next time.
@@ -283,6 +308,24 @@ async fn restore_item(
     write(&state, |lib| ops::restore(lib, &trash_path, &original_path))
 }
 
+/// Everything in the trash, newest first (the Trash view).
+#[tauri::command]
+async fn list_trash(state: State<'_, AppState>) -> CmdResult<Vec<TrashEntry>> {
+    read(&state, |lib| trash::list(&lib.root))
+}
+
+/// Deletes one thing in the trash for good.
+#[tauri::command]
+async fn delete_forever(state: State<'_, AppState>, path: String) -> CmdResult<()> {
+    write(&state, |lib| trash::delete_forever(&lib.root, &path))
+}
+
+/// Deletes everything in the trash for good. Returns how many things went.
+#[tauri::command]
+async fn empty_trash(state: State<'_, AppState>) -> CmdResult<usize> {
+    write(&state, |lib| trash::empty(&lib.root))
+}
+
 /// Shows the item's file or folder in Finder.
 #[tauri::command]
 async fn reveal_in_finder(state: State<'_, AppState>, id: String) -> CmdResult<()> {
@@ -357,7 +400,9 @@ fn read<T>(state: &State<'_, AppState>, f: impl FnOnce(&Library) -> task_core::R
 /// (even if the command failed halfway) so the next read sees the new state.
 fn write<T>(state: &State<'_, AppState>, f: impl FnOnce(&Library) -> task_core::Result<T>) -> CmdResult<T> {
     let result = read(state, f);
-    lock(state)?.library = None;
+    let mut data = lock(state)?;
+    data.library = None;
+    data.last_write = Some(Instant::now());
     result
 }
 
@@ -386,10 +431,16 @@ fn open_folder(app: &AppHandle, data: &mut Data, root: PathBuf) {
 
     let handle = app.clone();
     match watch::watch(&root, move |paths| {
-        // Forget the cached library, then tell the UI to load again.
         if let Ok(mut data) = handle.state::<AppState>().data.lock() {
+            // Our own save, seen a moment later: the UI already reloaded right
+            // after the command, so a second reload would only redo that work.
+            if data.last_write.is_some_and(|at| at.elapsed() < OWN_WRITE_WINDOW) {
+                return;
+            }
+            // Someone else changed the files: forget the cached library.
             data.library = None;
         }
+        // Then tell the UI to load again.
         let _ = handle.emit(DATA_CHANGED, paths);
     }) {
         Ok(watcher) => data.watcher = Some(watcher),
@@ -503,6 +554,10 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
+        // In-app updates: checks the latest GitHub release (see "updater" in
+        // tauri.conf.json), and restarts into the new version.
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_process::init())
         // Keep the plugin available for manual control through Settings.
         .plugin(tauri_plugin_macos_fps::init())
         .setup(|app| {
@@ -555,6 +610,9 @@ pub fn run() {
             write_body,
             trash_item,
             restore_item,
+            list_trash,
+            delete_forever,
+            empty_trash,
             reveal_in_finder,
             item_path,
             add_unsorted,
