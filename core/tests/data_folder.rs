@@ -890,3 +890,23 @@ fn the_trash_lists_restores_and_empties() {
     assert_eq!(trash::empty(&root).unwrap(), 1);
     assert!(trash::list(&root).unwrap().is_empty());
 }
+
+#[test]
+fn the_example_can_come_from_files_built_into_the_app() {
+    let dir = tempfile::tempdir().unwrap();
+    let target = dir.path().join("Moss");
+    let files: Vec<(&str, &[u8])> = vec![
+        ("unsorted.md", b"- 2026-10-16 10:00 buy caulk\n"),
+        ("areas/Home/_index.md", b"---\nid: AREAHOME01\n---\n"),
+        ("areas/Home/.DS_Store", b"junk"),
+    ];
+    assert!(task_core::example::add_example_files(files.clone(), &target).unwrap());
+    assert!(target.join("areas/Home/_index.md").is_file());
+    assert!(
+        !target.join("areas/Home/.DS_Store").exists(),
+        "hidden files stay out"
+    );
+    assert_eq!(load(&target).items.len(), 1);
+    // Never into a folder that has something in it.
+    assert!(!task_core::example::add_example_files(files, &target).unwrap());
+}

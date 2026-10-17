@@ -141,6 +141,29 @@ jobs:
           releaseId: ${{ needs.prepare.outputs.release_id }}
           args: ${{ matrix.args }}
 
+      # Windows also gets a portable .exe: the app on its own, no installer.
+      # (It needs WebView2, which Windows 10 and 11 already have; the example
+      # data is built into the app, so nothing else has to sit beside it.)
+      # Not essential, so a hiccup here doesn't hold up the release.
+      - name: Portable Windows .exe
+        if: runner.os == 'Windows'
+        continue-on-error: true
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_ID: ${{ needs.prepare.outputs.release_id }}
+        run: |
+          version=$(node -p "require('./src-tauri/tauri.conf.json').version")
+          exe=$(ls target/release/moss.exe target/release/Moss.exe 2>/dev/null | head -1)
+          if [ -z "$exe" ]; then echo "No app .exe found in target/release"; ls target/release; exit 1; fi
+          name="Moss_${version}_x64_portable.exe"
+          cp "$exe" "$name"
+          curl --fail -sS -X POST \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Content-Type: application/octet-stream" \
+            --data-binary @"$name" \
+            "https://uploads.github.com/repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID/assets?name=$name"
+
   publish:
     name: Publish the release
     needs: [prepare, build]
