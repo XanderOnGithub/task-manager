@@ -14,6 +14,7 @@ import { AreaList } from './AreaList'
 import { dueLabel } from '../lib/dates'
 import { statusLabel, taskCounts, trailOf } from '../lib/items'
 import type { Actions } from '../lib/useActions'
+import { useRenameRequest } from '../lib/rename'
 import { Board } from './Board'
 import { BodyEditor, EditableTitle, Menu, Segmented } from './controls'
 import { itemMenu } from './itemMenu'
@@ -50,6 +51,10 @@ function OneScopeView(props: Props & { scope: Item }) {
   const milestones = scope.kind === 'project' ? childrenOf(items, scope.id).filter((c) => c.kind === 'milestone') : []
   const { done, total } = taskCounts(items, scope.id)
   const [renaming, setRenaming] = useState(0)
+  useRenameRequest(scope.id, () => {
+    onLayout('list') // the title is edited in the List view
+    setRenaming((n) => n + 1)
+  })
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
 
   // "+ Task" adds to the selected milestone (or the selected task's), else the first open one.

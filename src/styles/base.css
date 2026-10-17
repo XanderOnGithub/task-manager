@@ -27,6 +27,30 @@
     user-select: text;
   }
 
+  /* Everything you can click shows the pointing hand. (Tailwind v4 dropped
+     it from buttons, so nothing had it.) Disabled controls go back to the
+     arrow. */
+  button,
+  a[href],
+  summary,
+  select,
+  label:has(> input[type='checkbox']),
+  input[type='checkbox'],
+  input[type='radio'],
+  input[type='range'],
+  [role='button'],
+  [role='option'],
+  [role='menuitem'],
+  [role='radio'],
+  [role='switch'],
+  [role='tab'] {
+    cursor: pointer;
+  }
+  button:disabled,
+  [aria-disabled='true'] {
+    cursor: default;
+  }
+
   /* Keyboard focus: a soft sage outline instead of the browser's blue one.
      Only shows when using the keyboard (not on click). Text fields show focus
      through their own styles instead. */

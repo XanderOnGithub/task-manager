@@ -40,7 +40,10 @@ export function AreaList({ items, area, selectedId, onSelect, onCycleStatus, onO
         const finished = project.status === 'done' || project.status === 'dropped'
         return (
           <section key={project.id} className="flex flex-col gap-0.5">
-            <div className="group flex h-row items-center gap-1 rounded-row pr-1 pl-0.5 transition-colors duration-100 hover:bg-hover">
+            <div
+              data-item={project.id}
+              className="group flex h-row items-center gap-1 rounded-row pr-1 pl-0.5 transition-colors duration-100 hover:bg-hover"
+            >
               <button
                 onClick={() =>
                   setCollapsed((c) => {
@@ -86,6 +89,7 @@ export function AreaList({ items, area, selectedId, onSelect, onCycleStatus, onO
                 {open.map(({ task, milestone }) => (
                   <ListRow key={task.id}>
                     <div
+                      data-item={task.id}
                       className={`flex h-row items-center gap-2.5 rounded-row pr-2.5 pl-7 transition-colors duration-100 ${
                         task.id === selectedId ? 'bg-selected' : 'hover:bg-hover'
                       }`}
