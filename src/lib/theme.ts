@@ -59,3 +59,15 @@ export function saveTheme(theme: Theme) {
     // As above: still applies until restart.
   }
 }
+
+/** Whether the window is showing dark colors right now (an explicit choice, or the system's). */
+function showingDark(): boolean {
+  const chosen = document.documentElement.getAttribute('data-theme')
+  if (chosen === 'light' || chosen === 'dark') return chosen === 'dark'
+  return window.matchMedia('(prefers-color-scheme: dark)').matches
+}
+
+/** Flips to the opposite of what's on screen (the ⌘K "Toggle dark mode"). */
+export function toggleTheme() {
+  saveTheme(showingDark() ? 'light' : 'dark')
+}
