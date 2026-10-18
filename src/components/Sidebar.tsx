@@ -97,7 +97,7 @@ export function Sidebar(props: Props) {
         </NavItem>
       </div>
 
-      <div className="flex min-h-0 flex-col gap-0.5 overflow-y-auto">
+      <div className="sidebar-scroll flex min-h-0 flex-col gap-0.5 overflow-y-auto">
         <div className="group flex items-center pr-1 pb-1.5 pl-2.5">
           <SectionLabel className="flex-1">Areas</SectionLabel>
           <AddButton label="Add an area" onClick={() => setAdding({ kind: 'area' })} />

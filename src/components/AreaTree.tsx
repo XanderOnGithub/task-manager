@@ -14,8 +14,14 @@
 // One DndContext holds all three, and the dragged thing's type decides which
 // logic runs.
 
-import { useCallback, useContext, useMemo, type CSSProperties } from 'react'
-import { DndContext, DragOverlay, type CollisionDetection, type DragStartEvent } from '@dnd-kit/core'
+import { useCallback, useContext, useEffect, useMemo, type CSSProperties } from 'react'
+import {
+  DndContext,
+  DragOverlay,
+  MeasuringStrategy,
+  type CollisionDetection,
+  type DragStartEvent,
+} from '@dnd-kit/core'
 import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { motion } from 'motion/react'
@@ -102,10 +108,25 @@ export function AreaTree(props: Props) {
     return (args) => (args.active.data.current?.type === 'page' ? pageCollision(args) : tasksSide(args))
   }, [])
 
+  // Picking up an area folds every area shut, and that fold animates. dnd-kit
+  // normally measures rows once, at pickup, while they're still open and tall,
+  // so it would slide the other rows by the old heights and briefly push them
+  // past the bottom of the sidebar (the scrollbar flashed). Measuring on every
+  // frame of the drag keeps the slide matched to the rows' real size.
+  const dragging = !!drag.activeId || !!pageDrag.active
+  // And while anything is held, keep the sidebar's scrollbar out of view
+  // (base.css): rows moving under the pointer shouldn't make it flicker.
+  useEffect(() => {
+    if (!dragging) return
+    document.documentElement.setAttribute('data-tree-dragging', '')
+    return () => document.documentElement.removeAttribute('data-tree-dragging')
+  }, [dragging])
+
   return (
     <DndContext
       sensors={sensors}
       collisionDetection={collision}
+      measuring={MEASURING}
       onDragStart={(e: DragStartEvent) => (isPage(e) ? pageDrag.onDragStart(e) : drag.onDragStart(e))}
       onDragMove={(e) => isPage(e) && pageDrag.onDragMove(e)}
       onDragOver={(e) => (isPage(e) ? pageDrag.onDragOver(e) : drag.onDragOver(e))}
@@ -186,6 +207,9 @@ export function AreaTree(props: Props) {
     </DndContext>
   )
 }
+
+/** See the comment above the DndContext: re-measure while a drag is going on. */
+const MEASURING = { droppable: { strategy: MeasuringStrategy.Always } }
 
 /** A page row's left padding: deeper under a project, and one step per parent page. */
 function pageIndent(page: Item, byId: Map<string, Item>): number {

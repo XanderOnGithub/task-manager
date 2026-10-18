@@ -70,3 +70,13 @@
     -webkit-app-region: drag;
   }
 }
+
+/* While something in the sidebar tree is being dragged (AreaTree.tsx), hide the
+   tree's scrollbar. It still scrolls (dnd-kit scrolls it near the edges); rows
+   sliding around just don't make the bar flash in and out. */
+[data-tree-dragging] .sidebar-scroll {
+  scrollbar-width: none;
+}
+[data-tree-dragging] .sidebar-scroll::-webkit-scrollbar {
+  display: none;
+}

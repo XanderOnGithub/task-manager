@@ -39,7 +39,7 @@ brand/          the Moss mark (icon.svg), the moss° wordmarks (wordmark.py draw
 ## Branches and releases
 
 Moss is in alpha (`"stage": "alpha"` in package.json; Settings shows "Alpha 0.1.0").
-- Never commit to `main` directly. Work happens on `feature/…`, `fix/…` or `refactor/…` branches, each merged by pull request into the current release branch (now `release/alpha-0.1.3`).
+- Never commit to `main` directly. Work happens on `feature/…`, `fix/…` or `refactor/…` branches, each merged by pull request into the current release branch (now `release/alpha-0.1.4`).
 - When the release branch is ready, a pull request from it into `main` ships it. `.github/workflows/release.yml` runs on every push to `main`: if the version in `src-tauri/tauri.conf.json` isn't released yet, it builds macOS (Apple silicon + Intel), Windows (installers + a portable .exe) and Linux installers and publishes "Moss alpha X.Y.Z" with notes from the PRs. Otherwise it does nothing.
 - Next version: branch `release/alpha-0.2` from `main` and bump `version` in tauri.conf.json, package.json and both Cargo.toml files on it.
 - In-app updates: `tauri-plugin-updater` reads `latest.json` from the newest GitHub release (`src/lib/updates.ts`; checks a few seconds after launch in real builds, "Update to X" in the sidebar, "Check for updates" in Settings). Update files are signed: the private key lives only in the repo secrets `TAURI_SIGNING_PRIVATE_KEY` + `_PASSWORD`, the public key in `tauri.conf.json` → `plugins.updater.pubkey`. Never commit the private key. Lose it and installed copies can't update any more.
@@ -78,7 +78,7 @@ Moss is in alpha (`"stage": "alpha"` in package.json; Settings shows "Alpha 0.1.
 - Cursor: everything clickable shows the pointer (one rule in `styles/base.css`).
 - Shortcut labels: always `keys('N')` from `lib/platform.ts` ("⌘N" on a Mac, "Ctrl+N" elsewhere), never a literal ⌘.
 - Toasts: `useToast()`; ⌘Z runs the visible toast's Undo. ⌘N opens Quick capture. ⌘\ hides the sidebar (remembered via `lib/prefs.ts`).
-- Search: `CommandPalette.tsx` (⌘K). Items by title (matched in the UI), actions (go to, theme, sounds, sidebar, plus typed: add to Unsorted, new task in the open project, new page in the open area or project), and text matches from `core/src/search.rs` via `search_text`.
+- Search: `CommandPalette.tsx` (⌘K). Items by title (matched in the UI), actions (go to, Light mode / Dark mode / Toggle dark mode / Match system mode, sounds, sidebar, plus typed: add to Unsorted, new task in the open project, new page in the open area or project), and text matches from `core/src/search.rs` via `search_text`.
 - Editor menus: `components/editor/` (selection toolbar, "/" block menu with /page). `/page` creates a subpage and writes a relative link `[Name](Name.md)`; clicking it opens the page.
 - Dragging pages in the sidebar: drop zones on a page are top quarter = above, middle = subpage, bottom quarter = below; dropping on an area or project row moves the page there.
 
@@ -92,7 +92,8 @@ The app should feel smooth and considered, never gamified. Library: Motion (`mot
 - Reduce motion is respected through `<MotionConfig reducedMotion="user">` in main.tsx and a rule in motion.css.
 - Drag and drop: dnd-kit. Shared pieces in `src/lib/drag.ts` (sensors, collision, drop settle, click swallowing) and `src/lib/useTwoLevelDrag.ts` (groups holding items: milestones/tasks in `ProjectList.tsx`, areas/projects in `AreaTree.tsx`). We draw the held item ourselves in `<DragOverlay>` with `Lifted`: velocity tilt up to ~6° (less for wide rows), spring swing back, 2% lift. The overlay face must match the row's padding so nothing jumps on pickup. Dragging a group folds all groups; a folded area opens while it holds the dragged project. Board cards change status by column and fly with `layoutId`. Every move goes through `actions.move` (toast + Undo when the parent changes). Keyboard: focus a row, Space, arrows, Space.
 - Sounds: `src/lib/sounds.ts`. Soft low knocks, not tunes: each is a ZzFX "body" (a low thump whose pitch drops fast) plus, for most, a tiny low-passed click so it reads on laptop speakers. Pitch varies a little on every play (the recipe's randomness); the same sound can't stack within 35ms. Eleven: pickUp, drop, slot (dragging past a new spot; higher moving up), complete, status, select (Create as; pitch per option), capture, delete, undo, check (page checkbox), open (⌘K). Plus optional typing sounds, creamy rather than clicky (key, keyShift for capitals and symbols, keySpace, keyEnter, and a distinct rising keyDelete), off by default, under Settings → Sounds → Fun. Never on hover, plain clicks or navigation. Settings → Sounds: everything on/off, volume, each sound on its own with a play button (stored with `lib/prefs.ts`). Tune them on the sound test page (https://claude.ai/artifact/Cnzk2o44TdfL9tYS4z3YHP) and paste the arrays into `SOUNDS`.
-- 120fps: WebKit caps pages at 60fps (the plugin notes that macOS 26 may no longer apply the cap; check with the fps readout). `src-tauri/src/high_refresh.rs` uses `tauri-plugin-macos-fps` to flip WebKit's private "prefer 60fps" flag behind an experimental Settings switch with a live fps readout. Animations must look right at both 60 and 120.
+- 120fps: WebKit caps pages at 60fps on macOS (the plugin notes that macOS 26 may no longer apply the cap). `src-tauri/src/high_refresh.rs` uses `tauri-plugin-macos-fps` to flip WebKit's private "prefer 60fps" flag behind an experimental Settings switch, shown only on macOS (Windows and Linux already draw at the display's refresh rate). Animations must look right at both 60 and 120.
+- Sidebar tree drags re-measure every frame (`MeasuringStrategy.Always` in `AreaTree.tsx`) because picking up an area folds the others mid-drag, and the tree's scrollbar is hidden while anything is held (`data-tree-dragging` + `.sidebar-scroll` in base.css).
 
 ## Vocabulary (fixed, never use synonyms in UI or code)
 
@@ -142,7 +143,7 @@ data/
 - Milestones are tinted chips (muted fill + matching border, no icon), using the milestone palette.
 - Due dates: calendar icon; gray normally, muted amber when due soon, muted red when overdue.
 - Window vibrancy on sidebar and background only; content panels are solid and rounded.
-- Brand: the mark is a lowercase m made of two moss mounds, a leaf and a soil line (`brand/icon.svg`, `<MossMark>` in `components/Brand.tsx`, colors `--color-brand-*`). Wordmark is "moss°", drawn in the mark's style (the m, then o and s in the same round stroke, the leaf, a leaf-green ring for the °; no soil line): `<MossWordmark>` in the sidebar, `brand/wordmark-*.svg` in the README, generated by `brand/wordmark.py`. The app's name in text is "Moss".
+- Brand: the mark is a lowercase m made of two moss mounds and a leaf (`brand/icon.svg`, `<MossMark>` in `components/Brand.tsx`, colors `--color-brand-*`). Wordmark is "moss°", drawn in the mark's style (the m, then o and s in the same round stroke, the leaf, a leaf-green ring for the °): `<MossWordmark>` in the sidebar, `brand/wordmark-*.svg` in the README, generated by `brand/wordmark.py`. The app's name in text is "Moss".
 - No file paths in the UI. Every item's ⋯ menu has Reveal in Finder, Copy path, Rename, Delete.
 
 ## Build order

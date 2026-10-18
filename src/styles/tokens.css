@@ -110,11 +110,10 @@
   --color-ms-lavender: #A9A3D6;
   --color-ms-sand: #BDB39A;
 
-  /* Brand: the Moss mark (brand/icon.svg). Moss is the accent; earth is the
-     soil line under it. Only for the logo, never for UI states. */
+  /* Brand: the Moss mark (brand/icon.svg). Moss is the accent. Only for the
+     logo, never for UI states. */
   --color-brand-moss: var(--color-accent);
   --color-brand-leaf: #B9D8B0;
-  --color-brand-earth: #9A8068;
 
   /* Shadows ---------------------------------------------------------------- */
   --shadow-window: 0 30px 80px rgba(0, 0, 0, 0.35);
@@ -171,7 +170,6 @@
 
     --color-accent: #59735D;                   /* sage darkened for contrast on white */
     --color-brand-leaf: #7FA683;
-    --color-brand-earth: #7D6551;
     --color-on-accent: #FFFFFF;
     --color-selected: rgba(89, 115, 93, 0.12);
 
@@ -221,7 +219,6 @@
 
   --color-accent: #59735D;
   --color-brand-leaf: #7FA683;
-  --color-brand-earth: #7D6551;
   --color-on-accent: #FFFFFF;
   --color-selected: rgba(89, 115, 93, 0.12);
 

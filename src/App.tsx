@@ -26,11 +26,12 @@ import {
   Plus,
   Settings as SettingsIcon,
   Sun,
+  SunMoon,
   Volume2,
   VolumeX,
 } from 'lucide-react'
 import { play, setSoundSettings, soundSettings } from './lib/sounds'
-import { saveTheme } from './lib/theme'
+import { saveTheme, toggleTheme } from './lib/theme'
 import { CommandPalette, type PaletteAction } from './components/CommandPalette'
 import { useActions } from './lib/useActions'
 import { useLibrary } from './lib/useLibrary'
@@ -193,9 +194,10 @@ export default function App() {
         if (on) play('complete')
       },
     },
-    { id: 'light', label: 'Light appearance', Icon: Sun, keywords: 'theme mode', run: () => saveTheme('light') },
-    { id: 'dark', label: 'Dark appearance', Icon: Moon, keywords: 'theme mode', run: () => saveTheme('dark') },
-    { id: 'system', label: 'Match system appearance', Icon: Monitor, keywords: 'theme mode auto', run: () => saveTheme('system') },
+    { id: 'toggle-theme', label: 'Toggle dark mode', Icon: SunMoon, keywords: 'theme light switch appearance', run: toggleTheme },
+    { id: 'light', label: 'Light mode', Icon: Sun, keywords: 'theme appearance', run: () => saveTheme('light') },
+    { id: 'dark', label: 'Dark mode', Icon: Moon, keywords: 'theme appearance', run: () => saveTheme('dark') },
+    { id: 'system', label: 'Match system mode', Icon: Monitor, keywords: 'theme appearance auto light dark', run: () => saveTheme('system') },
     { id: 'settings', label: 'Settings', Icon: SettingsIcon, keywords: 'preferences folder', run: () => setDialog('settings') },
   ]
 
