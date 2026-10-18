@@ -1,0 +1,23 @@
+# A tiny local server that runs Moss's real core for the README GIFs and the
+# trailer. The capture script (media/capture) runs the front end in a browser
+# and sends every command here instead of to the desktop app.
+#
+# Not part of the app or the main workspace: run it with
+#   cargo run --release --manifest-path media/bridge/Cargo.toml -- <data folder>
+
+[package]
+name = "moss-bridge"
+version = "0.0.0"
+edition = "2021"
+publish = false
+
+# Keep this crate out of the repo's workspace (Cargo.toml at the root), so the
+# app's builds and CI don't compile it.
+[workspace]
+
+[dependencies]
+task-core = { path = "../../core" }
+# The smallest possible HTTP server: one request at a time, no async.
+tiny_http = "0.12"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"

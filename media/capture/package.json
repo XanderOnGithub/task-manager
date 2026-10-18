@@ -1,0 +1,9 @@
+{
+  "name": "moss-media",
+  "private": true,
+  "type": "module",
+  "description": "Records the README GIFs and the trailer footage from the real Moss front end. See media/README.md.",
+  "devDependencies": {
+    "playwright": "1.56.1"
+  }
+}
