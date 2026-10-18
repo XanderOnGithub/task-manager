@@ -36,6 +36,24 @@ No account, no database, no sync service. Point any folder sync at it if you wan
 
 Built with [Tauri](https://tauri.app) (Rust) and React.
 
+## A quick look
+
+**Quick capture.** ⌘N from anywhere, type, Enter. It goes to Unsorted.
+
+<img src="media/readme/quick-capture.gif" alt="Pressing ⌘N, typing a thought and pressing Enter adds it to Unsorted" width="100%">
+
+**Unsorted.** Open an item, choose what it becomes and where it goes. The next one opens so you can keep going.
+
+<img src="media/readme/unsorted.gif" alt="Filing an Unsorted item as a task in the Replace the sink milestone" width="100%">
+
+**Tasks.** Each area, project and milestone has a List and a Board. Drag cards between statuses.
+
+<img src="media/readme/tasks.gif" alt="Finishing a task in List view, then dragging a card to Doing on the Board" width="100%">
+
+**Pages.** Rich text on screen, plain markdown on disk. Type "/" for headings, lists, checklists, tables and subpages.
+
+<img src="media/readme/pages.gif" alt="Adding a checklist to a page with the / menu and ticking an item" width="100%">
+
 ## Installing
 
 Download the latest build from [Releases](https://github.com/XanderOnGithub/task-manager/releases/latest).
