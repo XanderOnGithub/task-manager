@@ -17,21 +17,18 @@
       <stop offset="0" stop-color="#9CC59F"/>
       <stop offset="1" stop-color="#D6ECCB"/>
     </linearGradient>
-    <linearGradient id="earth" x1="0" y1="664" x2="0" y2="722" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#A3896F"/>
-      <stop offset="1" stop-color="#584637"/>
-    </linearGradient>
   </defs>
   <rect x="100" y="100" width="824" height="824" rx="186" fill="url(#bg)"/>
   <rect x="100" y="100" width="824" height="824" rx="186" fill="url(#glow)"/>
   <rect x="100.5" y="100.5" width="823" height="823" rx="185.5" fill="none" stroke="#fff" stroke-opacity="0.07"/>
-  <!-- the m: two moss mounds growing out of the ground -->
+  <!-- the m and its leaf, nudged down to sit centered without the old ground line -->
+  <g transform="translate(0 24)">
+  <!-- the m: two moss mounds -->
   <path d="M 294 682 V 494 A 109 109 0 0 1 512 494 V 682 M 512 494 A 109 109 0 0 1 730 494 V 682"
         fill="none" stroke="url(#moss)" stroke-width="92" stroke-linejoin="round"/>
   <!-- a leaf sprouting from the right mound -->
   <g transform="translate(722 392) rotate(-42)">
     <path d="M -6 0 C 30 -46 92 -62 148 -50 C 122 4 58 28 -6 0 Z" fill="url(#leaf)"/>
   </g>
-  <!-- the ground -->
-  <rect x="232" y="666" width="560" height="52" rx="26" fill="url(#earth)"/>
+  </g>
 </svg>
