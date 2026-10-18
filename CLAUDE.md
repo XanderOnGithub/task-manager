@@ -24,6 +24,7 @@ src/            React front end
   lib/api.ts    typed wrappers for the commands. Keep in sync with src-tauri/src/lib.rs
   styles/       app.css (entry), tokens.css (Tailwind theme), base.css, motion.css
 sample-data/    the renovation example from the mockups; dev builds open a copy of it
+media/          README GIFs (media/readme) and the trailer, recorded from the real app; see media/README.md
 brand/          the Moss mark (icon.svg), the moss° wordmarks (wordmark.py draws them), icon-1024.png (source for `pnpm tauri icon`)
 ```
 
