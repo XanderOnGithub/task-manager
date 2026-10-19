@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
-import { FolderOpen, Layers, Play } from 'lucide-react'
+import { ChevronDown, FolderOpen, Layers, Play } from 'lucide-react'
 import { spring } from '../lib/motion'
 import { getVersion } from '@tauri-apps/api/app'
 import { getHighRefresh, setDataFolder, setHighRefresh, type HighRefresh } from '../lib/api'
@@ -14,9 +14,18 @@ import { checkForUpdate, installUpdate, useUpdates } from '../lib/updates'
 import { usePref } from '../lib/prefs'
 import { isMac, keys } from '../lib/platform'
 import { LANES, OPTIONAL, useOptionalLanes } from '../lib/lanes'
-import { Modal, Segmented, Switch } from './controls'
+import { Menu, Modal, Segmented, Switch } from './controls'
 import { StatusIcon } from './ui'
-import { play, setSoundSettings, SOUND_INFO, soundSettings, type SoundName, type SoundSettings } from '../lib/sounds'
+import {
+  play,
+  playRelease,
+  setSoundSettings,
+  SOUND_INFO,
+  soundSettings,
+  TYPING_STYLE_INFO,
+  type SoundName,
+  type SoundSettings,
+} from '../lib/sounds'
 
 export function QuickCapture({ onCapture, onClose }: { onCapture: (text: string) => Promise<unknown>; onClose: () => void }) {
   const [text, setText] = useState('')
@@ -167,7 +176,12 @@ function SoundsTab() {
   // A little typed phrase, for hearing the keyboard sounds without typing.
   const demoTyping = () => {
     const keys: SoundName[] = ['keyShift', 'key', 'key', 'key', 'keySpace', 'key', 'key', 'keyDelete', 'keyDelete', 'key', 'keyShift', 'keyEnter']
-    keys.forEach((k, i) => window.setTimeout(() => play(k, { force: true }), i * 95 + Math.random() * 30))
+    keys.forEach((k, i) => {
+      const at = i * 95 + Math.random() * 30
+      window.setTimeout(() => play(k, { force: true }), at)
+      // Styles with a release sound play it as the key comes back up.
+      window.setTimeout(() => playRelease(k, { force: true }), at + 60)
+    })
   }
 
   return (
@@ -232,6 +246,26 @@ function SoundsTab() {
             if (typing) demoTyping()
           }}
         />
+        {/* Which keyboard sound. Picking one plays a sample of it. */}
+        <div className={`flex min-h-10 items-center gap-3 py-1 pr-0.5 pl-11 transition-opacity duration-150 ${value.typing ? '' : 'opacity-40'}`}>
+          <span className="flex-1 text-meta font-normal text-fg-3">Typing sound</span>
+          <Menu
+            label="Typing sound"
+            items={TYPING_STYLE_INFO.map(({ id, label }) => ({
+              label,
+              onSelect: () => {
+                update({ ...value, typingStyle: id })
+                demoTyping()
+              },
+            }))}
+            trigger={
+              <span className="flex h-7 items-center gap-1.5 rounded-control bg-raised pr-1.5 pl-2.5 text-meta text-fg transition-colors duration-100 hover:bg-hover">
+                {TYPING_STYLE_INFO.find((style) => style.id === value.typingStyle)?.label ?? 'Soft'}
+                <ChevronDown size={14} strokeWidth={1.75} className="text-fg-3" aria-hidden="true" />
+              </span>
+            }
+          />
+        </div>
       </div>
     </div>
   )
