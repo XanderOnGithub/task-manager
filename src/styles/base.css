@@ -64,6 +64,14 @@
     outline: none;
   }
 
+  /* WebKit starts its own native drag on images, links and selected text, which
+     cancels the pointer events our drag and drop (dnd-kit) listens to. */
+  img,
+  a,
+  svg {
+    -webkit-user-drag: none;
+  }
+
   /* Lets you drag the window by any element with this attribute
      (e.g. the empty top of the sidebar, next to the traffic lights). */
   [data-tauri-drag-region] {
