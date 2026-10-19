@@ -426,11 +426,12 @@ export default function App() {
             : `pl-2 ${isMac ? '[&>div>section:first-child>header]:pl-[112px]' : '[&>div>section:first-child>header]:pl-12'}`
         }`}
       >
-        {/* Switching sections fades the new one in quickly. */}
+        {/* Switching sections fades the new one in. Opacity only: a slide here
+            read as the whole panel jumping. */}
         <motion.div
           key={needsFolder ? 'folder' : (overview ?? (open?.kind === 'page' ? 'page' : 'scope'))}
-          initial={{ opacity: 0, y: 4 }}
-          animate={{ opacity: 1, y: 0 }}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
           transition={spring.snappy}
           className="flex min-w-0 flex-1 gap-2"
         >
