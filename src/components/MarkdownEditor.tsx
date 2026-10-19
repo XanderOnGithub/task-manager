@@ -77,30 +77,93 @@ const markdownBasics = commonmark.filter((plugin) => !leftOut.includes(plugin))
 /** How long typing has to pause before the page saves on its own. */
 const SAVE_AFTER_MS = 800
 
+/** A paragraph that only holds a non-breaking space, written as `&nbsp;`. */
+const SPACER = /^(&nbsp;|\u00a0)\s*$/
+
 /**
- * Tidy the markdown before it goes to disk: Milkdown writes an empty paragraph
- * as a `<br />` line, which only adds noise to the file. Drop those and keep at
- * most one blank line in a row (outside code blocks, which stay exactly as
- * typed), and end with one newline.
+ * Tidy markdown before it goes to disk (outside code blocks, which stay exactly
+ * as typed). Milkdown writes an empty paragraph as a `<br />` line, which only
+ * adds noise to the file: drop those. Markdown from the editor (`fromEditor`)
+ * also needs two fixes:
+ * - Milkdown puts a blank line between every two blocks, empty paragraphs
+ *   included, so n empty lines come out as 2n+1 blank lines in a row. Write
+ *   n+1 instead: an empty line in the editor is one blank line more in the file.
+ * - Drop the `&nbsp;` spacer lines the editor uses for extra blank lines (see
+ *   `toEditor`), so the file keeps every blank line as a plain blank line.
+ * End with one newline.
  */
-function normalize(markdown: string) {
+function normalize(markdown: string, fromEditor = false) {
   const out: string[] = []
   let inCode = false
+  let blanks = 0 // blank lines in a row, not yet written
+  const flush = () => {
+    const count = fromEditor && blanks > 1 ? Math.floor((blanks + 2) / 2) : blanks
+    for (let i = 0; i < count; i++) out.push('')
+    blanks = 0
+  }
   for (const line of markdown.split('\n')) {
-    if (/^\s*(```|~~~)/.test(line)) inCode = !inCode
-    if (!inCode) {
-      if (line.trim() === '<br />') continue
-      // Table separator rows: Milkdown writes "| :---- | :- |" (left-aligned);
-      // plain dashes ("| ----- | --- |") read better and mean the same.
-      if (/^\|(\s*:-+\s*\|)+\s*$/.test(line)) {
-        out.push(line.replace(/:(-+)/g, (_, dashes: string) => `-${dashes.padEnd(2, '-')}`))
-        continue
-      }
-      if (line.trim() === '' && out.length > 0 && out[out.length - 1].trim() === '') continue
+    const fence = /^\s*(```|~~~)/.test(line)
+    if (inCode) {
+      out.push(line)
+      if (fence) inCode = false
+      continue
+    }
+    // A spacer is not a blank line: it ends the run of blanks around it.
+    if (fromEditor && SPACER.test(line)) {
+      flush()
+      continue
+    }
+    if (line.trim() === '') {
+      blanks++
+      continue
+    }
+    flush()
+    if (fence) {
+      inCode = true
+      out.push(line)
+      continue
+    }
+    if (line.trim() === '<br />') continue
+    // Table separator rows: Milkdown writes "| :---- | :- |" (left-aligned);
+    // plain dashes ("| ----- | --- |") read better and mean the same.
+    if (/^\|(\s*:-+\s*\|)+\s*$/.test(line)) {
+      out.push(line.replace(/:(-+)/g, (_, dashes: string) => `-${dashes.padEnd(2, '-')}`))
+      continue
     }
     out.push(line)
   }
+  flush()
   const text = out.join('\n').replace(/\s+$/, '')
+  return text ? `${text}\n` : ''
+}
+
+/**
+ * Markdown folds several blank lines in a row into one paragraph break, so a
+ * file with extra blank lines would lose them on load. For each extra blank
+ * line, put an `&nbsp;` paragraph in its place: the editor shows an empty
+ * line, and `normalize` turns it back into a plain blank line on save.
+ * Outside code blocks, which stay exactly as typed.
+ */
+function toEditor(markdown: string) {
+  const out: string[] = []
+  let inCode = false
+  let blanks = 0
+  for (const line of markdown.split('\n')) {
+    const fence = /^\s*(```|~~~)/.test(line)
+    if (!inCode && line.trim() === '') {
+      blanks++
+      continue
+    }
+    // Between two blocks: n blank lines show n-1 empty lines.
+    if (blanks > 0 && out.length > 0) {
+      out.push('')
+      for (let i = 1; i < blanks; i++) out.push('&nbsp;', '')
+    }
+    blanks = 0
+    out.push(line)
+    if (fence) inCode = !inCode
+  }
+  const text = out.join('\n')
   return text ? `${text}\n` : ''
 }
 
@@ -429,7 +492,7 @@ export function MarkdownEditor({
     const made = Editor.make()
       .config((ctx) => {
         ctx.set(rootCtx, el)
-        ctx.set(defaultValueCtx, saved.current)
+        ctx.set(defaultValueCtx, toEditor(saved.current))
         // "- item" rather than "* item", the more common style.
         ctx.update(remarkStringifyOptionsCtx, (prev) => ({ ...prev, bullet: '-' as const }))
         ctx.update(editorViewOptionsCtx, (prev) => ({
@@ -437,7 +500,7 @@ export function MarkdownEditor({
           attributes: { 'aria-label': label, 'data-placeholder': placeholder, spellcheck: 'true' },
         }))
         ctx.get(listenerCtx).markdownUpdated((_, markdown) => {
-          pending.current = normalize(markdown)
+          pending.current = normalize(markdown, true)
           window.clearTimeout(timer.current)
           timer.current = window.setTimeout(flush, SAVE_AFTER_MS)
         })
@@ -470,7 +533,7 @@ export function MarkdownEditor({
     const next = normalize(value)
     if (next === saved.current || pending.current !== null) return
     saved.current = next
-    editor.current?.action(replaceAll(next))
+    editor.current?.action(replaceAll(toEditor(next)))
   }, [value])
 
   // Checklist boxes are drawn in CSS to the left of the text, so a click there
