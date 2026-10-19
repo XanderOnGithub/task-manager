@@ -173,20 +173,20 @@ export const KEY_STYLES = {
   clicky: {
     body: [
       // The click leaf: a short ringing tone and a burst of noise, loudest and brightest.
-      { wave: 'sine', hz: 4000, attackMs: 0.2, decayMs: 5, gain: 0.22 },
-      { wave: 'noise', hz: 0, filter: { type: 'bandpass', hz: 4000, q: 1.5 }, attackMs: 0.1, decayMs: 1, gain: 1.4 },
+      { wave: 'sine', hz: 3000, attackMs: 0.2, decayMs: 5, gain: 0.22 },
+      { wave: 'noise', hz: 0, filter: { type: 'bandpass', hz: 3000, q: 1.5 }, attackMs: 0.1, decayMs: 1, gain: 1.4 },
       // Bottom-out just after: a short, hard thock, with some mid noise.
-      { wave: 'triangle', hz: 320, to: 250, glideMs: 12, attackMs: 0.8, decayMs: 28, gain: 0.26, at: [8, 16], link: 'bottom' },
-      { wave: 'noise', hz: 0, filter: { type: 'bandpass', hz: 2200, q: 0.8 }, attackMs: 0.3, decayMs: 6, gain: 0.3, at: [8, 16], link: 'bottom' },
+      { wave: 'triangle', hz: 240, to: 188, glideMs: 12, attackMs: 0.8, decayMs: 28, gain: 0.26, at: [8, 16], link: 'bottom' },
+      { wave: 'noise', hz: 0, filter: { type: 'bandpass', hz: 1650, q: 0.8 }, attackMs: 0.3, decayMs: 6, gain: 0.3, at: [8, 16], link: 'bottom' },
     ],
     // The spring, faintly.
-    extras: [{ wave: 'sine', hz: 6000, attackMs: 0.5, decayMs: 30, gain: 0.02, at: 2 }],
+    extras: [{ wave: 'sine', hz: 4500, attackMs: 0.5, decayMs: 30, gain: 0.02, at: 2 }],
     space: [tick(3000, 0.1, [10, 24]), tick(2600, 0.08, [30, 52])],
     // Letting go: the leaf clicks again at about 60% and a little higher, then the key tops out.
     release: [
-      { wave: 'sine', hz: 4400, attackMs: 0.2, decayMs: 4, gain: 0.14 },
-      { wave: 'noise', hz: 0, filter: { type: 'bandpass', hz: 4400, q: 1.5 }, attackMs: 0.1, decayMs: 1, gain: 0.84 },
-      { wave: 'noise', hz: 0, filter: { type: 'bandpass', hz: 2400, q: 0.8 }, attackMs: 0.3, decayMs: 5, gain: 0.22, at: 8 },
+      { wave: 'sine', hz: 3300, attackMs: 0.2, decayMs: 4, gain: 0.14 },
+      { wave: 'noise', hz: 0, filter: { type: 'bandpass', hz: 3300, q: 1.5 }, attackMs: 0.1, decayMs: 1, gain: 0.84 },
+      { wave: 'noise', hz: 0, filter: { type: 'bandpass', hz: 1800, q: 0.8 }, attackMs: 0.3, decayMs: 5, gain: 0.22, at: 8 },
     ],
     feel: {
       key: { pitch: 1, length: 1, level: 1 },
