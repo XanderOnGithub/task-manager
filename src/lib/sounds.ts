@@ -16,6 +16,8 @@
 
 import { ZZFX, ZZFXSound } from 'zzfx'
 import { readPref, writePref } from './prefs'
+import { LEVEL_WOBBLE, PITCH_WOBBLE, playVoices, wobble } from './keySynth'
+import { KEY_STYLES, pressVoices, releaseVoices, type KeyStyleName } from './keyStyles'
 
 export const SOUNDS = {
   /** Picking something up to drag it: a light tap. */
@@ -61,42 +63,61 @@ export const SOUNDS = {
   ],
   /** Opening search (⌘K): a quiet lift. */
   open: [[0.16, 0.05, 260, 0.004, 0.004, 0.05, 0, 1.2, 0.6, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, -1600]],
-  // Typing (the Fun section in Settings; off unless you turn it on). Creamy,
-  // not clicky: like a lubed keyboard with foam inside. Each key is a round
-  // low "thock" (a sine whose pitch drops) plus a soft, muffled puff of noise
-  // with a tiny attack, so there's no sharp tick on top. Each kind of key has
-  // its own character, so a sentence sounds like a sentence.
-  /** A letter or number key. */
-  key: [
-    [0.3, 0.1, 205, 0.001, 0.003, 0.032, 0, 1, -1.8, 0, 0, 0, 0, 0, 0, 0, 0, 0.8, 0, 0, -1100],
-    [0.1, 0.15, 900, 0.001, 0, 0.016, 4, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, -1500],
-  ],
-  /** A capital or symbol (typed with Shift held): the same key, a little lower and fuller. */
-  keyShift: [
-    [0.32, 0.1, 178, 0.001, 0.004, 0.038, 0, 1, -1.6, 0, 0, 0, 0, 0, 0, 0, 0, 0.8, 0, 0, -1000],
-    [0.1, 0.15, 780, 0.001, 0, 0.018, 4, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, -1300],
-  ],
-  /** Space: the long bar. Deeper and wider, with a soft second knock as it settles. */
-  keySpace: [
-    [0.38, 0.06, 132, 0.002, 0.006, 0.055, 0, 1, -1.2, 0, 0, 0, 0, 0, 0, 0, 0, 0.8, 0, 0, -800],
-    [0.12, 0.12, 620, 0.002, 0, 0.024, 4, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, -1100],
-    [0.12, 0.08, 110, 0.012, 0, 0.03, 0, 1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, -700],
-  ],
-  /** Return: the heaviest key, low and round. */
-  keyEnter: [
-    [0.42, 0.05, 118, 0.002, 0.008, 0.065, 0, 1, -1.2, 0, 0, 0, 0, 0, 0, 0, 0, 0.8, 0, 0, -750],
-    [0.12, 0.12, 560, 0.002, 0, 0.026, 4, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, -1000],
-  ],
-  /** Backspace: its own sound. Hollow and rising, like taking a letter back out. */
-  keyDelete: [
-    [0.26, 0.08, 165, 0.002, 0.004, 0.04, 0, 1, 1.4, 0, 0, 0, 0, 0, 0, 0, 0, 0.8, 0, 0, -950],
-    [0.07, 0.15, 1100, 0.001, 0, 0.012, 4, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, -1700],
-  ],
 } satisfies Record<string, number[][]>
 
-export type SoundName = keyof typeof SOUNDS
 type TypingSound = 'key' | 'keyShift' | 'keySpace' | 'keyEnter' | 'keyDelete'
+export type SoundName = keyof typeof SOUNDS | TypingSound
 const TYPING: TypingSound[] = ['key', 'keyShift', 'keySpace', 'keyEnter', 'keyDelete']
+
+// Typing sounds (the Fun section in Settings; off unless you turn it on).
+// Several styles to choose from. Each has a character for every kind of key,
+// so a sentence sounds like a sentence: a letter or number (key), a capital or
+// symbol typed with Shift (keyShift), space (keySpace), return (keyEnter) and
+// backspace (keyDelete, which always moves the other way).
+//
+// A press varies only a little: pitch ±2.5%, level ±10%. Real keys don't change
+// pitch from letter to letter, and more than that sounds like a melody.
+//
+// "Soft" is the original sound, made of ZzFX recipes (see above). The other
+// styles are built from parts in keyStyles.ts and played by keySynth.ts.
+const SOFT: Record<TypingSound, number[][]> = {
+  key: [
+    [0.3, 0.03, 205, 0.001, 0.003, 0.032, 0, 1, -1.8, 0, 0, 0, 0, 0, 0, 0, 0, 0.8, 0, 0, -1100],
+    [0.1, 0.03, 900, 0.001, 0, 0.016, 4, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, -1500],
+  ],
+  keyShift: [
+    [0.32, 0.03, 178, 0.001, 0.004, 0.038, 0, 1, -1.6, 0, 0, 0, 0, 0, 0, 0, 0, 0.8, 0, 0, -1000],
+    [0.1, 0.03, 780, 0.001, 0, 0.018, 4, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, -1300],
+  ],
+  // Deeper and wider, with a soft second knock as it settles.
+  keySpace: [
+    [0.38, 0.03, 132, 0.002, 0.006, 0.055, 0, 1, -1.2, 0, 0, 0, 0, 0, 0, 0, 0, 0.8, 0, 0, -800],
+    [0.12, 0.03, 620, 0.002, 0, 0.024, 4, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, -1100],
+    [0.12, 0.03, 110, 0.012, 0, 0.03, 0, 1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, -700],
+  ],
+  // The heaviest key, low and round.
+  keyEnter: [
+    [0.42, 0.03, 118, 0.002, 0.008, 0.065, 0, 1, -1.2, 0, 0, 0, 0, 0, 0, 0, 0, 0.8, 0, 0, -750],
+    [0.12, 0.03, 560, 0.002, 0, 0.026, 4, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, -1000],
+  ],
+  // Hollow and rising, like taking a letter back out.
+  keyDelete: [
+    [0.26, 0.03, 165, 0.002, 0.004, 0.04, 0, 1, 1.4, 0, 0, 0, 0, 0, 0, 0, 0, 0.8, 0, 0, -950],
+    [0.07, 0.03, 1100, 0.001, 0, 0.012, 4, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, -1700],
+  ],
+}
+
+export type TypingStyle = 'default' | KeyStyleName
+
+/** The styles in the order Settings lists them, with the words it shows. */
+export const TYPING_STYLE_INFO: { id: TypingStyle; label: string }[] = [
+  { id: 'default', label: 'Soft' },
+  { id: 'creamy', label: 'Creamy' },
+  { id: 'pop', label: 'Popping' },
+  { id: 'mouth', label: 'Mouth pop' },
+  { id: 'water', label: 'Water drops' },
+  { id: 'clicky', label: 'Clicky' },
+]
 
 /** What each sound is for, in the words Settings shows (Sounds tab). */
 export const SOUND_INFO: { name: Exclude<SoundName, TypingSound>; label: string; when: string }[] = [
@@ -121,11 +142,13 @@ export interface SoundSettings {
   muted: SoundName[]
   /** Keyboard sounds while typing. Off unless turned on (Settings → Sounds → Fun). */
   typing: boolean
+  /** Which keyboard sound, when typing sounds are on. */
+  typingStyle: TypingStyle
 }
 
-const DEFAULTS: SoundSettings = { on: true, volume: 0.6, muted: [], typing: false }
+const DEFAULTS: SoundSettings = { on: true, volume: 0.6, muted: [], typing: false, typingStyle: 'default' }
 let settings: SoundSettings = { ...DEFAULTS, ...readPref<Partial<SoundSettings>>('sound', {}) }
-const cache = new Map<SoundName, ZZFXSound[]>()
+const cache = new Map<string, ZZFXSound[]>()
 const lastPlayed = new Map<SoundName, number>()
 
 // ZzFX's own master volume. Our volume setting scales on top of it.
@@ -157,12 +180,54 @@ export function play(name: SoundName, { pitch = 1, force = false }: { pitch?: nu
   try {
     // The web view keeps audio paused until the first click; this wakes it.
     if (ZZFX.audioContext.state === 'suspended') void ZZFX.audioContext.resume()
+    // A typing sound comes from the chosen style (an unknown saved style falls back to Soft).
+    if (TYPING.includes(name as TypingSound)) {
+      typingSound(name as TypingSound, 'press')
+      return
+    }
     let layers = cache.get(name)
     if (!layers) {
-      layers = SOUNDS[name].map((recipe) => new ZZFXSound([...recipe]))
+      layers = SOUNDS[name as keyof typeof SOUNDS].map((recipe) => new ZZFXSound([...recipe]))
       cache.set(name, layers)
     }
     for (const layer of layers) layer.play(settings.volume, pitch)
+  } catch {
+    // No audio device, or audio blocked: stay silent.
+  }
+}
+
+/** Plays a typing sound in the chosen style, varied a little (pitch ±2.5%, level ±10%). */
+function typingSound(name: TypingSound, part: 'press' | 'release') {
+  const id = settings.typingStyle in KEY_STYLES ? (settings.typingStyle as KeyStyleName) : null
+  const pitch = 1 + wobble() * PITCH_WOBBLE
+  const level = settings.volume * (1 + wobble() * LEVEL_WOBBLE)
+  if (!id) {
+    // Soft: ZzFX recipes, which add their own small pitch change on every play. No release sound.
+    if (part === 'press') {
+      const key = `soft:${name}`
+      let layers = cache.get(key)
+      if (!layers) {
+        layers = SOFT[name].map((recipe) => new ZZFXSound([...recipe]))
+        cache.set(key, layers)
+      }
+      for (const layer of layers) layer.play(level, 1)
+    }
+    return
+  }
+  const voices = part === 'press' ? pressVoices(KEY_STYLES[id], name) : releaseVoices(KEY_STYLES[id], name)
+  if (voices.length === 0) return
+  const ctx = ZZFX.audioContext
+  playVoices(ctx, ctx.destination, voices, { pitch, gain: level * ZZFX.volume })
+}
+
+/** Plays the sound of a key coming back up, for the styles that have one (Creamy, Clicky). */
+export function playRelease(name: SoundName, { force = false }: { force?: boolean } = {}) {
+  if (!TYPING.includes(name as TypingSound)) return
+  if (!force && !settings.on) return
+  if (settings.volume <= 0) return
+  try {
+    if (ZZFX.audioContext.state === 'suspended') void ZZFX.audioContext.resume()
+    typingSound(name as TypingSound, 'release')
   } catch {
     // No audio device, or audio blocked: stay silent.
   }
@@ -182,6 +247,8 @@ function isTypingTarget(target: EventTarget | null) {
  * Shortcuts (⌘, Ctrl, Alt) and keys that don't type (arrows, Shift) are quiet.
  */
 export function listenForTyping() {
+  // Keys whose press made a sound, so their release can too (by physical key, since Shift may change `key`).
+  const down = new Map<string, TypingSound>()
   const onKey = (e: KeyboardEvent) => {
     if (!settings.typing || e.metaKey || e.ctrlKey || e.altKey || (e.repeat && e.key !== 'Backspace')) return
     if (!isTypingTarget(e.target)) return
@@ -198,8 +265,21 @@ export function listenForTyping() {
                 ? 'keyShift'
                 : 'key'
               : null
-    if (sound) play(sound)
+    if (sound) {
+      play(sound)
+      down.set(e.code, sound)
+    }
+  }
+  const onKeyUp = (e: KeyboardEvent) => {
+    const sound = down.get(e.code)
+    if (!sound) return
+    down.delete(e.code)
+    if (settings.typing) playRelease(sound)
   }
   window.addEventListener('keydown', onKey, true)
-  return () => window.removeEventListener('keydown', onKey, true)
+  window.addEventListener('keyup', onKeyUp, true)
+  return () => {
+    window.removeEventListener('keydown', onKey, true)
+    window.removeEventListener('keyup', onKeyUp, true)
+  }
 }
