@@ -18,6 +18,7 @@ import { Menu, Modal, Segmented, Switch } from './controls'
 import { StatusIcon } from './ui'
 import {
   play,
+  playRelease,
   setSoundSettings,
   SOUND_INFO,
   soundSettings,
@@ -175,7 +176,12 @@ function SoundsTab() {
   // A little typed phrase, for hearing the keyboard sounds without typing.
   const demoTyping = () => {
     const keys: SoundName[] = ['keyShift', 'key', 'key', 'key', 'keySpace', 'key', 'key', 'keyDelete', 'keyDelete', 'key', 'keyShift', 'keyEnter']
-    keys.forEach((k, i) => window.setTimeout(() => play(k, { force: true }), i * 95 + Math.random() * 30))
+    keys.forEach((k, i) => {
+      const at = i * 95 + Math.random() * 30
+      window.setTimeout(() => play(k, { force: true }), at)
+      // Styles with a release sound play it as the key comes back up.
+      window.setTimeout(() => playRelease(k, { force: true }), at + 60)
+    })
   }
 
   return (

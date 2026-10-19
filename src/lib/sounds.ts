@@ -16,6 +16,8 @@
 
 import { ZZFX, ZZFXSound } from 'zzfx'
 import { readPref, writePref } from './prefs'
+import { LEVEL_WOBBLE, PITCH_WOBBLE, playVoices, wobble } from './keySynth'
+import { KEY_STYLES, pressVoices, releaseVoices, type KeyStyleName } from './keyStyles'
 
 export const SOUNDS = {
   /** Picking something up to drag it: a light tap. */
@@ -68,124 +70,53 @@ export type SoundName = keyof typeof SOUNDS | TypingSound
 const TYPING: TypingSound[] = ['key', 'keyShift', 'keySpace', 'keyEnter', 'keyDelete']
 
 // Typing sounds (the Fun section in Settings; off unless you turn it on).
-// Several styles to choose from, each with a sound for every kind of key, so
-// a sentence sounds like a sentence: a letter or number (key), a capital or
-// symbol typed with Shift (keyShift), space (keySpace), return (keyEnter)
-// and backspace (keyDelete, which always moves the other way).
-export const TYPING_STYLES = {
-  // Creamy, not clicky: like a lubed keyboard with foam inside. Each key is a
-  // round low "thock" (a sine whose pitch drops) plus a soft, muffled puff of
-  // noise with a tiny attack, so there's no sharp tick on top.
-  default: {
-    key: [
-      [0.3, 0.1, 205, 0.001, 0.003, 0.032, 0, 1, -1.8, 0, 0, 0, 0, 0, 0, 0, 0, 0.8, 0, 0, -1100],
-      [0.1, 0.15, 900, 0.001, 0, 0.016, 4, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, -1500],
-    ],
-    keyShift: [
-      [0.32, 0.1, 178, 0.001, 0.004, 0.038, 0, 1, -1.6, 0, 0, 0, 0, 0, 0, 0, 0, 0.8, 0, 0, -1000],
-      [0.1, 0.15, 780, 0.001, 0, 0.018, 4, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, -1300],
-    ],
-    // Deeper and wider, with a soft second knock as it settles.
-    keySpace: [
-      [0.38, 0.06, 132, 0.002, 0.006, 0.055, 0, 1, -1.2, 0, 0, 0, 0, 0, 0, 0, 0, 0.8, 0, 0, -800],
-      [0.12, 0.12, 620, 0.002, 0, 0.024, 4, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, -1100],
-      [0.12, 0.08, 110, 0.012, 0, 0.03, 0, 1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, -700],
-    ],
-    // The heaviest key, low and round.
-    keyEnter: [
-      [0.42, 0.05, 118, 0.002, 0.008, 0.065, 0, 1, -1.2, 0, 0, 0, 0, 0, 0, 0, 0, 0.8, 0, 0, -750],
-      [0.12, 0.12, 560, 0.002, 0, 0.026, 4, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, -1000],
-    ],
-    // Hollow and rising, like taking a letter back out.
-    keyDelete: [
-      [0.26, 0.08, 165, 0.002, 0.004, 0.04, 0, 1, 1.4, 0, 0, 0, 0, 0, 0, 0, 0, 0.8, 0, 0, -950],
-      [0.07, 0.15, 1100, 0.001, 0, 0.012, 4, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, -1700],
-    ],
-  },
-  // A super-lubed linear switch: deeper and rounder than the default, slower
-  // to land, with only a faint muffled puff on top.
-  creamy: {
-    key: [
-      [0.34, 0.08, 140, 0.003, 0.006, 0.055, 0, 1, -1.1, 0, 0, 0, 0, 0, 0, 0, 0, 0.8, 0, 0, -700],
-      [0.06, 0.1, 480, 0.003, 0, 0.022, 4, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, -900],
-    ],
-    keyShift: [
-      [0.36, 0.08, 120, 0.003, 0.006, 0.06, 0, 1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0.8, 0, 0, -650],
-      [0.06, 0.1, 420, 0.003, 0, 0.024, 4, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, -850],
-    ],
-    keySpace: [
-      [0.4, 0.06, 98, 0.004, 0.008, 0.075, 0, 1, -0.9, 0, 0, 0, 0, 0, 0, 0, 0, 0.8, 0, 0, -600],
-      [0.08, 0.1, 360, 0.004, 0, 0.03, 4, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, -800],
-      [0.12, 0.06, 84, 0.016, 0, 0.04, 0, 1, -0.8, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, -550],
-    ],
-    keyEnter: [
-      [0.44, 0.05, 88, 0.004, 0.01, 0.08, 0, 1, -0.9, 0, 0, 0, 0, 0, 0, 0, 0, 0.8, 0, 0, -550],
-      [0.08, 0.1, 340, 0.004, 0, 0.03, 4, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, -750],
-    ],
-    keyDelete: [
-      [0.28, 0.08, 130, 0.003, 0.005, 0.05, 0, 1, 1.1, 0, 0, 0, 0, 0, 0, 0, 0, 0.8, 0, 0, -700],
-      [0.05, 0.12, 620, 0.002, 0, 0.014, 4, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, -1100],
-    ],
-  },
-  // Each key is a drop landing in water: a round sine whose pitch rises fast
-  // (a "bloop"), with a small overtone. More random pitch, so no two match.
-  water: {
-    key: [
-      [0.28, 0.25, 430, 0.001, 0.004, 0.07, 0, 1, 3.2, 0, 0, 0, 0, 0, 0, 0, 0, 0.7, 0, 0, -2500],
-      [0.07, 0.25, 860, 0.001, 0.002, 0.04, 0, 1, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0.7, 0, 0, -3500],
-    ],
-    keyShift: [
-      [0.3, 0.25, 330, 0.001, 0.005, 0.08, 0, 1, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0.7, 0, 0, -2300],
-      [0.07, 0.25, 660, 0.001, 0.002, 0.045, 0, 1, 2.8, 0, 0, 0, 0, 0, 0, 0, 0, 0.7, 0, 0, -3200],
-    ],
-    // A bigger drop, then a small one rippling after it.
-    keySpace: [
-      [0.34, 0.15, 250, 0.001, 0.006, 0.11, 0, 1, 2.4, 0, 0, 0, 0, 0, 0, 0, 0, 0.7, 0, 0, -2000],
-      [0.14, 0.2, 520, 0.04, 0, 0.05, 0, 1, 2.6, 0, 0, 0, 0, 0, 0, 0, 0, 0.7, 0, 0, -2800],
-    ],
-    keyEnter: [
-      [0.38, 0.1, 200, 0.001, 0.008, 0.13, 0, 1, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0.7, 0, 0, -1800],
-      [0.16, 0.15, 400, 0.05, 0, 0.06, 0, 1, 2.2, 0, 0, 0, 0, 0, 0, 0, 0, 0.7, 0, 0, -2500],
-    ],
-    // The drop running back out: the same bloop, falling.
-    keyDelete: [
-      [0.24, 0.2, 560, 0.001, 0.003, 0.05, 0, 1, -3.5, 0, 0, 0, 0, 0, 0, 0, 0, 0.7, 0, 0, -2800],
-    ],
-  },
-  // Bubble-wrap pops: a short round burst whose pitch falls fast, with a
-  // tiny snap of noise on top. A little random pitch on each.
-  pop: {
-    key: [
-      [0.38, 0.18, 720, 0, 0.001, 0.028, 0, 1, -6, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, -3200],
-      [0.09, 0.2, 2600, 0, 0, 0.01, 4, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, -4500],
-    ],
-    keyShift: [
-      [0.38, 0.18, 880, 0, 0.001, 0.03, 0, 1, -6, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, -3400],
-      [0.09, 0.2, 3000, 0, 0, 0.01, 4, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, -4800],
-    ],
-    keySpace: [
-      [0.4, 0.12, 420, 0, 0.002, 0.045, 0, 1, -5, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, -2600],
-      [0.18, 0.1, 160, 0.004, 0, 0.04, 0, 1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, -900],
-    ],
-    keyEnter: [
-      [0.42, 0.1, 300, 0, 0.002, 0.06, 0, 1, -4, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, -2200],
-      [0.3, 0.15, 600, 0.03, 0.001, 0.03, 0, 1, -5, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, -3000],
-    ],
-    // A pop played backwards: pitch rising.
-    keyDelete: [
-      [0.3, 0.18, 500, 0, 0.001, 0.03, 0, 1, 4, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, -3000],
-    ],
-  },
-} satisfies Record<string, Record<TypingSound, number[][]>>
+// Several styles to choose from. Each has a character for every kind of key,
+// so a sentence sounds like a sentence: a letter or number (key), a capital or
+// symbol typed with Shift (keyShift), space (keySpace), return (keyEnter) and
+// backspace (keyDelete, which always moves the other way).
+//
+// A press varies only a little: pitch ±2.5%, level ±10%. Real keys don't change
+// pitch from letter to letter, and more than that sounds like a melody.
+//
+// "Soft" is the original sound, made of ZzFX recipes (see above). The other
+// styles are built from parts in keyStyles.ts and played by keySynth.ts.
+const SOFT: Record<TypingSound, number[][]> = {
+  key: [
+    [0.3, 0.03, 205, 0.001, 0.003, 0.032, 0, 1, -1.8, 0, 0, 0, 0, 0, 0, 0, 0, 0.8, 0, 0, -1100],
+    [0.1, 0.03, 900, 0.001, 0, 0.016, 4, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, -1500],
+  ],
+  keyShift: [
+    [0.32, 0.03, 178, 0.001, 0.004, 0.038, 0, 1, -1.6, 0, 0, 0, 0, 0, 0, 0, 0, 0.8, 0, 0, -1000],
+    [0.1, 0.03, 780, 0.001, 0, 0.018, 4, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, -1300],
+  ],
+  // Deeper and wider, with a soft second knock as it settles.
+  keySpace: [
+    [0.38, 0.03, 132, 0.002, 0.006, 0.055, 0, 1, -1.2, 0, 0, 0, 0, 0, 0, 0, 0, 0.8, 0, 0, -800],
+    [0.12, 0.03, 620, 0.002, 0, 0.024, 4, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, -1100],
+    [0.12, 0.03, 110, 0.012, 0, 0.03, 0, 1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, -700],
+  ],
+  // The heaviest key, low and round.
+  keyEnter: [
+    [0.42, 0.03, 118, 0.002, 0.008, 0.065, 0, 1, -1.2, 0, 0, 0, 0, 0, 0, 0, 0, 0.8, 0, 0, -750],
+    [0.12, 0.03, 560, 0.002, 0, 0.026, 4, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, -1000],
+  ],
+  // Hollow and rising, like taking a letter back out.
+  keyDelete: [
+    [0.26, 0.03, 165, 0.002, 0.004, 0.04, 0, 1, 1.4, 0, 0, 0, 0, 0, 0, 0, 0, 0.8, 0, 0, -950],
+    [0.07, 0.03, 1100, 0.001, 0, 0.012, 4, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, -1700],
+  ],
+}
 
-export type TypingStyle = keyof typeof TYPING_STYLES
+export type TypingStyle = 'default' | KeyStyleName
 
 /** The styles in the order Settings lists them, with the words it shows. */
 export const TYPING_STYLE_INFO: { id: TypingStyle; label: string }[] = [
   { id: 'default', label: 'Soft' },
   { id: 'creamy', label: 'Creamy' },
-  { id: 'water', label: 'Water drops' },
   { id: 'pop', label: 'Popping' },
+  { id: 'mouth', label: 'Mouth pop' },
+  { id: 'water', label: 'Water drops' },
+  { id: 'clicky', label: 'Clicky' },
 ]
 
 /** What each sound is for, in the words Settings shows (Sounds tab). */
@@ -249,17 +180,54 @@ export function play(name: SoundName, { pitch = 1, force = false }: { pitch?: nu
   try {
     // The web view keeps audio paused until the first click; this wakes it.
     if (ZZFX.audioContext.state === 'suspended') void ZZFX.audioContext.resume()
-    // A typing sound comes from the chosen style (an unknown saved style falls back to the default).
-    const typing = TYPING.includes(name as TypingSound)
-    const style = settings.typingStyle in TYPING_STYLES ? settings.typingStyle : 'default'
-    const cacheKey = typing ? `${style}:${name}` : name
-    let layers = cache.get(cacheKey)
+    // A typing sound comes from the chosen style (an unknown saved style falls back to Soft).
+    if (TYPING.includes(name as TypingSound)) {
+      typingSound(name as TypingSound, 'press')
+      return
+    }
+    let layers = cache.get(name)
     if (!layers) {
-      const recipes = typing ? TYPING_STYLES[style][name as TypingSound] : SOUNDS[name as keyof typeof SOUNDS]
-      layers = recipes.map((recipe) => new ZZFXSound([...recipe]))
-      cache.set(cacheKey, layers)
+      layers = SOUNDS[name as keyof typeof SOUNDS].map((recipe) => new ZZFXSound([...recipe]))
+      cache.set(name, layers)
     }
     for (const layer of layers) layer.play(settings.volume, pitch)
+  } catch {
+    // No audio device, or audio blocked: stay silent.
+  }
+}
+
+/** Plays a typing sound in the chosen style, varied a little (pitch ±2.5%, level ±10%). */
+function typingSound(name: TypingSound, part: 'press' | 'release') {
+  const id = settings.typingStyle in KEY_STYLES ? (settings.typingStyle as KeyStyleName) : null
+  const pitch = 1 + wobble() * PITCH_WOBBLE
+  const level = settings.volume * (1 + wobble() * LEVEL_WOBBLE)
+  if (!id) {
+    // Soft: ZzFX recipes, which add their own small pitch change on every play. No release sound.
+    if (part === 'press') {
+      const key = `soft:${name}`
+      let layers = cache.get(key)
+      if (!layers) {
+        layers = SOFT[name].map((recipe) => new ZZFXSound([...recipe]))
+        cache.set(key, layers)
+      }
+      for (const layer of layers) layer.play(level, 1)
+    }
+    return
+  }
+  const voices = part === 'press' ? pressVoices(KEY_STYLES[id], name) : releaseVoices(KEY_STYLES[id], name)
+  if (voices.length === 0) return
+  const ctx = ZZFX.audioContext
+  playVoices(ctx, ctx.destination, voices, { pitch, gain: level * ZZFX.volume })
+}
+
+/** Plays the sound of a key coming back up, for the styles that have one (Creamy, Clicky). */
+export function playRelease(name: SoundName, { force = false }: { force?: boolean } = {}) {
+  if (!TYPING.includes(name as TypingSound)) return
+  if (!force && !settings.on) return
+  if (settings.volume <= 0) return
+  try {
+    if (ZZFX.audioContext.state === 'suspended') void ZZFX.audioContext.resume()
+    typingSound(name as TypingSound, 'release')
   } catch {
     // No audio device, or audio blocked: stay silent.
   }
@@ -279,6 +247,8 @@ function isTypingTarget(target: EventTarget | null) {
  * Shortcuts (⌘, Ctrl, Alt) and keys that don't type (arrows, Shift) are quiet.
  */
 export function listenForTyping() {
+  // Keys whose press made a sound, so their release can too (by physical key, since Shift may change `key`).
+  const down = new Map<string, TypingSound>()
   const onKey = (e: KeyboardEvent) => {
     if (!settings.typing || e.metaKey || e.ctrlKey || e.altKey || (e.repeat && e.key !== 'Backspace')) return
     if (!isTypingTarget(e.target)) return
@@ -295,8 +265,21 @@ export function listenForTyping() {
                 ? 'keyShift'
                 : 'key'
               : null
-    if (sound) play(sound)
+    if (sound) {
+      play(sound)
+      down.set(e.code, sound)
+    }
+  }
+  const onKeyUp = (e: KeyboardEvent) => {
+    const sound = down.get(e.code)
+    if (!sound) return
+    down.delete(e.code)
+    if (settings.typing) playRelease(sound)
   }
   window.addEventListener('keydown', onKey, true)
-  return () => window.removeEventListener('keydown', onKey, true)
+  window.addEventListener('keyup', onKeyUp, true)
+  return () => {
+    window.removeEventListener('keydown', onKey, true)
+    window.removeEventListener('keyup', onKeyUp, true)
+  }
 }
