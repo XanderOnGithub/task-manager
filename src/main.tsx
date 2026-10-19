@@ -8,7 +8,7 @@ import '@fontsource/geist-sans/600.css'
 import '@fontsource/geist-mono/400.css'
 
 import './styles/app.css'
-import { MotionConfig } from 'motion/react'
+import { MotionConfig, motion } from 'motion/react'
 import App from './App.tsx'
 import { spring } from './lib/motion'
 import { applyTheme } from './lib/theme'
@@ -25,7 +25,16 @@ createRoot(document.getElementById('root')!).render(
     {/* reducedMotion="user": follows the macOS Reduce motion setting. */}
     <MotionConfig reducedMotion="user" transition={spring.snappy}>
       <ToastProvider>
-        <App />
+        {/* The one animation on first render: the window fades in on launch
+            instead of appearing all at once. Everything after that uses initial={false}. */}
+        <motion.div
+          className="h-full"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={spring.smooth}
+        >
+          <App />
+        </motion.div>
       </ToastProvider>
     </MotionConfig>
   </StrictMode>,
