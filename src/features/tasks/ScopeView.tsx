@@ -10,7 +10,7 @@
 import { useState } from 'react'
 import { Calendar, List, Plus, SquareKanban } from 'lucide-react'
 import { type Item, type ProjectStatus } from '../../platform/api'
-import { childrenOf, statusLabel, taskCounts, trailOf } from '../../domain/items'
+import { childrenOf, statusLabel, taskCounts, trailOf, itemById } from '../../domain/items'
 import { AreaList } from './AreaList'
 import { dueLabel } from '../../domain/dates'
 import type { Actions } from '../../app/useActions'
@@ -59,7 +59,7 @@ function OneScopeView(props: Props & { scope: Item }) {
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
 
   // "+ Task" adds to the selected milestone (or the selected task's), else the first open one.
-  const selected = selectedId ? items.find((i) => i.id === selectedId) : undefined
+  const selected = selectedId ? itemById(items, selectedId) : undefined
   const targetMilestone =
     (selected?.kind === 'milestone' && selected.parent === scope.id ? selected : undefined) ??
     (selected?.kind === 'task' ? milestones.find((m) => m.id === selected.parent) : undefined) ??

@@ -356,7 +356,7 @@ function SortableProject({
   const pageTarget = usePageTarget(project.id)
   const { done, total } = taskCounts(items, project.id)
   const finished = project.status === 'done' || project.status === 'dropped'
-  const hasPages = items.some((i) => i.kind === 'page' && i.parent === project.id)
+  const hasPages = childrenOf(items, project.id, true).length > 0
 
   return (
     <div ref={sortable.setNodeRef} style={style} className="flex flex-col gap-0.5">

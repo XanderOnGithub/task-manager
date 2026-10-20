@@ -64,7 +64,7 @@ export function PageRows({
   return (
     <ul className="flex flex-col gap-0.5">
       {childrenOf(items, parent, true).map((page) => {
-        const hasChildren = items.some((i) => i.parent === page.id)
+        const hasChildren = childrenOf(items, page.id, true).length > 0
         // A subpage being added here opens the page so the field shows.
         const addingHere = tools.adding?.kind === 'page' && tools.adding.parent === page.id
         const open = !collapsed.has(page.id) || addingHere

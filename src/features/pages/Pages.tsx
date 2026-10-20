@@ -246,7 +246,7 @@ function PageList({
       return next
     })
   const projects = withProjects
-    ? childrenOf(items, owner.id).filter((p) => items.some((i) => i.kind === 'page' && i.parent === p.id))
+    ? childrenOf(items, owner.id).filter((p) => childrenOf(items, p.id, true).length > 0)
     : []
 
   return (
