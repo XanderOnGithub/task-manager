@@ -20,6 +20,7 @@ cargo test --workspace
 pnpm lint
 pnpm test
 pnpm build            # also type-checks
+pnpm a11y             # axe-core over every screen (needs a Chromium: CHROMIUM_PATH, or `pnpm exec playwright-core install chromium`)
 ```
 
 ## Branches

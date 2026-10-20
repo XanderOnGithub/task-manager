@@ -6,7 +6,8 @@ Moss should work with a keyboard alone, with a screen reader, with Reduce motion
 
 - **`pnpm lint`** runs `eslint-plugin-jsx-a11y` over every component: buttons need names, labels need fields, clickable `div`s need a role.
 - **`pnpm test`** runs the behavior tests in `shared/controls/*.test.tsx`, `shared/toast/Toasts.test.tsx` and `features/navigation/rowKeys.test.tsx`, which drive the real components with a keyboard.
-- **`src/styles/contrast.test.ts`** reads `tokens.css` and checks that every text color is at least 4.5:1 against every surface it sits on, in the dark theme, the light theme and the explicit light override. Change a color and it tells you if the new one is too faint.
+- **`pnpm a11y`** (after `pnpm build`) opens every screen in a real browser, in both themes, and runs axe-core over it (`scripts/a11y-audit.mjs`). It runs in CI as its own job. Add a screen to the list in the script when you add a screen.
+- **`src/styles/contrast.test.ts`** reads `tokens.css` and checks that every text color is at least 4.5:1 against every surface it sits on (including the see-through hover, selected and field tints laid over them), in the dark theme, the light theme and the explicit light override. Change a color and it tells you if the new one is too faint.
 
 What no test can check: how a screen reader actually sounds, and how it feels. Try VoiceOver (macOS, ⌘F5) or Narrator (Windows, Ctrl+Win+Enter) after changing a control.
 

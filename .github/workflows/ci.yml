@@ -66,3 +66,19 @@ jobs:
       # Logic, the keyboard and screen reader behavior of dialogs and menus, text color contrast.
       - run: pnpm test
       - run: pnpm build
+
+  a11y:
+    name: Accessibility audit (axe-core in a browser)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # A browser for axe-core to look at the built app with (see docs/ACCESSIBILITY.md).
+      - run: pnpm exec playwright-core install --with-deps chromium
+      - run: pnpm build
+      - run: pnpm a11y
