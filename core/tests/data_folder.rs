@@ -983,3 +983,30 @@ fn the_example_can_come_from_files_built_into_the_app() {
     // Never into a folder that has something in it.
     assert!(!task_core::example::add_example_files(files, &target).unwrap());
 }
+
+#[test]
+fn names_windows_cant_store_are_refused_for_new_items_and_flagged_for_old_ones() {
+    let (_dir, root) = sample();
+    let lib = load(&root);
+    let home = by_title(&lib, "Home").id.clone();
+    // New titles follow the strict rules, so the folder syncs to Windows.
+    for bad in ["Call Bob?", "CON", "ends.", "a|b"] {
+        assert!(
+            matches!(
+                ops::create(&lib, Kind::Project, Some(&home), bad, ""),
+                Err(Error::InvalidName(_))
+            ),
+            "{bad}"
+        );
+    }
+    // A name made earlier (here: by hand) still loads, with an Issue about it.
+    fs::create_dir_all(root.join("areas/Home/Why not?")).unwrap();
+    fs::write(
+        root.join("areas/Home/Why not?/_index.md"),
+        "---\nid: WHYNOT0001\n---\n",
+    )
+    .unwrap();
+    let lib = load(&root);
+    assert!(lib.get("WHYNOT0001").is_some(), "still loads");
+    assert!(lib.issues.iter().any(|i| matches!(i, Issue::NotPortable { .. })));
+}

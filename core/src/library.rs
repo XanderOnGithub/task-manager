@@ -248,8 +248,13 @@ impl Library {
         } else {
             name.strip_suffix(".md").unwrap_or(name)
         };
-        if names::check_title(title).is_err() {
+        if names::check_existing(title).is_err() {
             self.issues.push(Issue::InvalidName { path: rel.to_owned() });
+        } else if let Some(reason) = names::portable_problem(title) {
+            self.issues.push(Issue::NotPortable {
+                path: rel.to_owned(),
+                reason,
+            });
         }
 
         // Id: use the file's, unless it's missing or already taken.

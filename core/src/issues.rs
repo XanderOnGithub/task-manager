@@ -30,6 +30,9 @@ pub enum Issue {
     },
     /// The file or folder name can't be a title (for example it contains ":").
     InvalidName { path: String },
+    /// The name works here but Windows can't store it (a "?" in it, say), so
+    /// syncing to a Windows computer would fail. Rename it.
+    NotPortable { path: String, reason: String },
     /// A project contains both milestone folders and task files.
     MixedChildren { path: String },
     /// A file is somewhere files aren't allowed, like directly inside an area.
@@ -57,6 +60,7 @@ impl Issue {
             | Issue::UnclosedFrontmatter { path }
             | Issue::InvalidValue { path, .. }
             | Issue::InvalidName { path }
+            | Issue::NotPortable { path, .. }
             | Issue::MixedChildren { path }
             | Issue::StrayFile { path }
             | Issue::TooDeep { path } => path,
@@ -74,6 +78,7 @@ impl Issue {
             Issue::UnclosedFrontmatter { .. } => "Details block at the top is never closed with ---".into(),
             Issue::InvalidValue { field, value, .. } => format!("\"{value}\" isn't a valid {field}"),
             Issue::InvalidName { .. } => "Name contains characters titles can't use".into(),
+            Issue::NotPortable { reason, .. } => format!("{reason}. Rename it to sync with Windows."),
             Issue::MixedChildren { .. } => {
                 "Project has both milestones and tasks. Move its tasks into a milestone.".into()
             }
