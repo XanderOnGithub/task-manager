@@ -23,11 +23,13 @@ export function Onboarding({ onDone }: { onDone: () => Promise<void> }) {
   const [step, setStep] = useState<1 | 2 | 3>(1)
   return (
     // The whole window is a drag handle, like the sidebar's top row.
-    <div data-tauri-drag-region className={`flex h-full items-center justify-center p-6 ${isMac ? 'bg-window' : 'bg-window-solid'}`}>
+    <main data-tauri-drag-region className={`flex h-full items-center justify-center p-6 ${isMac ? 'bg-window' : 'bg-window-solid'}`}>
       <section
         aria-label="Welcome to Moss"
         className="flex w-[460px] max-w-full flex-col overflow-hidden rounded-window border border-border bg-panel shadow-window"
       >
+        {/* The other steps have their own heading. */}
+        {step === 1 && <h1 className="sr-only">Welcome to Moss</h1>}
         {/* Steps slide toward the side they come from. */}
         <AnimatePresence mode="wait" initial={false}>
           {step === 1 ? (
@@ -46,7 +48,7 @@ export function Onboarding({ onDone }: { onDone: () => Promise<void> }) {
         </AnimatePresence>
         <Dots step={step} />
       </section>
-    </div>
+    </main>
   )
 }
 

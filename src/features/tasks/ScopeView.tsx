@@ -148,6 +148,7 @@ function OneScopeView(props: Props & { scope: Item }) {
               value={scope.title}
               onSave={(title) => actions.rename(scope, title)}
               className="w-fit text-title"
+              heading
             />
             <BodyEditor item={scope} onSave={(body) => actions.writeBody(scope, body)} placeholder="Add a description" />
             <div className="flex items-center gap-3.5 text-meta font-normal text-fg-3">
@@ -189,15 +190,19 @@ function OneScopeView(props: Props & { scope: Item }) {
           {scope.kind !== 'milestone' && <PageSection items={items} owner={scope} onOpen={onOpen} actions={actions} />}
         </div>
       ) : (
-        <Board
-          key={scope.id}
-          items={items}
-          scope={scope}
-          selectedId={selectedId}
-          onSelect={onSelect}
-          onCycleStatus={onCycleStatus}
-          actions={actions}
-        />
+        <>
+          {/* The board has no title of its own; the page still needs its heading. */}
+          <h1 className="sr-only">{scope.title}</h1>
+          <Board
+            key={scope.id}
+            items={items}
+            scope={scope}
+            selectedId={selectedId}
+            onSelect={onSelect}
+            onCycleStatus={onCycleStatus}
+            actions={actions}
+          />
+        </>
       )}
     </Panel>
   )
@@ -262,14 +267,17 @@ function EverythingView({ items, layout, onLayout, selectedId, onSelect, onCycle
           {areas.length === 0 && <p className="text-fg-3">Add an area to start, like Home or School.</p>}
         </div>
       ) : (
-        <Board
-          items={items}
-          scope={null}
-          selectedId={selectedId}
-          onSelect={onSelect}
-          onCycleStatus={onCycleStatus}
-          actions={actions}
-        />
+        <>
+          <h1 className="sr-only">Tasks</h1>
+          <Board
+            items={items}
+            scope={null}
+            selectedId={selectedId}
+            onSelect={onSelect}
+            onCycleStatus={onCycleStatus}
+            actions={actions}
+          />
+        </>
       )}
     </Panel>
   )

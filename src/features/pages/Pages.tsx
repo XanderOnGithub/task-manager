@@ -85,6 +85,7 @@ export function PageView({
               value={page.title}
               onSave={(title) => actions.rename(page, title)}
               className="w-fit text-title"
+              heading
             />
           </div>
           <BodyEditor

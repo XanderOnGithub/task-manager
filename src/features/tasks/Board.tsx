@@ -16,7 +16,7 @@ import {
 } from '@dnd-kit/core'
 import { LayoutGroup, motion } from 'motion/react'
 import type { Item, TaskStatus } from '../../platform/api'
-import { useDragSensors, useDragState } from '../../shared/drag/drag'
+import { useDragSensors, useDragState, DRAG_ATTRIBUTES } from '../../shared/drag/drag'
 import { statusLabel, tasksUnder } from '../../domain/items'
 import { useLanes } from '../../domain/lanes'
 import { spring } from '../../shared/motion/springs'
@@ -186,7 +186,7 @@ const Card = memo(function Card({
   onSelect: (id: string) => void
   onCycleStatus: (task: Item) => void
 }) {
-  const draggable = useDraggable({ id: task.id, data: { type: 'card' } })
+  const draggable = useDraggable({ id: task.id, data: { type: 'card' }, attributes: DRAG_ATTRIBUTES })
   return (
     <motion.div
       ref={draggable.setNodeRef}

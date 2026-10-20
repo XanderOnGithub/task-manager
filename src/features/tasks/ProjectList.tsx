@@ -14,7 +14,7 @@ import { AnimatePresence, motion } from 'motion/react'
 import { ArrowUpRight, ChevronDown } from 'lucide-react'
 import { type Item } from '../../platform/api'
 import { childrenOf, statusLabel } from '../../domain/items'
-import { collisionFor, dropSettle, SLIDE, useDragSensors } from '../../shared/drag/drag'
+import { collisionFor, dropSettle, SLIDE, useDragSensors, DRAG_ATTRIBUTES } from '../../shared/drag/drag'
 import { spring } from '../../shared/motion/springs'
 import type { Actions } from '../../app/useActions'
 import { useTwoLevelDrag, type Order } from '../../shared/drag/useTwoLevelDrag'
@@ -190,7 +190,7 @@ function SortableMilestone({
   onOpen: () => void
   actions: Actions
 }) {
-  const sortable = useSortable({ id: milestone.id, data: { type: 'milestone' }, transition: SLIDE })
+  const sortable = useSortable({ id: milestone.id, data: { type: 'milestone' }, transition: SLIDE, attributes: DRAG_ATTRIBUTES })
   const done = tasks.filter((t) => t.status === 'done').length
   const selected = milestone.id === selectedId
   const style: CSSProperties = {
@@ -281,7 +281,7 @@ const SortableTask = memo(function SortableTask({
   onCycleStatus: (task: Item) => void
   indent: boolean
 }) {
-  const sortable = useSortable({ id: task.id, data: { type: 'task' }, transition: SLIDE })
+  const sortable = useSortable({ id: task.id, data: { type: 'task' }, transition: SLIDE, attributes: DRAG_ATTRIBUTES })
   const style: CSSProperties = {
     transform: CSS.Translate.toString(sortable.transform),
     transition: sortable.transition,

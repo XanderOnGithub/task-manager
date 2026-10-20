@@ -41,6 +41,14 @@ export function useDragSensors() {
   )
 }
 
+/**
+ * What dnd-kit puts on a draggable row. It defaults to role="button", but our
+ * rows hold buttons of their own (status, fold arrow, ⋯), and a button can't
+ * contain buttons. A focusable "group" is the honest role: a labelled row you
+ * can focus and pick up with Space.
+ */
+export const DRAG_ATTRIBUTES = { role: 'group' } as const
+
 /** The glide into place when you let go. */
 export const dropSettle: DropAnimation = {
   duration: 180,

@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('../../platform/api', () => ({ revealPath: vi.fn().mockResolvedValue(undefined) }))
 vi.mock('../../shared/toast/toast', () => ({ useToast: () => vi.fn() }))
@@ -17,6 +17,11 @@ const issue = (over: Partial<Issue> = {}) =>
     fixable: false,
     ...over,
   }) as Issue
+
+beforeEach(() => {
+  // `restoreMocks` in the test config clears mock implementations between tests.
+  vi.mocked(revealPath).mockResolvedValue(undefined)
+})
 
 describe('IssuesView', () => {
   it('lists each problem with its name and wording, and says so when there are none', () => {

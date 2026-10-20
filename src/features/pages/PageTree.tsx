@@ -15,6 +15,7 @@
 
 import { useContext, useState, type ReactNode } from 'react'
 import { useDraggable, useDroppable } from '@dnd-kit/core'
+import { DRAG_ATTRIBUTES } from '../../shared/drag/drag'
 import { motion } from 'motion/react'
 import { ChevronDown, Ellipsis, FilePlus, FileText } from 'lucide-react'
 import { type Item } from '../../platform/api'
@@ -130,7 +131,7 @@ function PageRow({
 }) {
   const { activeId, target } = useContext(PageDropContext)
   const [renaming, setRenaming] = useState(false)
-  const draggable = useDraggable({ id: page.id, data: { type: 'page' } })
+  const draggable = useDraggable({ id: page.id, data: { type: 'page' }, attributes: DRAG_ATTRIBUTES })
   const droppable = useDroppable({ id: page.id, data: { type: 'page' } })
   const zone = target?.id === page.id && activeId !== page.id ? target.zone : null
 
