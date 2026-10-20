@@ -1,6 +1,6 @@
 [package]
 name = "moss"
-version = "0.1.5"
+version = "0.1.6"
 description = "Moss: tasks and notes, sorted into a strict hierarchy"
 edition = "2021"
 publish = false
