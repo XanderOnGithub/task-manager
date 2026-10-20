@@ -162,7 +162,8 @@ Settings → Sync (`SyncSettings.tsx`): sign in with GitHub, create a repository
 - `.gitattributes` gets `unsorted.md merge=union`; `.gitignore` gets `.trash/`. The watcher ignores `.git/`.
 - A real conflict keeps this computer's version and saves the other as "Title (from other computer).md" (no `id:`, so it gets a fresh one). `_index.md` conflicts keep ours with no copy.
 - First launch: the folder step has "Get files from GitHub" (`GithubStep` in `Onboarding.tsx`): sign in, pick a repository, it is fetched into Documents/Moss and synced.
-- Not done yet: a sidebar indicator, listing conflict copies as Issues, GitHub Enterprise.
+- Sidebar: `SyncRow` (Sidebar.tsx) shows "Synced 2 min ago" / Syncing / Paused / Sync failed above Settings while this folder syncs.
+- Not done yet: listing conflict copies as Issues, GitHub Enterprise.
 
 ## Backlog (after v1)
 
