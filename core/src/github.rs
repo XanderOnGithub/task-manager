@@ -20,15 +20,23 @@ const API: &str = "https://api.github.com";
 const SCOPE: &str = "repo";
 
 /// What `start_login` returns: show `user_code` and open `verification_uri`.
+///
+/// GitHub sends these as `device_code`, `user_code`, ...; the UI gets them as
+/// `deviceCode`, `userCode`, ... The `alias` lets one struct read the first and
+/// write the second.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DeviceCode {
+    #[serde(alias = "device_code")]
     pub device_code: String,
+    #[serde(alias = "user_code")]
     pub user_code: String,
+    #[serde(alias = "verification_uri")]
     pub verification_uri: String,
     /// Seconds to wait between polls.
     pub interval: u64,
     /// Seconds until the code stops working.
+    #[serde(alias = "expires_in")]
     pub expires_in: u64,
 }
 
@@ -234,6 +242,25 @@ mod tests {
         let repo = repo_from(&json).unwrap();
         assert_eq!(repo.full_name, "me/moss-data");
         assert!(repo.empty && repo.private);
+    }
+
+    #[test]
+    fn the_device_code_is_read_as_githubs_sends_it() {
+        // Exactly what github.com/login/device/code answers with.
+        let json = serde_json::json!({
+            "device_code": "3584d83530557fdd1f46af8289938c8ef79f9dc5",
+            "user_code": "WDJB-MJHT",
+            "verification_uri": "https://github.com/login/device",
+            "expires_in": 900,
+            "interval": 5
+        });
+        let code: DeviceCode = serde_json::from_value(json).unwrap();
+        assert_eq!(code.user_code, "WDJB-MJHT");
+        assert_eq!(code.expires_in, 900);
+        // ...and handed to the UI in camelCase.
+        let out = serde_json::to_value(&code).unwrap();
+        assert_eq!(out["userCode"], "WDJB-MJHT");
+        assert_eq!(out["verificationUri"], "https://github.com/login/device");
     }
 
     #[test]
