@@ -19,6 +19,7 @@ import {
   Flag,
   Target,
   CircleAlert,
+  Undo2,
   FileText,
   Layers,
   ListChecks,
@@ -48,6 +49,7 @@ import { useTrash } from './features/trash/useTrash'
 import { useRowKeys } from './features/navigation/rowKeys'
 import { useLaunchCheck } from './platform/updates'
 import { QuickCapture } from './features/capture/QuickCapture'
+import { HistoryDialog } from './features/history/History'
 import { Settings } from './features/settings/Settings'
 import { ConfirmHost } from './shared/confirm/ConfirmHost'
 import { Onboarding } from './features/onboarding/Onboarding'
@@ -84,7 +86,7 @@ export default function App() {
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
   const [collapsedPages, setCollapsedPages] = useState<Set<string>>(new Set())
   const [revealed, setRevealed] = useState<string | undefined>()
-  const [dialog, setDialog] = useState<'capture' | 'settings' | 'search' | null>(null)
+  const [dialog, setDialog] = useState<'capture' | 'settings' | 'search' | 'history' | null>(null)
   const [sidebarOpen, setSidebarOpen] = useState(() => readPref('sidebarOpen', true))
   const toggleSidebar = () =>
     setSidebarOpen((open) => {
@@ -188,6 +190,7 @@ export default function App() {
 
   const paletteActions: PaletteAction[] = [
     { id: 'capture', label: 'Quick capture', Icon: Plus, keywords: 'add new unsorted', shortcut: keys('N'), run: () => setDialog('capture') },
+    { id: 'history', label: 'Recent changes', Icon: Undo2, keywords: 'undo history', run: () => setDialog('history') },
     { id: 'unsorted', label: 'Go to Unsorted', Icon: Layers, keywords: 'inbox', run: () => openOverview('unsorted') },
     { id: 'tasks', label: 'Go to Tasks', Icon: ListChecks, keywords: 'projects all board', run: () => openOverview('tasks') },
     { id: 'pages', label: 'Go to Pages', Icon: FileText, keywords: 'docs notes all', run: () => openOverview('pages') },
@@ -493,6 +496,7 @@ export default function App() {
       </AnimatePresence>
       <ContextMenu menuFor={menuFor} />
       <ConfirmHost />
+      {dialog === 'history' && <HistoryDialog onClose={() => setDialog(null)} />}
       {dialog === 'capture' && <QuickCapture onCapture={actions.capture} onClose={() => setDialog(null)} />}
       {dialog === 'settings' && (
         <Settings dataFolder={snapshot?.dataFolder ?? null} onClose={() => setDialog(null)} onFolderChanged={reload} />

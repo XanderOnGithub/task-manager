@@ -10,6 +10,8 @@ import type { Item, Kind, UnsortedEntry } from '../platform/api'
 import { useToast } from '../shared/toast/toast'
 import { play } from '../sound/sounds'
 import { confirm } from '../shared/confirm/confirm'
+import { weekdayLabel } from '../domain/dates'
+import { parseDue } from '../domain/naturalDate'
 
 export type Actions = ReturnType<typeof useActions>
 
@@ -48,10 +50,17 @@ export function useActions(reload: () => Promise<void>, items: Item[] = []) {
       /** Files an Unsorted entry into `destination` (null = top level, for notes). */
       fileEntry: (entry: UnsortedEntry, kind: Kind, destination: { id: string | null; title: string }) =>
         run(async () => {
-          const id = await api.fileUnsorted(entry, kind, destination.id)
+          // "call Bob friday" becomes a task called "call Bob", due on Friday.
+          const parsed = kind === 'task' ? parseDue(entry.text) : { text: entry.text, due: null }
+          const id = await api.fileUnsorted(
+            entry,
+            kind,
+            destination.id,
+            parsed.due ? { text: parsed.text, due: parsed.due } : {},
+          )
           play('drop')
           toast({
-            message: `Moved to ${destination.title}`,
+            message: `Moved to ${destination.title}${parsed.due ? ` · Due ${weekdayLabel(parsed.due)}` : ''}`,
             undo: () =>
               run(async () => {
                 await api.trashItem(id)
@@ -69,7 +78,11 @@ export function useActions(reload: () => Promise<void>, items: Item[] = []) {
         }),
 
       // Items ----------------------------------------------------------------
-      create: (kind: Kind, parent: string | null, title: string) => run(() => api.createItem(kind, parent, title)),
+      /** A task's title may end in a date ("call Bob friday"): that becomes its due date. */
+      create: (kind: Kind, parent: string | null, title: string) => {
+        const parsed = kind === 'task' ? parseDue(title) : { text: title, due: null }
+        return run(() => api.createItem(kind, parent, parsed.text, parsed.due))
+      },
 
       rename: (item: Item, title: string) => run(() => api.renameItem(item.id, title)),
 
@@ -96,8 +109,24 @@ export function useActions(reload: () => Promise<void>, items: Item[] = []) {
 
       setStatus: (item: Item, status: string) => {
         if (status !== item.status) play(status === 'done' ? 'complete' : 'status')
-        return run(() => api.setField(item.id, 'status', status))
+        return run(async () => {
+          // Finishing a repeating task puts it back to Todo with its next date.
+          const next = await api.setStatus(item.id, status)
+          if (next) {
+            toast({
+              message: `Done. Next due ${weekdayLabel(next)}`,
+              undo: () =>
+                run(async () => {
+                  await api.setField(item.id, 'status', item.status)
+                  await api.setField(item.id, 'due', item.due)
+                }),
+            })
+          }
+        })
       },
+
+      /** How often a task comes back: "daily", "weekly", "every 2 weeks"; null stops it repeating. */
+      setRepeat: (item: Item, repeat: string | null) => run(() => api.setField(item.id, 'repeat', repeat)),
 
       setDue: (item: Item, due: string | null) => run(() => api.setField(item.id, 'due', due)),
 
