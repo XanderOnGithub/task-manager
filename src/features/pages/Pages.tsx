@@ -20,6 +20,7 @@ import { useAddRequest, useRenameRequest } from '../../app/requests'
 import type { Actions } from '../../app/useActions'
 import { EditableTitle, InlineAdd, Menu } from '../../shared/controls'
 import { BodyEditor } from '../editor/BodyEditor'
+import { findLinkedPage, pageHref } from '../../domain/links'
 import type { TextStats } from '../editor/MarkdownEditor'
 import { PageIconPicker } from './EmojiPicker'
 import { itemMenu } from '../../shared/itemMenu'
@@ -93,18 +94,14 @@ export function PageView({
             onStats={showCount ? setStats : undefined}
             tone="normal"
             className="min-h-[200px] text-[14px]"
-            // "/page": a subpage of this page, linked by its file name
+            // "/page": a subpage of this page, linked by its file name and id
             // (a relative link, so it also works in other markdown apps).
             onCreatePage={async (title) => {
               const id = await actions.create('page', page.id, title)
-              return id ? encodeURI(`${title}.md`) : null
+              return id ? pageHref(title, id) : null
             }}
             onOpenPage={(href) => {
-              const title = decodeURI(href.split('/').pop() ?? '').replace(/\.md$/, '')
-              // A subpage of this page first, then a page next to it, then any page with that name.
-              const named = items.filter((i) => i.kind === 'page' && i.title === title)
-              const target =
-                named.find((i) => i.parent === page.id) ?? named.find((i) => i.parent === page.parent) ?? named[0]
+              const target = findLinkedPage(items, href, page)
               if (target) onOpen(target.id)
             }}
           />

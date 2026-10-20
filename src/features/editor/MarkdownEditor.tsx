@@ -66,6 +66,7 @@ import {
   type ToolbarState,
 } from './EditorMenus'
 import { menuPlugin } from './menuPlugin'
+import { isPageHref } from '../../domain/links'
 import { normalize, toEditor } from './markdown'
 import { SaveQueue } from './saveQueue'
 import { exactShortcode, matchShortcodes } from './emojiShortcodes'
@@ -518,7 +519,7 @@ export function MarkdownEditor({
           const href = link.getAttribute('href') ?? ''
           if (/^(https?:|mailto:)/.test(href)) {
             if (e.metaKey || e.ctrlKey) void openUrl(href)
-          } else if (href.endsWith('.md') && onOpenPage) {
+          } else if (isPageHref(href) && onOpenPage) {
             onOpenPage(href)
           }
         }}
