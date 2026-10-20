@@ -10,6 +10,7 @@ import { useRenameRequest } from '../../app/requests'
 import type { Actions } from '../../app/useActions'
 import { DateField, EditableTitle, InlineAdd, Menu, Segmented } from '../../shared/controls'
 import { BodyEditor } from '../editor/BodyEditor'
+import { useRovingRadios } from '../../shared/a11y/roving'
 import { itemMenu } from '../../shared/itemMenu'
 import { MilestoneChip, Panel, PanelHeader, Progress, SectionLabel, StatusIcon, TaskTitle } from '../../shared/ui'
 
@@ -149,14 +150,19 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
 }
 
 function ColorPicker({ value, onChange }: { value: MilestoneColor | null; onChange: (c: MilestoneColor) => void }) {
+  // One Tab stop, arrow keys between the colors (shared/a11y/roving.ts).
+  const roving = useRovingRadios(value ? MILESTONE_COLORS.indexOf(value) : -1, MILESTONE_COLORS.length, (i) =>
+    onChange(MILESTONE_COLORS[i]),
+  )
   return (
-    <span role="radiogroup" aria-label="Milestone color" className="flex gap-[7px]">
-      {MILESTONE_COLORS.map((color) => {
+    <span role="radiogroup" aria-label="Milestone color" {...roving.groupProps} className="flex gap-[7px]">
+      {MILESTONE_COLORS.map((color, i) => {
         const on = color === value
         const name = color.replace('-', ' ')
         return (
           <button
             key={color}
+            {...roving.itemProps(i)}
             role="radio"
             aria-checked={on}
             aria-label={name}

@@ -3,8 +3,9 @@
 // A radio group: one stop in the Tab order (the chosen option), and the arrow
 // keys move the choice, as in any radio group.
 
-import { useId, useRef, type ReactNode } from 'react'
+import { useId, type ReactNode } from 'react'
 import { motion } from 'motion/react'
+import { useRovingRadios } from '../a11y/roving'
 import { spring } from '../motion/springs'
 
 export function Segmented<T extends string>({
@@ -25,35 +26,21 @@ export function Segmented<T extends string>({
 }) {
   // The selected background is one element that slides between options.
   const thumbId = useId()
-  const buttons = useRef<(HTMLButtonElement | null)[]>([])
   const chosen = options.findIndex((o) => o.value === value)
-
-  const onKeyDown = (e: React.KeyboardEvent) => {
-    const step = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }[e.key]
-    if (!step) return
-    e.preventDefault()
-    const from = chosen >= 0 ? chosen : buttons.current.findIndex((b) => b === document.activeElement)
-    const next = (Math.max(from, 0) + step + options.length) % options.length
-    onChange(options[next].value)
-    buttons.current[next]?.focus()
-  }
+  const roving = useRovingRadios(chosen, options.length, (i) => onChange(options[i].value))
 
   return (
     // The arrow keys act on the radios inside; the group itself isn't a tab stop.
-    // eslint-disable-next-line jsx-a11y/interactive-supports-focus
-    <div role="radiogroup" aria-label={label} onKeyDown={onKeyDown} className="flex w-fit gap-0.5 rounded-row bg-raised p-0.5">
+     
+    <div role="radiogroup" aria-label={label} {...roving.groupProps} className="flex w-fit gap-0.5 rounded-row bg-raised p-0.5">
       {options.map((option, i) => {
         const on = option.value === value
         return (
           <button
             key={option.value}
-            ref={(el) => {
-              buttons.current[i] = el
-            }}
+            {...roving.itemProps(i)}
             role="radio"
             aria-checked={on}
-            // Only the chosen option is a Tab stop (the first one when nothing is chosen).
-            tabIndex={on || (chosen < 0 && i === 0) ? 0 : -1}
             onClick={() => onChange(option.value)}
             title={option.icon ? option.label : undefined}
             aria-label={iconsOnly ? option.label : undefined}
