@@ -94,10 +94,34 @@ fn relative_paths(base: &Path, batch: Vec<PathBuf>) -> Vec<String> {
             let rel = rel.to_string_lossy().replace('\\', "/");
             let name = rel.rsplit('/').next().unwrap_or(&rel);
             let is_temp = name.starts_with('.') && name.ends_with(".tmp");
-            (!is_temp && !rel.is_empty()).then_some(rel)
+            // Git sync keeps its bookkeeping in `.git`; checking status
+            // alone rewrites files there, which isn't a change to your data.
+            let is_git = rel == ".git" || rel.starts_with(".git/");
+            (!is_temp && !is_git && !rel.is_empty()).then_some(rel)
         })
         .collect();
     paths.sort();
     paths.dedup();
     paths
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn git_bookkeeping_and_temp_files_are_not_changes() {
+        let base = Path::new("/data");
+        let batch = [
+            "/data/.git/index",
+            "/data/.git",
+            "/data/.x.md.tmp",
+            "/data/.gitignore",
+            "/data/unsorted.md",
+        ]
+        .iter()
+        .map(PathBuf::from)
+        .collect();
+        assert_eq!(relative_paths(base, batch), vec![".gitignore", "unsorted.md"]);
+    }
 }

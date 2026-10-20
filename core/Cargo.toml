@@ -14,6 +14,10 @@ getrandom = "0.3"
 serde = { version = "1", features = ["derive"] }
 # Watching the data folder for changes made outside the app (phone, Finder, sync).
 notify = "8"
+# Talking to GitHub (sign in, list and create repos). Small and blocking: the
+# app calls it from background threads.
+ureq = { version = "3", features = ["json"] }
+serde_json = "1"
 
 [dev-dependencies]
 # Throwaway folders for tests and the benchmark.

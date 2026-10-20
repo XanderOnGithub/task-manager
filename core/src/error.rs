@@ -26,6 +26,8 @@ pub enum Error {
     InvalidValue { field: String, value: String },
     /// The file changed on disk since it was read, so nothing was written.
     Changed(String),
+    /// Git sync failed. The message is Git's own, or "Install Git to use sync."
+    Git(String),
 }
 
 impl fmt::Display for Error {
@@ -40,6 +42,7 @@ impl fmt::Display for Error {
                 write!(f, "\"{value}\" isn't a valid {field}")
             }
             Error::Changed(what) => write!(f, "{what} changed on disk. Try again."),
+            Error::Git(message) => write!(f, "{message}"),
         }
     }
 }

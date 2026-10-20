@@ -8,8 +8,9 @@
 import { useState, type ReactNode } from 'react'
 import { motion } from 'motion/react'
 import { spring } from '../lib/motion'
-import { ArrowDownToLine, FileText, Layers, ListChecks, PanelLeft, Plus, Settings, Trash2, type LucideIcon } from 'lucide-react'
+import { AlertCircle, ArrowDownToLine, Cloud, FileText, Layers, ListChecks, PanelLeft, Pause, Plus, RefreshCw, Settings, Trash2, type LucideIcon } from 'lucide-react'
 import { installUpdate, useUpdates } from '../lib/updates'
+import { ago, useSync } from '../lib/useSync'
 import type { Item } from '../lib/api'
 import { icon } from '../lib/items'
 import { isMac, keys } from '../lib/platform'
@@ -119,6 +120,7 @@ export function Sidebar(props: Props) {
 
       <div className="mt-auto flex flex-col gap-0.5">
         <UpdateRow />
+        <SyncRow onClick={props.onSettings} />
         <NavItem Icon={Trash2} active={overview === 'trash'} onClick={() => onOverview('trash')}>
           Trash
           {props.trashCount > 0 && <span className="ml-auto text-label font-normal text-fg-3">{props.trashCount}</span>}
@@ -128,6 +130,40 @@ export function Sidebar(props: Props) {
         </NavItem>
       </div>
     </nav>
+  )
+}
+
+/**
+ * Git sync status, only while this folder syncs: "Synced 2 min ago", "Syncing",
+ * "Paused", or "Sync failed" in red. Opens Settings, where Sync lives.
+ */
+function SyncRow({ onClick }: { onClick: () => void }) {
+  const { info, now } = useSync()
+  if (!info?.repo) return null
+  const failed = !!info.error && !info.syncing
+  const label = info.paused
+    ? 'Paused'
+    : info.syncing
+      ? 'Syncing'
+      : failed
+        ? 'Sync failed'
+        : info.pending > 0
+          ? 'Changes waiting'
+          : info.lastSynced
+            ? `Synced ${ago(info.lastSynced, now)}`
+            : 'Sync on'
+  const Icon = info.paused ? Pause : info.syncing ? RefreshCw : failed ? AlertCircle : Cloud
+  return (
+    <button
+      onClick={onClick}
+      title={failed ? info.error ?? undefined : `Syncing with ${info.repo}`}
+      className={`flex h-[30px] w-full items-center gap-2.5 rounded-control px-2.5 text-left text-meta font-normal transition-colors duration-100 hover:bg-hover ${
+        failed ? 'text-danger' : 'text-fg-3 hover:text-fg-2'
+      }`}
+    >
+      <Icon {...icon} className={info.syncing && !info.paused ? 'animate-sync' : undefined} />
+      <span className="flex-1 truncate">{label}</span>
+    </button>
   )
 }
 

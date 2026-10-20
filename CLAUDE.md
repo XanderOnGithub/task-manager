@@ -153,6 +153,18 @@ M1 file format + Rust core + 10k-file benchmark → M2 app shell + tokens → M3
 
 Status: M1–M6 are built (core, shell, Unsorted flow, create / edit / delete with Undo, Settings, motion pass, drag and drop, rich text editor), plus area and milestone pages with List/Board and a release workflow. Branding done (Moss). Sidebar hides with ⌘\; trash older than 30 days is emptied on open. Sounds (tunable, plus optional typing sounds), ⌘K search and commands, editor toolbar and "/" blocks are in. Navigation is one tree (areas → projects → pages) with Tasks and Pages overviews. Next: use it daily and fix what bugs you.
 
+## Git sync (branch `feature/git-sync`)
+
+Settings → Sync (`SyncSettings.tsx`): sign in with GitHub, create a repository or use an existing one, then see status (Sync now, Pause, Stop syncing, Sign out).
+- Core: `core/src/git.rs` shells out to the installed `git` (no Git library; without it: "Install Git to use sync."). `core/src/github.rs` does the GitHub side over HTTPS (`ureq`): device-flow sign-in, list repos, create repo. Tests: `core/tests/sync.rs` (two folders + a bare repo standing in for GitHub).
+- Sign-in is GitHub's device flow: the UI shows a code and opens github.com/login/device. It needs the public client id of an OAuth app with device flow turned on, passed at build time as `MOSS_GITHUB_CLIENT_ID` (repository variable in release.yml). Without it the button is disabled. The token lives in the system keychain (`keyring`), never in a file; Git gets it per command through env vars, never in the remote URL.
+- `src-tauri/src/sync.rs` is the glue and a background thread: commits a minute after the last change ("Moss: 4 changes"), pulls on launch, when the window regains focus and every 5 minutes, pushes after a commit, commits on quit. Pulled files reach the UI through `data-changed`.
+- `.gitattributes` gets `unsorted.md merge=union`; `.gitignore` gets `.trash/`. The watcher ignores `.git/`.
+- A real conflict keeps this computer's version and saves the other as "Title (from other computer).md" (no `id:`, so it gets a fresh one). `_index.md` conflicts keep ours with no copy.
+- First launch: the folder step has "Get files from GitHub" (`GithubStep` in `Onboarding.tsx`): sign in, pick a repository, it is fetched into Documents/Moss and synced.
+- Sidebar: `SyncRow` (Sidebar.tsx) shows "Synced 2 min ago" / Syncing / Paused / Sync failed above Settings while this folder syncs.
+- Not done yet: listing conflict copies as Issues, GitHub Enterprise.
+
 ## Backlog (after v1)
 
 - Timeline view (maybe).

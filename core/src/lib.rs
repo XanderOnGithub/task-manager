@@ -14,6 +14,8 @@
 //! - `trash`       the Trash: what was deleted, from where; restore or delete for good
 //! - `ops`         create / rename / move / set field / body / trash (and emptying old trash)
 //! - `unsorted`    the `unsorted.md` capture list
+//! - `git`         Git sync: commit, merge and push the data folder (shells out to `git`)
+//! - `github`      signing in to GitHub, listing and creating repositories
 //! - `watch`       notices changes made outside the app
 //! - `frontmatter` reads and writes the `---` block at the top of a file
 //! - `order`       sort keys that let you reorder by changing one file
@@ -39,6 +41,8 @@ pub mod example;
 pub mod fix;
 pub mod frontmatter;
 pub mod fsutil;
+pub mod git;
+pub mod github;
 pub mod id;
 pub mod issues;
 pub mod library;
