@@ -37,7 +37,7 @@ pub(super) struct Inner {
 
 impl Runtime {
     /// Waits for any running Git operation, then holds the right to run one.
-    pub(super) fn lock_exclusive(&self) -> MutexGuard<'_, ()> {
+    pub(crate) fn lock_exclusive(&self) -> MutexGuard<'_, ()> {
         self.exclusive.lock().unwrap_or_else(|e| e.into_inner())
     }
 

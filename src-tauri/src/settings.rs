@@ -15,6 +15,8 @@ pub struct Settings {
     pub high_refresh: bool,
     /// Git sync for the data folder, once set up. See sync/.
     pub sync: Option<sync::Config>,
+    /// Back up about once a day. `None` (never chosen) means on. See backup/.
+    pub auto_backup: Option<bool>,
 }
 
 /// Reads the settings. A missing or unreadable file means the defaults.

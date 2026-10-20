@@ -33,7 +33,7 @@ pub fn create(root: &Path, dir: &Path, kind: Kind) -> Result<Backup> {
         return Err(e);
     }
     fs::rename(&temp, &target)?;
-    describe(&target).ok_or_else(|| Error::NotFound(name))
+    describe(&target).ok_or(Error::NotFound(name))
 }
 
 fn write_zip(root: &Path, temp: &Path) -> Result<()> {
