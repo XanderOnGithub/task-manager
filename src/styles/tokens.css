@@ -79,8 +79,8 @@
   --color-track: rgba(255, 255, 255, 0.09);    /* progress bar background */
 
   --color-fg: #ECECEE;                         /* text */
-  --color-fg-2: #A9A9B2;                       /* secondary text */
-  --color-fg-3: #8A8A94;                       /* muted text */
+  --color-fg-2: #BEBEC7;                       /* secondary text */
+  --color-fg-3: #A2A2AC;                       /* muted text: 4.5:1 even on hover, selected and field tints (see contrast.test.ts) */
   --color-placeholder: var(--color-fg-3);  /* same as muted text: placeholders must be readable too (4.5:1) */
 
   --color-accent: #8FB996;                     /* sage */
@@ -165,7 +165,7 @@
 
     --color-fg: #18181B;
     --color-fg-2: #4E4E57;
-    --color-fg-3: #6A6A73;
+    --color-fg-3: #63636C;
 
     --color-accent: #59735D;                   /* sage darkened for contrast on white */
     --color-brand-leaf: #7FA683;
@@ -213,7 +213,7 @@
 
   --color-fg: #18181B;
   --color-fg-2: #4E4E57;
-  --color-fg-3: #6A6A73;
+  --color-fg-3: #63636C;
 
   --color-accent: #59735D;
   --color-brand-leaf: #7FA683;

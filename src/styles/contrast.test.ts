@@ -15,6 +15,25 @@ function hexColors(block: string): Colors {
   return Object.fromEntries([...block.matchAll(/--color-([a-z0-9-]+):\s*(#[0-9A-Fa-f]{6})\b/g)].map(([, name, value]) => [name, value]))
 }
 
+type Rgba = [number, number, number, number]
+
+/** `--color-name: rgba(r, g, b, a)` pairs: the see-through tints (hover, field, selected...). */
+function tints(block: string): Record<string, Rgba> {
+  return Object.fromEntries(
+    [...block.matchAll(/--color-([a-z0-9-]+):\s*rgba\(\s*(\d+),\s*(\d+),\s*(\d+),\s*([\d.]+)\)/g)].map(([, name, r, g, b, a]) => [
+      name,
+      [Number(r), Number(g), Number(b), Number(a)] as Rgba,
+    ]),
+  )
+}
+
+/** A tint laid over an opaque color, as `#rrggbb`. */
+function over(tint: Rgba, base: string): string {
+  const [r, g, b, a] = tint
+  const mixed = [1, 3, 5].map((i, n) => Math.round([r, g, b][n] * a + parseInt(base.slice(i, i + 2), 16) * (1 - a)))
+  return `#${mixed.map((v) => v.toString(16).padStart(2, '0')).join('')}`
+}
+
 /** `--color-name: var(--color-other)` pairs, e.g. placeholder → fg-3. */
 function aliases(block: string): [string, string][] {
   return [...block.matchAll(/--color-([a-z0-9-]+):\s*var\(--color-([a-z0-9-]+)\)/g)].map(([, name, target]) => [name, target])
@@ -37,10 +56,15 @@ function theme(overrides: Colors): Colors {
   return colors
 }
 
+const darkTints = tints(themeBlock)
+const lightBlock = slice('@media (prefers-color-scheme: light)', ':root[data-theme="light"]')
 const dark = theme({})
-const light = theme(hexColors(slice('@media (prefers-color-scheme: light)', ':root[data-theme="light"]')))
+const light = theme(hexColors(lightBlock))
+const lightTints = { ...darkTints, ...tints(lightBlock) }
 // The explicit light override must agree with the system-follows-light one.
-const lightExplicit = theme(hexColors(slice(':root[data-theme="light"]')))
+const lightExplicitBlock = slice(':root[data-theme="light"]')
+const lightExplicit = theme(hexColors(lightExplicitBlock))
+const lightExplicitTints = { ...darkTints, ...tints(lightExplicitBlock) }
 
 function luminance(hex: string): number {
   const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255)
@@ -56,11 +80,30 @@ function contrast(a: string, b: string): number {
 const TEXT = ['fg', 'fg-2', 'fg-3', 'placeholder', 'accent', 'doing', 'due-soon', 'overdue', 'danger', 'waiting']
 const SURFACES = ['panel', 'raised', 'menu', 'window-solid']
 
+// Muted text also sits on hover highlights, fields, the selected row and badges.
+const TINTS = ['hover', 'field', 'badge', 'selected', 'column']
+const BASES = ['panel', 'menu', 'window-solid', 'raised']
+
 describe.each([
-  ['dark', dark],
-  ['light', light],
-  ['light (explicit)', lightExplicit],
-])('%s theme', (_, colors) => {
+  ['dark', dark, darkTints],
+  ['light', light, lightTints],
+  ['light (explicit)', lightExplicit, lightExplicitTints],
+])('%s theme', (_, colors, tint) => {
+  for (const text of ['fg', 'fg-2', 'fg-3']) {
+    for (const name of TINTS) {
+      for (const base of BASES) {
+        it(`${text} is readable on ${name} over ${base}`, () => {
+          expect(contrast(colors[text], over(tint[name], colors[base]))).toBeGreaterThanOrEqual(4.5)
+        })
+      }
+    }
+  }
+  for (const surface of ['seg-on', 'card']) {
+    it(`muted text is readable on ${surface}`, () => {
+      expect(contrast(colors['fg-3'], colors[surface])).toBeGreaterThanOrEqual(4.5)
+    })
+  }
+
   for (const text of TEXT) {
     for (const surface of SURFACES) {
       it(`${text} is readable on ${surface}`, () => {
