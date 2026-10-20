@@ -70,6 +70,41 @@ export function useActions(reload: () => Promise<void>, items: Item[] = []) {
           return id
         }),
 
+      /**
+       * Files several Unsorted entries into one destination, in the order they
+       * are on the list. One toast, one Undo for all of them. If one fails, the
+       * ones before it stay filed (and can still be undone) and the error is shown.
+       */
+      fileEntries: (entries: UnsortedEntry[], kind: Kind, destination: { id: string | null; title: string }) =>
+        run(async () => {
+          const filed: { id: string; entry: UnsortedEntry }[] = []
+          let failure: unknown = null
+          for (const entry of entries) {
+            try {
+              const parsed = kind === 'task' ? parseDue(entry.text) : { text: entry.text, due: null }
+              const id = await api.fileUnsorted(entry, kind, destination.id, parsed.due ? { text: parsed.text, due: parsed.due } : {})
+              filed.push({ id, entry })
+            } catch (e) {
+              failure = e
+              break
+            }
+          }
+          if (filed.length > 0) {
+            play('drop')
+            toast({
+              message: `Moved ${filed.length} ${filed.length === 1 ? 'item' : 'items'} to ${destination.title}`,
+              undo: () =>
+                run(async () => {
+                  // Back to the lines they came from, top line first so each lands where it was.
+                  for (const { id } of filed) await api.trashItem(id)
+                  for (const { entry } of [...filed].sort((a, b) => a.entry.line - b.entry.line)) await api.restoreUnsorted(entry)
+                }),
+            })
+          }
+          if (failure) throw failure
+          return filed.map((f) => f.id)
+        }),
+
       removeEntry: (entry: UnsortedEntry) =>
         run(async () => {
           play('delete')

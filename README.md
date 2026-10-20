@@ -46,6 +46,12 @@ Built with [Tauri](https://tauri.app) (Rust) and React.
 
 <img src="media/readme/unsorted.gif" alt="Filing an Unsorted item as a task in the Replace the sink milestone" width="100%">
 
+**Dates and repeats.** Type "call Bob friday" in Quick capture and the task gets that due date. A task can repeat ("weekly", "every 2 weeks"); finishing it sets the next date. Today lists what is due across every area.
+
+**Bulk sort.** Tick several Unsorted items and file them to one place at once.
+
+**Backups.** Moss zips your data folder about once a day. Settings → Backups restores any of them, or a zip you pick.
+
 **Tasks.** Each area, project and milestone has a List and a Board. Drag cards between statuses.
 
 <img src="media/readme/tasks.gif" alt="Finishing a task in List view, then dragging a card to Doing on the Board" width="100%">

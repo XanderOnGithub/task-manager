@@ -5,7 +5,8 @@ import { useSyncOnFocus } from './features/sync/useSync'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import { spring } from './shared/motion/springs'
-import { type Item, type TaskStatus } from './platform/api'
+import { onSyncConflicts, type Item, type TaskStatus } from './platform/api'
+import { useToast } from './shared/toast/toast'
 import { childrenOf, trailOf } from './domain/items'
 import { NEXT_STATUS } from './domain/lanes'
 import { requestAdd, requestRename, type AddWhat } from './app/requests'
@@ -18,6 +19,7 @@ import {
   FilePlus,
   Flag,
   Target,
+  CalendarCheck,
   CircleAlert,
   Undo2,
   FileText,
@@ -45,6 +47,8 @@ import { UnsortedView } from './features/capture/Unsorted'
 import { PagesOverview, PageView } from './features/pages/Pages'
 import { TrashView } from './features/trash/Trash'
 import { IssuesView } from './features/issues/Issues'
+import { TodayView } from './features/today/Today'
+import { dueNowCount } from './features/today/plan'
 import { useTrash } from './features/trash/useTrash'
 import { useRowKeys } from './features/navigation/rowKeys'
 import { useLaunchCheck } from './platform/updates'
@@ -58,6 +62,7 @@ import { Panel } from './shared/ui'
 /** What each overview is called in the window title. */
 const OVERVIEW_TITLES: Record<Overview, string> = {
   unsorted: 'Unsorted',
+  today: 'Today',
   tasks: 'Tasks',
   pages: 'Pages',
   trash: 'Trash',
@@ -72,6 +77,15 @@ export default function App() {
   const { snapshot, error, needsFolder, byId, loads, reload } = useLibrary()
   useSyncOnFocus()
   const actions = useActions(reload, snapshot?.items ?? [])
+  const toast = useToast()
+
+  // A sync that kept both versions of a file says so, and where to look.
+  useEffect(() => {
+    const stop = onSyncConflicts((count) =>
+      toast({ message: `Kept both versions of ${count === 1 ? 'a file' : `${count} files`}. See Issues.` }),
+    )
+    return () => void stop.then((off) => off()).catch(() => {})
+  }, [toast])
   const trash = useTrash(snapshot, loads)
   const mainRef = useRef<HTMLElement>(null)
   useLaunchCheck()
@@ -192,6 +206,7 @@ export default function App() {
     { id: 'capture', label: 'Quick capture', Icon: Plus, keywords: 'add new unsorted', shortcut: keys('N'), run: () => setDialog('capture') },
     { id: 'history', label: 'Recent changes', Icon: Undo2, keywords: 'undo history', run: () => setDialog('history') },
     { id: 'unsorted', label: 'Go to Unsorted', Icon: Layers, keywords: 'inbox', run: () => openOverview('unsorted') },
+    { id: 'today', label: 'Go to Today', Icon: CalendarCheck, keywords: 'due overdue upcoming', run: () => openOverview('today') },
     { id: 'tasks', label: 'Go to Tasks', Icon: ListChecks, keywords: 'projects all board', run: () => openOverview('tasks') },
     { id: 'pages', label: 'Go to Pages', Icon: FileText, keywords: 'docs notes all', run: () => openOverview('pages') },
     ...(snapshot?.issues.length
@@ -337,8 +352,9 @@ export default function App() {
       )
     }
     if (overview === 'unsorted') return <UnsortedView entries={snapshot.unsorted} items={items} actions={actions} />
+    if (overview === 'today') return <TodayView items={items} onOpen={openId} onCycleStatus={cycleStatus} />
     if (overview === 'trash') return <TrashView entries={trash} actions={actions} />
-    if (overview === 'issues') return <IssuesView issues={snapshot.issues} />
+    if (overview === 'issues') return <IssuesView issues={snapshot.issues} onOpen={openId} />
     if (overview === 'pages') return <PagesOverview items={items} onOpen={openId} actions={actions} />
     if (open?.kind === 'page') return <PageView key={open.id} items={items} page={open} onOpen={openId} actions={actions} />
     return (
@@ -416,6 +432,7 @@ export default function App() {
         <Sidebar
           items={items}
           unsortedCount={snapshot?.unsorted.length ?? 0}
+          dueCount={dueNowCount(items)}
           trashCount={trash.length}
           issueCount={snapshot?.issues.length ?? 0}
           overview={overview}

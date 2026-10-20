@@ -142,7 +142,7 @@ data/
 - Type comes from location, title is the filename (block `/` and `:`), parent is the containing folder.
 - A project's children are all milestones or all tasks, never mixed. Its `Pages` folder doesn't count; it isn't an item, so no project or milestone may be called "Pages".
 - Older folders (`tasks/` + `notes/`) move to this layout when opened (`core/src/migrate.rs`); old notes go to a "Reference" area.
-- Frontmatter: `id` (10-char random id, never changes), `status`, `order` (fractional index key), `created`, optional `due`, `color` (milestones only, stored by name: `dusty-blue`, `mauve`, `rose`, `teal`, `lavender`, `sand`), `icon` (pages only: one emoji, e.g. `icon: 🌿`).
+- Frontmatter: `id` (10-char random id, never changes), `status`, `order` (fractional index key), `created`, optional `due`, optional `repeat` (tasks only: `daily|weekly|monthly|yearly` or `every N days|weeks|months|years`; finishing the task re-opens it with the next due date, `core/src/repeat.rs`), `color` (milestones only, stored by name: `dusty-blue`, `mauve`, `rose`, `teal`, `lavender`, `sand`), `icon` (pages only: one emoji, e.g. `icon: 🌿`).
 - Statuses: task `todo|doing|done`, plus the optional lanes `later|waiting` (always valid on disk; Settings → Board lanes shows them, `domain/lanes.ts`), milestone `open|done`, project `active|paused|done|dropped`.
 - Done items stay in place. Startup reads frontmatter only into an in-memory index; a file watcher keeps it current.
 
@@ -179,7 +179,17 @@ Full description: `docs/SYNC.md`. In short: Settings → Sync (`SyncSettings.tsx
 - Sign-in is GitHub's device flow and needs the public client id of an OAuth app (not a GitHub App) with device flow on, passed at build time as `MOSS_GITHUB_CLIENT_ID` (a repository variable for releases). The token lives in the system keychain and reaches Git only through environment variables for one command.
 - `src-tauri/src/sync/` (one file per action) is the glue and a background thread: commits a minute after the last change, pulls on launch, on window focus and every 5 minutes, pushes after a commit, commits on quit. Git operations run one at a time (`Runtime::exclusive`) and take the folder lock for commit and merge.
 - A real conflict keeps this computer's version and saves the other as "Title (from other computer).md" (numbered if taken; no `id:`). A folder's `_index.md` gets the other text appended under a divider. If saving fails the merge is undone. `unsorted.md` merges by union.
-- Not done yet: listing conflict copies as Issues, GitHub Enterprise.
+- Conflict copies ("… (from other computer)") are listed as Issues with an Open button, and a toast says when a sync kept both versions.
+- Not done yet: GitHub Enterprise.
+
+## Plan and protect
+
+- Plain-language dates: `domain/naturalDate.ts` (`parseDue`) reads a trailing date in an Unsorted entry or a new task ("call Bob friday", "in 3 days", "oct 23"). Filing as a task sets the due date and strips the words; pages and projects keep the text. Unsorted rows show a due hint.
+- Repeat: set in the details panel (`RepeatField`) or by hand in the file. Done + repeat goes through `ops::set_status` (back to todo, next due), toast "Done. Next due …" with Undo.
+- Today (`features/today/`): Overdue, Today, Tomorrow and the next days, across all areas; sidebar badge counts overdue + today.
+- Bulk sort: tick entries in Unsorted (Shift for a range), Create as, pick a destination; one toast, one Undo (`actions.fileEntries`).
+- Undo history: `shared/toast/history.ts`. ⌘Z undoes the newest change even after its toast is gone; "Recent changes" in ⌘K lists them. Session only, 50 entries.
+- Backups: `core/src/backup/` (zip of the data folder without `.git`; `create`, `list`, `prune`, `restore` one file each) and `src-tauri/src/backup/` (location in the app data dir, daily thread, commands). Settings → Backups: back up now, restore (a "before restore" backup is made first), restore from a file, automatic on/off. Keeps 14 automatic and 5 before-restore; manual ones stay.
 
 ## Backlog (after v1)
 

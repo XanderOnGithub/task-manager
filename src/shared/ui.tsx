@@ -2,11 +2,12 @@
 // design canvas, so screens read as layout, not styling.
 
 import type { CSSProperties, ReactNode } from 'react'
-import { Calendar } from 'lucide-react'
+import { Calendar, Repeat } from 'lucide-react'
 import { motion } from 'motion/react'
 import { spring } from './motion/springs'
 import type { Item, MilestoneColor, Status } from '../platform/api'
 import { dueLabel, dueTone } from '../domain/dates'
+import { repeatPhrase } from '../domain/repeat'
 
 /** A rounded, solid content panel. */
 export function Panel({ label, className = '', children }: { label: string; className?: string; children: ReactNode }) {
@@ -157,15 +158,28 @@ export function TaskTitle({ title, done, className = '' }: { title: string; done
   )
 }
 
-/** Due date with a calendar icon, colored by urgency. Renders nothing without a date. */
+/**
+ * Due date with a calendar icon, colored by urgency, and a repeat mark for a
+ * task that comes back. Renders nothing for an item with neither.
+ */
 export function DueDate({ item, className = '' }: { item: Item; className?: string }) {
-  if (!item.due) return null
-  const tone = dueTone(item.due, item.status === 'done')
+  if (!item.due && !item.repeat) return null
+  const tone = item.due ? dueTone(item.due, item.status === 'done') : 'normal'
   const color = { normal: 'text-due', soon: 'text-due-soon', overdue: 'text-overdue' }[tone]
   return (
     <span className={`flex shrink-0 items-center gap-1 text-meta font-normal ${color} ${className}`}>
-      <Calendar size={12} strokeWidth={2} aria-hidden="true" />
-      {dueLabel(item.due)}
+      {item.repeat && (
+        <span title={repeatPhrase(item.repeat)} className="flex">
+          <Repeat size={12} strokeWidth={2} aria-hidden="true" />
+          <span className="sr-only">{repeatPhrase(item.repeat)}</span>
+        </span>
+      )}
+      {item.due && (
+        <>
+          <Calendar size={12} strokeWidth={2} aria-hidden="true" />
+          {dueLabel(item.due)}
+        </>
+      )}
     </span>
   )
 }

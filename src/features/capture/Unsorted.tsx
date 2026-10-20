@@ -6,18 +6,19 @@
 //   3. pick a destination (or press Enter) → it's filed, a toast offers Undo,
 //      and the next item opens so you can keep going.
 
-import { useMemo, useState, type ReactNode, useId } from 'react'
+import { useMemo, useRef, useState, type ReactNode, useId } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import { spring } from '../../shared/motion/springs'
 import { Collapse } from '../../shared/motion/pieces'
-import { Folder, FileText, Search, Target, Trash2 } from 'lucide-react'
+import { Calendar, Folder, FileText, Search, Target, Trash2 } from 'lucide-react'
 import { type Item, type Kind, type MilestoneColor, type UnsortedEntry } from '../../platform/api'
 import { childrenOf } from '../../domain/items'
 import type { Actions } from '../../app/useActions'
 import { InlineAdd, Segmented } from '../../shared/controls'
 import { MilestoneChip, Panel, PanelHeader, StatusIcon } from '../../shared/ui'
 import { play } from '../../sound/sounds'
-import { stampLabel } from '../../domain/dates'
+import { stampLabel, weekdayLabel } from '../../domain/dates'
+import { parseDue } from '../../domain/naturalDate'
 
 type FileAs = 'task' | 'page' | 'project'
 
@@ -30,10 +31,45 @@ interface Destination {
   icon?: string | null
 }
 
-export function UnsortedView({ entries, items, actions }: { entries: UnsortedEntry[]; items: Item[]; actions: Actions }) {
+export function UnsortedView({
+  entries,
+  items,
+  actions,
+}: {
+  entries: UnsortedEntry[]
+  items: Item[]
+  actions: Actions
+}) {
   // Which entry is open, by its text in the file (stable across reloads).
   const [openRaw, setOpenRaw] = useState<string | null>(null)
   const [fileAs, setFileAs] = useState<FileAs | null>(null)
+  // Several items at once: chosen by their text in the file, like `openRaw`.
+  const [picked, setPicked] = useState<Set<string>>(new Set())
+  const [bulkAs, setBulkAs] = useState<FileAs | null>(null)
+  const lastPicked = useRef<number | null>(null)
+  const chosen = entries.filter((e) => picked.has(e.raw))
+
+  /** Ticks or unticks an item; with Shift, everything between it and the last one ticked. */
+  const toggle = (index: number, shift: boolean) => {
+    // Read before it changes below: the updater runs later.
+    const anchor = lastPicked.current
+    setPicked((prev) => {
+      const next = new Set(prev)
+      const range = shift && anchor !== null ? [anchor, index].sort((a, b) => a - b) : [index, index]
+      const on = !prev.has(entries[index].raw)
+      for (let i = range[0]; i <= range[1]; i++) {
+        if (on) next.add(entries[i].raw)
+        else next.delete(entries[i].raw)
+      }
+      return next
+    })
+    lastPicked.current = index
+  }
+  const clearPicked = () => {
+    setPicked(new Set())
+    setBulkAs(null)
+    lastPicked.current = null
+  }
 
   const open = (entry: UnsortedEntry | undefined) => {
     setOpenRaw(entry?.raw ?? null)
@@ -43,7 +79,10 @@ export function UnsortedView({ entries, items, actions }: { entries: UnsortedEnt
   const file = async (entry: UnsortedEntry, kind: FileAs, destination: Destination) => {
     const index = entries.findIndex((e) => e.raw === entry.raw)
     const next = entries[index + 1]
-    const id = await actions.fileEntry(entry, kind, { id: destination.id, title: destination.name })
+    const id = await actions.fileEntry(entry, kind, {
+      id: destination.id,
+      title: destination.name,
+    })
     // Keep going with the next item, keeping the same "Create as" choice.
     if (id !== undefined) {
       setOpenRaw(next?.raw ?? null)
@@ -71,6 +110,82 @@ export function UnsortedView({ entries, items, actions }: { entries: UnsortedEnt
             className="h-10 border-border! px-3 text-[13.5px]"
           />
 
+          {chosen.length > 0 && (
+            <section
+              aria-label="Sort the chosen items"
+              className="flex flex-col gap-3 rounded-[10px] border border-border-strong bg-field p-3"
+            >
+              <div className="flex items-center gap-2.5">
+                <span className="text-[12.5px] text-fg" aria-live="polite">
+                  {chosen.length} chosen
+                </span>
+                <button
+                  onClick={() => setPicked(new Set(entries.map((e) => e.raw)))}
+                  className="text-[12.5px] text-fg-3 underline-offset-2 hover:text-fg-2 hover:underline"
+                >
+                  Choose all {entries.length}
+                </button>
+                <span className="flex-1" />
+                <span className="text-[12.5px] text-fg-3">Create as</span>
+                <Segmented<FileAs>
+                  label="Create the chosen items as"
+                  value={bulkAs}
+                  onChange={(kind) => {
+                    play('select', {
+                      pitch: { task: 0.92, page: 1, project: 1.1 }[kind],
+                    })
+                    setBulkAs(kind)
+                  }}
+                  options={[
+                    {
+                      value: 'task',
+                      label: 'Task',
+                      icon: <StatusIcon status="todo" size={13} />,
+                    },
+                    {
+                      value: 'page',
+                      label: 'Page',
+                      icon: <FileText size={13} strokeWidth={2} aria-hidden="true" />,
+                    },
+                    {
+                      value: 'project',
+                      label: 'Project',
+                      icon: <Target size={13} strokeWidth={2} aria-hidden="true" />,
+                    },
+                  ]}
+                />
+                <button
+                  onClick={() => {
+                    for (const entry of chosen) void actions.removeEntry(entry)
+                    clearPicked()
+                  }}
+                  aria-label="Delete the chosen items"
+                  title="Delete"
+                  className="flex rounded-md p-1.5 text-fg-3 transition-colors duration-100 hover:bg-hover hover:text-danger"
+                >
+                  <Trash2 size={15} strokeWidth={1.75} aria-hidden="true" />
+                </button>
+                <button
+                  onClick={clearPicked}
+                  className="rounded-control px-2 py-1 text-[12.5px] text-fg-2 transition-colors duration-100 hover:bg-hover hover:text-fg"
+                >
+                  Clear
+                </button>
+              </div>
+              {bulkAs && (
+                <DestinationPicker
+                  key={bulkAs}
+                  fileAs={bulkAs}
+                  items={items}
+                  onPick={(d) => {
+                    void actions.fileEntries(chosen, bulkAs, { id: d.id, title: d.name }).then(() => clearPicked())
+                  }}
+                  onCancel={() => setBulkAs(null)}
+                />
+              )}
+            </section>
+          )}
+
           {entries.length === 0 ? (
             <p className="px-3 text-fg-3">Nothing unsorted</p>
           ) : (
@@ -78,79 +193,120 @@ export function UnsortedView({ entries, items, actions }: { entries: UnsortedEnt
               {/* A filed item slides off to the right while its height closes,
                   which pulls the rest of the list up into its place. */}
               <AnimatePresence initial={false}>
-              {entries.map((entry) => {
-                const isOpen = entry.raw === openRaw
-                return (
-                  <motion.li
-                    key={entry.raw}
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: 'auto', x: 0 }}
-                    exit={{ opacity: 0, x: 40, height: 0, marginTop: -4 }}
-                    transition={spring.smooth}
-                    className={`flex flex-col overflow-hidden rounded-[10px] border transition-colors duration-100 ${
-                      isOpen ? 'border-border-strong bg-field' : 'border-transparent'
-                    }`}
-                  >
-                    <button
-                      onClick={() => open(isOpen ? undefined : entry)}
-                      aria-expanded={isOpen}
-                      className={`flex h-10 items-center gap-2.5 px-3 text-left transition-colors duration-100 ${
-                        isOpen ? '' : 'rounded-[10px] hover:bg-hover'
+                {entries.map((entry, index) => {
+                  const isOpen = entry.raw === openRaw
+                  return (
+                    <motion.li
+                      key={entry.raw}
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto', x: 0 }}
+                      exit={{ opacity: 0, x: 40, height: 0, marginTop: -4 }}
+                      transition={spring.smooth}
+                      className={`flex flex-col overflow-hidden rounded-[10px] border transition-colors duration-100 ${
+                        isOpen ? 'border-border-strong bg-field' : 'border-transparent'
                       }`}
                     >
-                      <span aria-hidden="true" className="size-1.5 shrink-0 rounded-full bg-fg-3" />
-                      <span className="flex-1 truncate text-[14px]">{entry.text}</span>
-                      {entry.added && <span className="text-meta font-normal text-fg-3">{stampLabel(entry.added)}</span>}
-                    </button>
-
-                    <Collapse open={isOpen}>
-                      <div className="flex flex-col gap-3 pr-3 pb-3 pl-7">
-                        <div className="flex items-center gap-2.5">
-                          <span className="text-[12.5px] text-fg-3">Create as</span>
-                          <Segmented<FileAs>
-                            label="Create as"
-                            value={fileAs}
-                            onChange={(kind) => {
-                              // Task, Page, Project: each a step higher.
-                              play('select', { pitch: { task: 0.92, page: 1, project: 1.1 }[kind] })
-                              setFileAs(kind)
-                            }}
-                            options={[
-                              { value: 'task', label: 'Task', icon: <StatusIcon status="todo" size={13} /> },
-                              { value: 'page', label: 'Page', icon: <FileText size={13} strokeWidth={2} aria-hidden="true" /> },
-                              { value: 'project', label: 'Project', icon: <Target size={13} strokeWidth={2} aria-hidden="true" /> },
-                            ]}
-                          />
-                          <span className="flex-1" />
-                          <button
-                            onClick={() => void actions.removeEntry(entry)}
-                            aria-label="Delete"
-                            title="Delete"
-                            className="flex rounded-md p-1.5 text-fg-3 transition-colors duration-100 hover:bg-hover hover:text-danger"
-                          >
-                            <Trash2 size={15} strokeWidth={1.75} aria-hidden="true" />
-                          </button>
-                        </div>
-                        {fileAs && (
-                          <DestinationPicker
-                            key={fileAs}
-                            fileAs={fileAs}
-                            items={items}
-                            onPick={(d) => void file(entry, fileAs, d)}
-                            onCancel={() => open(undefined)}
-                          />
-                        )}
+                      <div className="flex items-center">
+                        <input
+                          type="checkbox"
+                          checked={picked.has(entry.raw)}
+                          readOnly
+                          onClick={(e) => toggle(index, e.shiftKey)}
+                          aria-label={`Choose ${entry.text}`}
+                          className="ml-3 size-3.5 shrink-0 accent-accent"
+                        />
+                        <button
+                          onClick={() => open(isOpen ? undefined : entry)}
+                          aria-expanded={isOpen}
+                          className={`flex h-10 min-w-0 flex-1 items-center gap-2.5 px-2.5 text-left transition-colors duration-100 ${
+                            isOpen ? '' : 'rounded-[10px] hover:bg-hover'
+                          }`}
+                        >
+                          <span className="flex-1 truncate text-[14px]">{entry.text}</span>
+                          <DueHint text={entry.text} />
+                          {entry.added && (
+                            <span className="text-meta font-normal text-fg-3">{stampLabel(entry.added)}</span>
+                          )}
+                        </button>
                       </div>
-                    </Collapse>
-                  </motion.li>
-                )
-              })}
+
+                      <Collapse open={isOpen}>
+                        <div className="flex flex-col gap-3 pr-3 pb-3 pl-7">
+                          <div className="flex items-center gap-2.5">
+                            <span className="text-[12.5px] text-fg-3">Create as</span>
+                            <Segmented<FileAs>
+                              label="Create as"
+                              value={fileAs}
+                              onChange={(kind) => {
+                                // Task, Page, Project: each a step higher.
+                                play('select', {
+                                  pitch: { task: 0.92, page: 1, project: 1.1 }[kind],
+                                })
+                                setFileAs(kind)
+                              }}
+                              options={[
+                                {
+                                  value: 'task',
+                                  label: 'Task',
+                                  icon: <StatusIcon status="todo" size={13} />,
+                                },
+                                {
+                                  value: 'page',
+                                  label: 'Page',
+                                  icon: <FileText size={13} strokeWidth={2} aria-hidden="true" />,
+                                },
+                                {
+                                  value: 'project',
+                                  label: 'Project',
+                                  icon: <Target size={13} strokeWidth={2} aria-hidden="true" />,
+                                },
+                              ]}
+                            />
+                            <span className="flex-1" />
+                            <button
+                              onClick={() => void actions.removeEntry(entry)}
+                              aria-label="Delete"
+                              title="Delete"
+                              className="flex rounded-md p-1.5 text-fg-3 transition-colors duration-100 hover:bg-hover hover:text-danger"
+                            >
+                              <Trash2 size={15} strokeWidth={1.75} aria-hidden="true" />
+                            </button>
+                          </div>
+                          {fileAs && (
+                            <DestinationPicker
+                              key={fileAs}
+                              fileAs={fileAs}
+                              items={items}
+                              onPick={(d) => void file(entry, fileAs, d)}
+                              onCancel={() => open(undefined)}
+                            />
+                          )}
+                        </div>
+                      </Collapse>
+                    </motion.li>
+                  )
+                })}
               </AnimatePresence>
             </ul>
           )}
         </div>
       </div>
     </Panel>
+  )
+}
+
+/** "Due Fri, Oct 23": what filing "call Bob friday" as a task will do with the date. */
+function DueHint({ text }: { text: string }) {
+  const { due } = parseDue(text)
+  if (!due) return null
+  return (
+    <span
+      className="flex shrink-0 items-center gap-1 text-meta font-normal text-fg-3"
+      title="Becomes the due date when this is filed as a task"
+    >
+      <Calendar size={12} strokeWidth={2} aria-hidden="true" />
+      {weekdayLabel(due)}
+    </span>
   )
 }
 
@@ -216,7 +372,12 @@ function DestinationPicker({
         </label>
       </div>
 
-      <div id={listId} role="listbox" aria-label={TITLES[fileAs]} className="-ml-1.5 flex max-h-[232px] flex-col gap-px overflow-y-auto">
+      <div
+        id={listId}
+        role="listbox"
+        aria-label={TITLES[fileAs]}
+        className="-ml-1.5 flex max-h-[232px] flex-col gap-px overflow-y-auto"
+      >
         {shown.length === 0 && (
           <p className="px-2 py-1.5 text-[12.5px] text-fg-3">
             {all.length === 0 ? emptyMessage(fileAs) : 'No matches'}
@@ -244,7 +405,12 @@ function DestinationPicker({
 }
 
 function DestinationLabel({ destination: d }: { destination: Destination }): ReactNode {
-  const iconProps = { size: 14, strokeWidth: 1.75, 'aria-hidden': true, className: 'shrink-0 text-fg-2' } as const
+  const iconProps = {
+    size: 14,
+    strokeWidth: 1.75,
+    'aria-hidden': true,
+    className: 'shrink-0 text-fg-2',
+  } as const
   if (d.kind === 'milestone') return <MilestoneChip title={d.name} color={d.color ?? null} />
   const Icon = { project: Target, page: FileText, area: Folder, task: Target }[d.kind]
   return (
@@ -267,7 +433,12 @@ function destinations(items: Item[], fileAs: FileAs): Destination[] {
   if (fileAs === 'project') {
     return areas.map((a) => {
       const n = childrenOf(items, a.id).length
-      return { id: a.id, name: a.title, context: n === 1 ? '1 project' : `${n} projects`, kind: 'area' }
+      return {
+        id: a.id,
+        name: a.title,
+        context: n === 1 ? '1 project' : `${n} projects`,
+        kind: 'area',
+      }
     })
   }
   if (fileAs === 'task') {
@@ -277,11 +448,22 @@ function destinations(items: Item[], fileAs: FileAs): Destination[] {
         if (project.status === 'done' || project.status === 'dropped') continue
         const milestones = childrenOf(items, project.id).filter((c) => c.kind === 'milestone')
         if (milestones.length === 0) {
-          out.push({ id: project.id, name: project.title, context: area.title, kind: 'project' })
+          out.push({
+            id: project.id,
+            name: project.title,
+            context: area.title,
+            kind: 'project',
+          })
         }
         for (const m of milestones) {
           if (m.status === 'done') continue
-          out.push({ id: m.id, name: m.title, context: project.title, kind: 'milestone', color: m.color })
+          out.push({
+            id: m.id,
+            name: m.title,
+            context: project.title,
+            kind: 'milestone',
+            color: m.color,
+          })
         }
       }
     }
@@ -293,7 +475,13 @@ function destinations(items: Item[], fileAs: FileAs): Destination[] {
   const out: Destination[] = []
   const pagesOf = (parent: Item) => {
     for (const page of childrenOf(items, parent.id, true)) {
-      out.push({ id: page.id, name: page.title, context: parent.title, kind: 'page', icon: page.icon })
+      out.push({
+        id: page.id,
+        name: page.title,
+        context: parent.title,
+        kind: 'page',
+        icon: page.icon,
+      })
       pagesOf(page)
     }
   }
@@ -301,7 +489,12 @@ function destinations(items: Item[], fileAs: FileAs): Destination[] {
     out.push({ id: area.id, name: area.title, context: 'Area', kind: 'area' })
     pagesOf(area)
     for (const project of childrenOf(items, area.id)) {
-      out.push({ id: project.id, name: project.title, context: area.title, kind: 'project' })
+      out.push({
+        id: project.id,
+        name: project.title,
+        context: area.title,
+        kind: 'project',
+      })
       pagesOf(project)
     }
   }

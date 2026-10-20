@@ -39,4 +39,20 @@ describe('IssuesView', () => {
     await userEvent.click(button)
     expect(revealPath).toHaveBeenCalledWith('areas/Home/Notes.md')
   })
+
+  it('Open goes to the item an issue belongs to, and is left out when there is none', async () => {
+    const onOpen = vi.fn()
+    render(
+      <IssuesView
+        issues={[
+          issue({ type: 'conflictCopy', name: 'Pick tile (from other computer)', itemId: 'abc' } as Partial<Issue>),
+          issue({ itemId: null }),
+        ]}
+        onOpen={onOpen}
+      />,
+    )
+    expect(screen.getAllByRole('button', { name: /^Open/ })).toHaveLength(1)
+    await userEvent.click(screen.getByRole('button', { name: /Open Pick tile/ }))
+    expect(onOpen).toHaveBeenCalledWith('abc')
+  })
 })
