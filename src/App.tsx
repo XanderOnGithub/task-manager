@@ -1,6 +1,7 @@
 // The app shell: sidebar on the window's vibrancy, solid panels on the right.
 // Layout follows the design canvas linked in CLAUDE.md.
 
+import { useSyncOnFocus } from './lib/useSync'
 import { useCallback, useEffect, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import { spring } from './lib/motion'
@@ -54,6 +55,7 @@ const SIDEBAR_WIDTH = 244
 
 export default function App() {
   const { snapshot, error, needsFolder, byId, loads, reload } = useLibrary()
+  useSyncOnFocus()
   const actions = useActions(reload, snapshot?.items ?? [])
   const trash = useTrash(snapshot, loads)
   useLaunchCheck()

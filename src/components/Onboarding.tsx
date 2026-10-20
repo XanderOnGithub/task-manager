@@ -8,17 +8,19 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import { Check, FileText, FolderOpen, Layers, Target, type LucideIcon } from 'lucide-react'
-import { startDataFolder, suggestedDataFolder } from '../lib/api'
+import { startDataFolder, suggestedDataFolder, syncConnect, type GithubRepo } from '../lib/api'
 import { pickFolder } from '../lib/folders'
 import { spring } from '../lib/motion'
 import { isMac, keys } from '../lib/platform'
 import { useToast } from '../lib/toast'
+import { useSync } from '../lib/useSync'
 import { MossWordmark } from './Brand'
+import { ExistingRepo, SignIn } from './SyncSettings'
 
 type Choice = { kind: 'suggested' } | { kind: 'other'; path: string }
 
 export function Onboarding({ onDone }: { onDone: () => Promise<void> }) {
-  const [step, setStep] = useState<1 | 2>(1)
+  const [step, setStep] = useState<1 | 2 | 3>(1)
   return (
     // The whole window is a drag handle, like the sidebar's top row.
     <div data-tauri-drag-region className={`flex h-full items-center justify-center p-6 ${isMac ? 'bg-window' : 'bg-window-solid'}`}>
@@ -32,9 +34,13 @@ export function Onboarding({ onDone }: { onDone: () => Promise<void> }) {
             <motion.div key="welcome" {...slide(-1)} className="flex flex-col gap-6 p-8">
               <Welcome onNext={() => setStep(2)} />
             </motion.div>
-          ) : (
+          ) : step === 2 ? (
             <motion.div key="folder" {...slide(1)} className="flex flex-col gap-5 p-8">
-              <FolderStep onBack={() => setStep(1)} onDone={onDone} />
+              <FolderStep onBack={() => setStep(1)} onGithub={() => setStep(3)} onDone={onDone} />
+            </motion.div>
+          ) : (
+            <motion.div key="github" {...slide(1)} className="flex flex-col gap-5 p-8">
+              <GithubStep onBack={() => setStep(2)} onDone={onDone} />
             </motion.div>
           )}
         </AnimatePresence>
@@ -92,7 +98,7 @@ function Idea({ Icon, title, children }: { Icon: LucideIcon; title: string; chil
   )
 }
 
-function FolderStep({ onBack, onDone }: { onBack: () => void; onDone: () => Promise<void> }) {
+function FolderStep({ onBack, onGithub, onDone }: { onBack: () => void; onGithub: () => void; onDone: () => Promise<void> }) {
   const [suggested, setSuggested] = useState<{ path: string; display: string } | null>(null)
   const [choice, setChoice] = useState<Choice>({ kind: 'suggested' })
   const [example, setExample] = useState(true)
@@ -195,9 +201,59 @@ function FolderStep({ onBack, onDone }: { onBack: () => void; onDone: () => Prom
         >
           Back
         </button>
+        <button
+          onClick={onGithub}
+          className="flex h-8 items-center rounded-row px-3 text-fg-2 transition-colors duration-100 hover:bg-hover hover:text-fg"
+        >
+          Get files from GitHub
+        </button>
         <PrimaryButton onClick={() => void start()} disabled={!path || busy}>
           {busy ? 'Opening' : 'Start'}
         </PrimaryButton>
+      </div>
+    </>
+  )
+}
+
+/**
+ * Starting on a new computer: sign in to GitHub and pick the repository that
+ * holds your files. They are fetched into Documents/Moss and kept in sync.
+ */
+function GithubStep({ onBack, onDone }: { onBack: () => void; onDone: () => Promise<void> }) {
+  const { info } = useSync()
+  const toast = useToast()
+
+  const use = async (repo: GithubRepo) => {
+    try {
+      const folder = await suggestedDataFolder()
+      await startDataFolder(folder.path, false)
+      await syncConnect(repo)
+      await onDone()
+    } catch (e) {
+      toast({ message: String(e), tone: 'error' })
+    }
+  }
+
+  return (
+    <>
+      <div className="flex flex-col gap-1.5">
+        <h1 className="text-heading">Get your files from GitHub</h1>
+        <p className="text-fg-3">Choose the repository that holds your Moss files. They are copied into Documents.</p>
+      </div>
+      {!info ? null : !info.gitAvailable ? (
+        <p className="text-fg-3">Install Git to use sync. Moss uses the Git on this computer.</p>
+      ) : info.username ? (
+        <ExistingRepo onUse={use} />
+      ) : (
+        <SignIn available={info.loginAvailable} />
+      )}
+      <div className="flex items-center">
+        <button
+          onClick={onBack}
+          className="flex h-8 items-center rounded-row px-3 text-fg-2 transition-colors duration-100 hover:bg-hover hover:text-fg"
+        >
+          Back
+        </button>
       </div>
     </>
   )
@@ -272,16 +328,16 @@ function PrimaryButton({
 }
 
 /** Which step you're on: two small dots, the current one sage and wider. */
-function Dots({ step }: { step: 1 | 2 }) {
+function Dots({ step }: { step: 1 | 2 | 3 }) {
   return (
     <div aria-hidden="true" className="flex justify-center gap-1.5 pb-5">
       {[1, 2].map((n) => (
         <motion.span
           key={n}
           initial={false}
-          animate={{ width: n === step ? 16 : 6 }}
+          animate={{ width: n === Math.min(step, 2) ? 16 : 6 }}
           transition={spring.smooth}
-          className={`h-1.5 rounded-full transition-colors duration-150 ${n === step ? 'bg-accent' : 'bg-track'}`}
+          className={`h-1.5 rounded-full transition-colors duration-150 ${n === Math.min(step, 2) ? 'bg-accent' : 'bg-track'}`}
         />
       ))}
     </div>

@@ -40,7 +40,7 @@ brand/          the Moss mark (icon.svg), the moss° wordmarks (wordmark.py draw
 ## Branches and releases
 
 Moss is in alpha (`"stage": "alpha"` in package.json; Settings shows "Alpha 0.1.0").
-- Never commit to `main` directly. Work happens on `feature/…`, `fix/…` or `refactor/…` branches, each merged by pull request into the current release branch (now `release/alpha-0.1.4`).
+- Never commit to `main` directly. Work happens on `feature/…`, `fix/…` or `refactor/…` branches, each merged by pull request into the current release branch (now `release/alpha-0.1.6`).
 - When the release branch is ready, a pull request from it into `main` ships it. `.github/workflows/release.yml` runs on every push to `main`: if the version in `src-tauri/tauri.conf.json` isn't released yet, it builds macOS (Apple silicon + Intel), Windows (installers + a portable .exe) and Linux installers and publishes "Moss alpha X.Y.Z" with notes from the PRs. Otherwise it does nothing.
 - Next version: branch `release/alpha-0.2` from `main` and bump `version` in tauri.conf.json, package.json and both Cargo.toml files on it.
 - In-app updates: `tauri-plugin-updater` reads `latest.json` from the newest GitHub release (`src/lib/updates.ts`; checks a few seconds after launch in real builds, "Update to X" in the sidebar, "Check for updates" in Settings). Update files are signed: the private key lives only in the repo secrets `TAURI_SIGNING_PRIVATE_KEY` + `_PASSWORD`, the public key in `tauri.conf.json` → `plugins.updater.pubkey`. Never commit the private key. Lose it and installed copies can't update any more.
@@ -152,6 +152,18 @@ data/
 M1 file format + Rust core + 10k-file benchmark → M2 app shell + tokens → M3 Unsorted (start using the app here) → M4 hierarchy lists → M5 drag and drop + Board → M6 notes editor (plain text + preview first). v1 is only Unsorted, the hierarchy and notes. Budget: a few weekends.
 
 Status: M1–M6 are built (core, shell, Unsorted flow, create / edit / delete with Undo, Settings, motion pass, drag and drop, rich text editor), plus area and milestone pages with List/Board and a release workflow. Branding done (Moss). Sidebar hides with ⌘\; trash older than 30 days is emptied on open. Sounds (tunable, plus optional typing sounds), ⌘K search and commands, editor toolbar and "/" blocks are in. Navigation is one tree (areas → projects → pages) with Tasks and Pages overviews. Next: use it daily and fix what bugs you.
+
+## Git sync (branch `feature/git-sync`)
+
+Settings → Sync (`SyncSettings.tsx`): sign in with GitHub, create a repository or use an existing one, then see status (Sync now, Pause, Stop syncing, Sign out).
+- Core: `core/src/git.rs` shells out to the installed `git` (no Git library; without it: "Install Git to use sync."). `core/src/github.rs` does the GitHub side over HTTPS (`ureq`): device-flow sign-in, list repos, create repo. Tests: `core/tests/sync.rs` (two folders + a bare repo standing in for GitHub).
+- Sign-in is GitHub's device flow: the UI shows a code and opens github.com/login/device. It needs the public client id of an OAuth app with device flow turned on, passed at build time as `MOSS_GITHUB_CLIENT_ID` (repository variable in release.yml). Without it the button is disabled. The token lives in the system keychain (`keyring`), never in a file; Git gets it per command through env vars, never in the remote URL.
+- `src-tauri/src/sync.rs` is the glue and a background thread: commits a minute after the last change ("Moss: 4 changes"), pulls on launch, when the window regains focus and every 5 minutes, pushes after a commit, commits on quit. Pulled files reach the UI through `data-changed`.
+- `.gitattributes` gets `unsorted.md merge=union`; `.gitignore` gets `.trash/`. The watcher ignores `.git/`.
+- A real conflict keeps this computer's version and saves the other as "Title (from other computer).md" (no `id:`, so it gets a fresh one). `_index.md` conflicts keep ours with no copy.
+- First launch: the folder step has "Get files from GitHub" (`GithubStep` in `Onboarding.tsx`): sign in, pick a repository, it is fetched into Documents/Moss and synced.
+- Sidebar: `SyncRow` (Sidebar.tsx) shows "Synced 2 min ago" / Syncing / Paused / Sync failed above Settings while this folder syncs.
+- Not done yet: listing conflict copies as Issues, GitHub Enterprise.
 
 ## Backlog (after v1)
 

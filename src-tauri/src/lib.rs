@@ -12,6 +12,7 @@
 //! `load_library` again.
 
 mod high_refresh;
+mod sync;
 
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -27,17 +28,19 @@ use task_core::watch::{self, Watcher};
 use task_core::{example, fix, fsutil, migrate, ops, search, Issue, Item, Kind, Library};
 
 /// Name of the event sent to the UI when files change outside the app.
-const DATA_CHANGED: &str = "data-changed";
+pub(crate) const DATA_CHANGED: &str = "data-changed";
 
 /// Everything the app keeps in memory between commands.
-struct AppState {
+pub(crate) struct AppState {
     /// Where `settings.json` lives (the app's config folder).
-    settings_file: PathBuf,
-    data: Mutex<Data>,
+    pub(crate) settings_file: PathBuf,
+    pub(crate) data: Mutex<Data>,
+    /// Git sync status. See sync.rs.
+    pub(crate) sync: sync::Runtime,
 }
 
 #[derive(Default)]
-struct Data {
+pub(crate) struct Data {
     /// The data folder you picked.
     root: Option<PathBuf>,
     /// Cached library. `None` means "load it next time it's needed".
@@ -47,6 +50,9 @@ struct Data {
     /// When a command last wrote files. The watcher sees those writes too, a
     /// moment later; this lets it tell them apart from outside changes.
     last_write: Option<Instant>,
+    /// When anything in the folder last changed, by us or from outside. Git
+    /// sync waits for a quiet minute after this before committing.
+    last_activity: Option<Instant>,
 }
 
 /// How long after one of our own writes the watcher treats changes as ours.
@@ -65,6 +71,8 @@ struct Settings {
     data_folder: Option<PathBuf>,
     /// Experimental 120fps drawing on macOS. See high_refresh.rs.
     high_refresh: bool,
+    /// Git sync for the data folder, once set up. See sync.rs.
+    sync: Option<sync::Config>,
 }
 
 /// What the Settings screen shows for the 120fps switch.
@@ -94,7 +102,7 @@ struct Trashed {
 }
 
 /// Commands return `Result<T, String>`: the string is shown to you as-is.
-type CmdResult<T> = Result<T, String>;
+pub(crate) type CmdResult<T> = Result<T, String>;
 
 // ---------------------------------------------------------------------------
 // Data folder
@@ -403,6 +411,7 @@ fn write<T>(state: &State<'_, AppState>, f: impl FnOnce(&Library) -> task_core::
     let mut data = lock(state)?;
     data.library = None;
     data.last_write = Some(Instant::now());
+    data.last_activity = data.last_write;
     result
 }
 
@@ -432,6 +441,7 @@ fn open_folder(app: &AppHandle, data: &mut Data, root: PathBuf) {
     let handle = app.clone();
     match watch::watch(&root, move |paths| {
         if let Ok(mut data) = handle.state::<AppState>().data.lock() {
+            data.last_activity = Some(Instant::now());
             // Our own save, seen a moment later: the UI already reloaded right
             // after the command, so a second reload would only redo that work.
             if data.last_write.is_some_and(|at| at.elapsed() < OWN_WRITE_WINDOW) {
@@ -449,7 +459,7 @@ fn open_folder(app: &AppHandle, data: &mut Data, root: PathBuf) {
     data.root = Some(root);
 }
 
-fn load_settings(path: &Path) -> Settings {
+pub(crate) fn load_settings(path: &Path) -> Settings {
     fs::read_to_string(path)
         .ok()
         .and_then(|text| serde_json::from_str(&text).ok())
@@ -483,7 +493,7 @@ fn bring_over_old_settings(new_file: &Path) {
     }
 }
 
-fn save_settings(path: &Path, settings: &Settings) -> std::io::Result<()> {
+pub(crate) fn save_settings(path: &Path, settings: &Settings) -> std::io::Result<()> {
     if let Some(dir) = path.parent() {
         fs::create_dir_all(dir)?;
     }
@@ -567,6 +577,7 @@ pub fn run() {
             app.manage(AppState {
                 settings_file,
                 data: Mutex::new(Data::default()),
+                sync: sync::Runtime::default(),
             });
 
             // Turn on 120fps before you start using the window, then reload so
@@ -593,6 +604,7 @@ pub fn run() {
                 let mut data = state.data.lock().expect("not poisoned at startup");
                 open_folder(&handle, &mut data, root);
             }
+            sync::start(&handle);
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -621,7 +633,24 @@ pub fn run() {
             restore_unsorted,
             get_high_refresh,
             set_high_refresh,
+            sync::sync_state,
+            sync::github_login_start,
+            sync::github_login_poll,
+            sync::github_logout,
+            sync::github_repos,
+            sync::github_create_repo,
+            sync::sync_connect,
+            sync::sync_now,
+            sync::sync_nudge,
+            sync::sync_set_paused,
+            sync::sync_disconnect,
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running the app");
+        .build(tauri::generate_context!())
+        .expect("error while building the app")
+        .run(|app, event| {
+            // Leave nothing uncommitted when Moss closes (see sync.rs).
+            if let tauri::RunEvent::ExitRequested { .. } = event {
+                sync::on_exit(app);
+            }
+        });
 }

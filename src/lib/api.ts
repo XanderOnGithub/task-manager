@@ -172,3 +172,61 @@ export interface HighRefresh {
 }
 export const getHighRefresh = () => invoke<HighRefresh>('get_high_refresh')
 export const setHighRefresh = (enabled: boolean) => invoke<void>('set_high_refresh', { enabled })
+
+// ---------------------------------------------------------------------------
+// Git sync (src-tauri/src/sync.rs)
+// ---------------------------------------------------------------------------
+
+export interface SyncInfo {
+  gitAvailable: boolean
+  /** False in builds made without a GitHub OAuth app. */
+  loginAvailable: boolean
+  /** The signed-in GitHub username. */
+  username: string | null
+  /** "owner/name", when this data folder syncs. */
+  repo: string | null
+  paused: boolean
+  syncing: boolean
+  /** Milliseconds since 1970. */
+  lastSynced: number | null
+  error: string | null
+  /** Files not committed yet. */
+  pending: number
+}
+
+/** The code you type on GitHub to approve Moss. */
+export interface DeviceCode {
+  deviceCode: string
+  userCode: string
+  verificationUri: string
+  /** Seconds between checks. */
+  interval: number
+  /** Seconds until the code stops working. */
+  expiresIn: number
+}
+
+export interface GithubRepo {
+  fullName: string
+  private: boolean
+  defaultBranch: string
+  cloneUrl: string
+  /** Nothing has been pushed to it yet. */
+  empty: boolean
+}
+
+export const syncState = () => invoke<SyncInfo>('sync_state')
+export const githubLoginStart = () => invoke<DeviceCode>('github_login_start')
+export const githubLoginPoll = (deviceCode: string) =>
+  invoke<'waiting' | 'slow_down' | 'done'>('github_login_poll', { deviceCode })
+export const githubLogout = () => invoke<void>('github_logout')
+export const githubRepos = () => invoke<GithubRepo[]>('github_repos')
+export const githubCreateRepo = (name: string, isPrivate: boolean) =>
+  invoke<GithubRepo>('github_create_repo', { name, private: isPrivate })
+export const syncConnect = (repo: GithubRepo) => invoke<void>('sync_connect', { repo })
+export const syncNow = () => invoke<void>('sync_now')
+export const syncNudge = () => invoke<void>('sync_nudge')
+export const syncSetPaused = (paused: boolean) => invoke<void>('sync_set_paused', { paused })
+export const syncDisconnect = () => invoke<void>('sync_disconnect')
+
+/** Runs `callback` whenever the sync status changes. */
+export const onSyncChanged = (callback: () => void): Promise<UnlistenFn> => listen('sync-changed', () => callback())

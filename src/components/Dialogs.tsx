@@ -16,6 +16,7 @@ import { isMac, keys } from '../lib/platform'
 import { LANES, OPTIONAL, useOptionalLanes } from '../lib/lanes'
 import { Menu, Modal, Segmented, Switch } from './controls'
 import { StatusIcon } from './ui'
+import { SyncTab } from './SyncSettings'
 import {
   play,
   playRelease,
@@ -65,7 +66,7 @@ export function Settings({
   onFolderChanged: () => Promise<void>
 }) {
   const [theme, setTheme] = useTheme()
-  const [tab, setTab] = useState<'general' | 'sounds'>('general')
+  const [tab, setTab] = useState<'general' | 'sync' | 'sounds'>('general')
   const toast = useToast()
 
   const change = async () => {
@@ -84,13 +85,14 @@ export function Settings({
     <Modal label="Settings" onClose={onClose} width="w-[520px]">
       <div className="flex items-center gap-3 px-5 pt-5">
         <h2 className="flex-1 text-heading">Settings</h2>
-        <Segmented<'general' | 'sounds'>
+        <Segmented<'general' | 'sync' | 'sounds'>
           label="Settings section"
           size="sm"
           value={tab}
           onChange={setTab}
           options={[
             { value: 'general', label: 'General' },
+            { value: 'sync', label: 'Sync' },
             { value: 'sounds', label: 'Sounds' },
           ]}
         />
@@ -99,6 +101,10 @@ export function Settings({
         {tab === 'sounds' ? (
           <motion.div key="sounds" {...tabMotion(1)}>
             <SoundsTab />
+          </motion.div>
+        ) : tab === 'sync' ? (
+          <motion.div key="sync" {...tabMotion(1)}>
+            <SyncTab />
           </motion.div>
         ) : (
           <motion.div key="general" {...tabMotion(-1)} className="flex max-h-[62vh] flex-col gap-5 overflow-y-auto p-5">
