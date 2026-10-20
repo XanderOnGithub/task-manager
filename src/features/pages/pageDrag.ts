@@ -1,6 +1,6 @@
 // Dragging pages in the sidebar tree: the drop zones and the move they make.
-// The rows are in components/PageTree.tsx; the sidebar's one DndContext is in
-// components/AreaTree.tsx.
+// The rows are in features/pages/PageTree.tsx; the sidebar's one DndContext is in
+// features/navigation/AreaTree.tsx.
 
 import { createContext, useState } from 'react'
 import {

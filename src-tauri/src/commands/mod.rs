@@ -1,6 +1,6 @@
 //! Every command the UI can call, one file per job. Each is a thin wrapper:
 //! find the data folder, call into `task-core`, turn errors into plain strings.
-//! The matching TypeScript wrappers are in `src/lib/api.ts`; keep them in sync.
+//! The matching TypeScript wrappers are in `src/platform/api.ts`; keep them in sync.
 //! The list the app registers is in `../lib.rs`.
 
 pub mod body;

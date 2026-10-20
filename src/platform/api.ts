@@ -1,4 +1,4 @@
-// Typed wrappers around the Rust commands in src-tauri/src/lib.rs.
+// Typed wrappers around the Rust commands in src-tauri/src/commands/ and sync/.
 //
 // Components call these instead of `invoke` directly, so a typo in a command
 // name is a TypeScript error instead of a runtime one. If you change a command

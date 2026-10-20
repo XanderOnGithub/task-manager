@@ -1,5 +1,5 @@
 // Drag and drop setup (dnd-kit), shared by the list, board and sidebar.
-// The dragged item's look and swing live in components/Lifted.tsx.
+// The dragged item's look and swing live in shared/drag/Lifted.tsx.
 //
 // The feel:
 // - Picking something up lifts it: it scales up a touch and its shadow deepens.

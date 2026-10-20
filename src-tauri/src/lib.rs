@@ -1,7 +1,7 @@
 //! The desktop app: the bridge between the UI and `task-core`.
 //!
 //! Each `#[tauri::command]` function can be called from TypeScript with
-//! `invoke("command_name", { ...args })` (see `src/lib/api.ts`). The commands
+//! `invoke("command_name", { ...args })` (see `src/platform/api.ts`). The commands
 //! are thin: they find the data folder, call into `task-core`, and turn errors
 //! into plain strings the UI can show.
 //!

@@ -11,7 +11,7 @@ export default defineConfig({
   define: { __APP_STAGE__: JSON.stringify(pkg.stage ?? '') },
   clearScreen: false,
   // `pnpm test`: the plain-logic tests (lib/*.test.ts) and component tests
-  // (components/**/*.test.tsx). Components run in jsdom, a browser stand-in.
+  // (next to the component, *.test.tsx). Components run in jsdom, a browser stand-in.
   test: {
     environment: 'jsdom',
     include: ['src/**/*.test.{ts,tsx}'],

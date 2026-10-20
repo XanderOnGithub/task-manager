@@ -26,7 +26,7 @@ function Shot({ name, cam, speed = 1, keys = false, enter = false }: { name: str
 }
 
 // ---------------------------------------------------------------------------
-// The wordmark, drawn stroke by stroke (same drawing as src/components/Brand.tsx).
+// The wordmark, drawn stroke by stroke (same drawing as src/shared/Brand.tsx).
 // ---------------------------------------------------------------------------
 
 function Wordmark({ start = 0, width = 760 }: { start?: number; width?: number }) {

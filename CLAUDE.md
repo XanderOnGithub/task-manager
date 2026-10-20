@@ -98,7 +98,7 @@ Moss is in alpha (`"stage": "alpha"` in package.json; Settings shows "Alpha 0.1.
 - Shortcut labels: always `keys('N')` from `platform/os.ts` ("⌘N" on a Mac, "Ctrl+N" elsewhere), never a literal ⌘.
 - Toasts: `useToast()`; ⌘Z runs the visible toast's Undo. ⌘N opens Quick capture. ⌘\ hides the sidebar (remembered via `platform/prefs.ts`).
 - Search: `CommandPalette.tsx` (⌘K). Items by title (matched in the UI), actions (go to, Light mode / Dark mode / Toggle dark mode / Match system mode, sounds, sidebar, plus typed: add to Unsorted, new task in the open project, new page in the open area or project), and text matches from `core/src/search.rs` via `search_text`.
-- Editor menus: `components/editor/` (selection toolbar, "/" block menu with /page). `/page` creates a subpage and writes a relative link `[Name](Name.md)`; clicking it opens the page.
+- Editor menus: `features/editor/` (selection toolbar, "/" block menu with /page). `/page` creates a subpage and writes a relative link `[Name](Name.md)`; clicking it opens the page.
 - Dragging pages in the sidebar: drop zones on a page are top quarter = above, middle = subpage, bottom quarter = below; dropping on an area or project row moves the page there.
 
 ## Motion
