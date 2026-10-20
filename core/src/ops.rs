@@ -30,6 +30,28 @@ use crate::trash;
 /// A page's parent is an area, a project or another page. `body` is the text
 /// under the frontmatter (often empty).
 pub fn create(lib: &Library, kind: Kind, parent: Option<&str>, title: &str, body: &str) -> Result<String> {
+    create_with_due(lib, kind, parent, title, body, None)
+}
+
+/// Like `create`, for a task that is due on `due` (`YYYY-MM-DD`) from the start.
+/// (The library in memory doesn't know about the new file, so the date goes into
+/// the file as it is written rather than being set afterwards.)
+pub fn create_with_due(
+    lib: &Library,
+    kind: Kind,
+    parent: Option<&str>,
+    title: &str,
+    body: &str,
+    due: Option<&str>,
+) -> Result<String> {
+    if let Some(due) = due {
+        if kind != Kind::Task || !is_date(due) {
+            return Err(Error::InvalidValue {
+                field: "due".to_owned(),
+                value: due.to_owned(),
+            });
+        }
+    }
     check_title(title)?;
     check_reserved(kind, title)?;
 
@@ -58,6 +80,7 @@ pub fn create(lib: &Library, kind: Kind, parent: Option<&str>, title: &str, body
     }
     fm.set("order", Some(&next_order(&siblings)));
     fm.set("created", Some(&fsutil::today()));
+    fm.set("due", due);
     if kind == Kind::Milestone {
         fm.set("color", Some(least_used_color(&siblings)));
     }

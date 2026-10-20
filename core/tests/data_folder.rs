@@ -1137,3 +1137,52 @@ fn a_copy_saved_by_git_sync_is_listed_as_an_issue_you_can_open() {
         "Written on the other computer"
     );
 }
+
+#[test]
+fn filing_an_entry_with_a_date_sets_the_due_date_and_keeps_what_was_typed() {
+    let (_dir, root) = sample();
+    let lib = load(&root);
+    let path = root.join("unsorted.md");
+    let mut text = fs::read_to_string(&path).unwrap();
+    text.push_str("- 2026-10-19 10:00 call Bob friday\n");
+    fs::write(&path, text).unwrap();
+    let entry = unsorted::read(&lib)
+        .unwrap()
+        .into_iter()
+        .find(|e| e.text == "call Bob friday")
+        .unwrap();
+    let bath = by_title(&lib, "Redo the bathroom").id.clone();
+
+    let options = unsorted::FileOptions {
+        text: Some("call Bob".into()),
+        due: Some("2026-10-23".into()),
+    };
+    let id = unsorted::file_with(&lib, &entry, Kind::Task, Some(&bath), &options).unwrap();
+
+    let lib = load(&root);
+    let task = lib.get(&id).unwrap();
+    assert_eq!(task.title, "call Bob");
+    assert_eq!(task.due.as_deref(), Some("2026-10-23"));
+    // The words as typed are kept in the body, so nothing is lost.
+    assert_eq!(ops::read_body(&lib, &id).unwrap().trim(), "call Bob friday");
+    assert!(unsorted::read(&lib)
+        .unwrap()
+        .iter()
+        .all(|e| e.text != "call Bob friday"));
+
+    // A date only means something for a task.
+    let entry = unsorted::add(&lib, "plan the trip friday", "2026-10-19 10:05").unwrap();
+    let lib = load(&root);
+    let id = unsorted::file_with(
+        &lib,
+        &entry,
+        Kind::Page,
+        Some(&bath),
+        &unsorted::FileOptions {
+            text: Some("plan the trip".into()),
+            due: Some("2026-10-23".into()),
+        },
+    )
+    .unwrap();
+    assert_eq!(load(&root).get(&id).unwrap().due, None);
+}
