@@ -1010,3 +1010,99 @@ fn names_windows_cant_store_are_refused_for_new_items_and_flagged_for_old_ones()
     assert!(lib.get("WHYNOT0001").is_some(), "still loads");
     assert!(lib.issues.iter().any(|i| matches!(i, Issue::NotPortable { .. })));
 }
+
+// ---------------------------------------------------------------------------
+// Repeating tasks
+// ---------------------------------------------------------------------------
+
+fn date(text: &str) -> chrono::NaiveDate {
+    chrono::NaiveDate::parse_from_str(text, "%Y-%m-%d").unwrap()
+}
+
+#[test]
+fn a_repeating_task_comes_back_instead_of_staying_done() {
+    let (_dir, root) = sample();
+    let lib = load(&root);
+    ops::set_field(&lib, "TSKTILE001", "repeat", Some("Every 1 week")).unwrap();
+    ops::set_field(&lib, "TSKTILE001", "due", Some("2026-10-20")).unwrap();
+    let lib = load(&root);
+    let tile = lib.get("TSKTILE001").unwrap();
+    assert_eq!(
+        tile.repeat.as_deref(),
+        Some("weekly"),
+        "stored in its canonical words"
+    );
+
+    // Finishing it on the day it's due: Todo again, due a week later.
+    let next = ops::set_status(&lib, "TSKTILE001", "done", date("2026-10-20")).unwrap();
+    assert_eq!(next.as_deref(), Some("2026-10-27"));
+    let lib = load(&root);
+    let tile = lib.get("TSKTILE001").unwrap();
+    assert_eq!(
+        (tile.status.as_deref(), tile.due.as_deref()),
+        (Some("todo"), Some("2026-10-27"))
+    );
+    assert!(fs::read_to_string(root.join(tile.meta_path()))
+        .unwrap()
+        .contains("repeat: weekly"));
+
+    // Finished late: back on the schedule, after today.
+    let next = ops::set_status(&lib, "TSKTILE001", "done", date("2026-11-10")).unwrap();
+    assert_eq!(next.as_deref(), Some("2026-11-17"));
+
+    // Other statuses are plain changes.
+    let lib = load(&root);
+    assert_eq!(
+        ops::set_status(&lib, "TSKTILE001", "doing", date("2026-11-10")).unwrap(),
+        None
+    );
+    assert_eq!(
+        load(&root).get("TSKTILE001").unwrap().status.as_deref(),
+        Some("doing")
+    );
+}
+
+#[test]
+fn finishing_a_task_that_does_not_repeat_works_as_before() {
+    let (_dir, root) = sample();
+    let lib = load(&root);
+    assert_eq!(
+        ops::set_status(&lib, "TSKTILE001", "done", date("2026-10-20")).unwrap(),
+        None
+    );
+    assert_eq!(
+        load(&root).get("TSKTILE001").unwrap().status.as_deref(),
+        Some("done")
+    );
+}
+
+#[test]
+fn repeat_is_checked_and_belongs_to_tasks() {
+    let (_dir, root) = sample();
+    let lib = load(&root);
+    assert!(matches!(
+        ops::set_field(&lib, "TSKTILE001", "repeat", Some("sometimes")),
+        Err(Error::InvalidValue { .. })
+    ));
+    let home = by_title(&lib, "Home").id.clone();
+    assert!(
+        ops::set_field(&lib, &home, "repeat", Some("weekly")).is_err(),
+        "an area can't repeat"
+    );
+    ops::set_field(&lib, "TSKTILE001", "repeat", Some("daily")).unwrap();
+    ops::set_field(&lib, "TSKTILE001", "repeat", None).unwrap();
+    assert_eq!(load(&root).get("TSKTILE001").unwrap().repeat, None);
+
+    // A value written by hand that isn't a repeat is an Issue, and ignored.
+    let path = root.join(load(&root).get("TSKTILE001").unwrap().meta_path());
+    let text = fs::read_to_string(&path)
+        .unwrap()
+        .replacen("---\n", "---\nrepeat: whenever\n", 1);
+    fs::write(&path, text).unwrap();
+    let lib = load(&root);
+    assert_eq!(lib.get("TSKTILE001").unwrap().repeat, None);
+    assert!(lib
+        .issues
+        .iter()
+        .any(|i| matches!(i, Issue::InvalidValue { field, .. } if field == "repeat")));
+}

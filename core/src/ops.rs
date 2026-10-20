@@ -9,6 +9,8 @@
 //! Ids live inside the files, so renaming or moving a file never changes its id.
 
 use std::fs;
+
+use chrono::NaiveDate;
 use std::path::Path;
 
 use crate::error::{Error, Result};
@@ -19,6 +21,7 @@ use crate::library::{has_pages, is_date, Library, AREAS_DIR, INDEX_FILE, PAGES_D
 use crate::model::{is_icon, Item, Kind, MILESTONE_COLORS};
 use crate::names::check_title;
 use crate::order;
+use crate::repeat::Repeat;
 use crate::trash;
 
 /// Creates a new item and returns its id.
@@ -166,7 +169,7 @@ pub fn move_item(lib: &Library, id: &str, new_parent: Option<&str>, before: Opti
     Ok(())
 }
 
-/// Changes one field: `status`, `due` or `color`. `None` clears it.
+/// Changes one field: `status`, `due`, `color`, `icon` or `repeat`. `None` clears it.
 pub fn set_field(lib: &Library, id: &str, field: &str, value: Option<&str>) -> Result<()> {
     let item = find(lib, id)?;
     let invalid = || Error::InvalidValue {
@@ -183,12 +186,44 @@ pub fn set_field(lib: &Library, id: &str, field: &str, value: Option<&str>) -> R
         ("color", None) => item.kind == Kind::Milestone,
         ("icon", Some(v)) => item.kind == Kind::Page && is_icon(v),
         ("icon", None) => item.kind == Kind::Page,
+        ("repeat", Some(v)) => item.kind == Kind::Task && Repeat::parse(v).is_some(),
+        ("repeat", None) => item.kind == Kind::Task,
         _ => return Err(Error::NotAllowed(format!("\"{field}\" can't be changed here"))),
     };
     if !ok {
         return Err(invalid());
     }
+    // Stored in its canonical words ("every 1 week" is written "weekly").
+    let canonical = (field == "repeat")
+        .then(|| value.and_then(Repeat::parse))
+        .flatten()
+        .map(|r| r.text());
+    let value = canonical.as_deref().or(value);
     update_frontmatter(&lib.abs(&item.meta_path()), |fm| fm.set(field, value))
+}
+
+/// Changes a task's status. Finishing a repeating task doesn't leave it done:
+/// it goes back to Todo with its due date moved to the next time it is due
+/// (see `repeat.rs`), and the new date is returned so the app can say so.
+/// Anything else is `set_field("status", ...)` and returns `None`.
+pub fn set_status(lib: &Library, id: &str, status: &str, today: NaiveDate) -> Result<Option<String>> {
+    let item = find(lib, id)?;
+    let repeat = item.repeat.as_deref().and_then(Repeat::parse);
+    match (status, repeat) {
+        ("done", Some(repeat)) if item.kind == Kind::Task => {
+            let due = item
+                .due
+                .as_deref()
+                .and_then(|d| NaiveDate::parse_from_str(d, "%Y-%m-%d").ok());
+            let next = repeat.next_due(due, today).format("%Y-%m-%d").to_string();
+            update_frontmatter(&lib.abs(&item.meta_path()), |fm| {
+                fm.set("status", Some("todo"));
+                fm.set("due", Some(&next));
+            })?;
+            Ok(Some(next))
+        }
+        _ => set_field(lib, id, "status", Some(status)).map(|()| None),
+    }
 }
 
 /// Reads an item's body: the text under the frontmatter.

@@ -82,6 +82,7 @@ pub fn run() {
             commands::items::rename_item,
             commands::items::move_item,
             commands::items::set_field,
+            commands::items::set_status,
             commands::body::read_body,
             commands::body::search_text,
             commands::body::write_body,

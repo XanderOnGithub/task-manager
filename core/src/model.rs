@@ -115,6 +115,8 @@ pub struct Item {
     pub color: Option<String>,
     /// Pages only: an emoji shown next to the title (`icon: 🌿`).
     pub icon: Option<String>,
+    /// Tasks only: how often it comes back (`repeat: weekly`, see `repeat.rs`).
+    pub repeat: Option<String>,
 }
 
 impl Item {

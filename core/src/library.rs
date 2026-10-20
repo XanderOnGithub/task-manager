@@ -34,6 +34,7 @@ use crate::issues::Issue;
 use crate::model::{is_icon, Item, Kind, MILESTONE_COLORS};
 use crate::names;
 use crate::order;
+use crate::repeat::Repeat;
 
 /// Folder names inside the data folder.
 pub const AREAS_DIR: &str = "areas";
@@ -319,6 +320,11 @@ impl Library {
         } else {
             None
         };
+        let repeat = if kind == Kind::Task {
+            check("repeat", &|v| Repeat::parse(v).is_some())
+        } else {
+            None
+        };
         let icon = if kind == Kind::Page {
             check("icon", &is_icon)
         } else {
@@ -339,6 +345,7 @@ impl Library {
             due,
             color,
             icon,
+            repeat,
         });
         id
     }
