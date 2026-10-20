@@ -1,6 +1,6 @@
 [package]
 name = "task-core"
-version = "0.1.8"
+version = "0.1.9"
 edition = "2021"
 description = "Reads, validates and writes the task app's plain-markdown data folder."
 publish = false

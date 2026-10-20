@@ -225,10 +225,21 @@ pub fn write_body(lib: &Library, id: &str, body: &str) -> Result<()> {
 pub fn trash(lib: &Library, id: &str) -> Result<String> {
     let item = find(lib, id)?;
     let name = item.path.rsplit('/').next().expect("paths have a name");
-    let stamp = chrono::Local::now().format("%Y%m%d-%H%M%S");
-    let trash_rel = format!(".trash/{stamp}-{name}");
-
     fs::create_dir_all(lib.abs(".trash"))?;
+
+    // Two things with the same name (say "Tile.md" in two projects) deleted in
+    // the same second would get the same trash name, and renaming a file onto
+    // an existing one replaces it. So if the name is taken, count on to the
+    // next second until a free one turns up. The name still reads as a time.
+    let mut time = chrono::Local::now();
+    let trash_rel = loop {
+        let candidate = format!(".trash/{}-{name}", time.format("%Y%m%d-%H%M%S"));
+        if !lib.abs(&candidate).exists() {
+            break candidate;
+        }
+        time += chrono::Duration::seconds(1);
+    };
+
     fs::rename(lib.abs(&item.path), lib.abs(&trash_rel))?;
     trash::note_origin(&lib.root, &trash_rel, &item.path)?;
     remove_if_empty_pages_folder(lib, &item.path);
@@ -243,6 +254,16 @@ pub fn trash(lib: &Library, id: &str) -> Result<String> {
 /// refused until the project is restored. The one exception is a `Pages`
 /// folder, which is just made again.
 pub fn restore(lib: &Library, trash_rel: &str, original_rel: &str) -> Result<()> {
+    // Both paths come from the front end: keep them inside the data folder,
+    // and only take things out of the trash.
+    fsutil::check_inside(trash_rel)?;
+    fsutil::check_inside(original_rel)?;
+    if !trash_rel.starts_with(".trash/") || original_rel.starts_with(".trash/") {
+        return Err(Error::NotAllowed("That isn't in the trash".into()));
+    }
+    if !lib.abs(trash_rel).exists() {
+        return Err(Error::NotFound(trash_rel.to_owned()));
+    }
     let target = lib.abs(original_rel);
     if target.exists() {
         let name = original_rel.rsplit('/').next().unwrap_or(original_rel);

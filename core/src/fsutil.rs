@@ -20,6 +20,27 @@ pub fn write_atomic(path: &Path, contents: &str) -> io::Result<()> {
     fs::rename(&temp, path)
 }
 
+/// Checks that `rel` is a path inside the data folder: relative, with `/`
+/// separators and no `..`, `.` or empty parts. Paths come from the front end
+/// (and ultimately from files someone else may have edited), so anything that
+/// joins one onto the data folder checks it first.
+pub fn check_inside(rel: &str) -> std::result::Result<(), crate::error::Error> {
+    let ok = !rel.is_empty()
+        && !rel.starts_with('/')
+        && !rel.contains('\\')
+        && !rel.contains(':')
+        && rel
+            .split('/')
+            .all(|part| !part.is_empty() && part != "." && part != "..");
+    if ok {
+        Ok(())
+    } else {
+        Err(crate::error::Error::NotAllowed(
+            "That isn't inside the data folder".into(),
+        ))
+    }
+}
+
 /// True if `dir` already has a file or folder with this title, ignoring case.
 ///
 /// Case is ignored because macOS treats "Sink.md" and "sink.md" as the same
@@ -51,4 +72,32 @@ pub fn today() -> String {
 /// The current time as `YYYY-MM-DD HH:MM`, used in `unsorted.md`.
 pub fn now_stamp() -> String {
     Local::now().format("%Y-%m-%d %H:%M").to_string()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn only_paths_inside_the_data_folder_pass() {
+        for ok in [
+            "areas/Home",
+            "areas/Home/Sink.md",
+            ".trash/20261016-223512-Sink.md",
+        ] {
+            assert!(check_inside(ok).is_ok(), "{ok}");
+        }
+        for bad in [
+            "",
+            "/etc/passwd",
+            "../x",
+            "areas/../../x",
+            "areas//Home",
+            "./areas",
+            "a\\b",
+            "C:/x",
+        ] {
+            assert!(check_inside(bad).is_err(), "{bad}");
+        }
+    }
 }
