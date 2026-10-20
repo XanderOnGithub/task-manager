@@ -44,17 +44,31 @@ export interface Item {
   icon: string | null
 }
 
-/** Something odd found in the data folder. Fixable ones are fixed automatically on load. */
-export type Issue =
+/** What kind of problem, and where. */
+export type IssueKind =
   | { type: 'missingId'; path: string; id: string }
   | { type: 'duplicateId'; path: string; id: string }
   | { type: 'missingIndex'; path: string; id: string; kind: Kind }
   | { type: 'unclosedFrontmatter'; path: string }
   | { type: 'invalidValue'; path: string; field: string; value: string }
   | { type: 'invalidName'; path: string }
+  | { type: 'notPortable'; path: string; reason: string }
   | { type: 'mixedChildren'; path: string }
   | { type: 'strayFile'; path: string }
   | { type: 'tooDeep'; path: string }
+
+/**
+ * Something odd found in the data folder. Fixable ones are fixed automatically
+ * on load; the rest are listed in the Issues view. The wording comes from the
+ * Rust side (core/src/issues.rs) so it is written once.
+ */
+export type Issue = IssueKind & {
+  /** What is wrong, one line. */
+  message: string
+  fixable: boolean
+  /** What it is about: the file or folder name, without ".md". */
+  name: string
+}
 
 /** One line of unsorted.md. Pass it back unchanged to file or remove it. */
 export interface UnsortedEntry {
@@ -129,6 +143,8 @@ export const deleteForever = (path: string) => invoke<void>('delete_forever', { 
 export const emptyTrash = () => invoke<number>('empty_trash')
 export const revealInFinder = (id: string) => invoke<void>('reveal_in_finder', { id })
 export const itemPath = (id: string) => invoke<string>('item_path', { id })
+/** Shows a file or folder by its path inside the data folder (for Issues, whose items may not have loaded). */
+export const revealPath = (path: string) => invoke<void>('reveal_path', { path })
 
 export const addUnsorted = (text: string) => invoke<UnsortedEntry>('add_unsorted', { text })
 export const fileUnsorted = (entry: UnsortedEntry, kind: Kind, parent: string | null) =>

@@ -92,6 +92,7 @@ pub fn run() {
             commands::trash::empty_trash,
             commands::reveal::reveal_in_finder,
             commands::reveal::item_path,
+            commands::reveal::reveal_path,
             commands::unsorted::add_unsorted,
             commands::unsorted::file_unsorted,
             commands::unsorted::remove_unsorted,

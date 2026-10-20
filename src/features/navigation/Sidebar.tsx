@@ -8,7 +8,7 @@
 import { useState, type ReactNode } from 'react'
 import { motion } from 'motion/react'
 import { spring } from '../../shared/motion/springs'
-import { AlertCircle, ArrowDownToLine, Cloud, FileText, Layers, ListChecks, PanelLeft, Pause, Plus, RefreshCw, Settings, Trash2, type LucideIcon } from 'lucide-react'
+import { AlertCircle, CircleAlert, ArrowDownToLine, Cloud, FileText, Layers, ListChecks, PanelLeft, Pause, Plus, RefreshCw, Settings, Trash2, type LucideIcon } from 'lucide-react'
 import { installUpdate, useUpdates } from '../../platform/updates'
 import { ago, useSync } from '../sync/useSync'
 import type { Item } from '../../platform/api'
@@ -20,13 +20,15 @@ import { MossWordmark } from '../../shared/Brand'
 import { SectionLabel } from '../../shared/ui'
 
 /** The overviews at the top of the sidebar. */
-export type Overview = 'unsorted' | 'tasks' | 'pages' | 'trash'
+export type Overview = 'unsorted' | 'tasks' | 'pages' | 'trash' | 'issues'
 
 interface Props {
   items: Item[]
   unsortedCount: number
   /** Things in the trash; the Trash row shows above Settings while there are any. */
   trashCount: number
+  /** Problems found in the data folder; the Issues row shows while there are any. */
+  issueCount: number
   /** The open overview, or null when an area, project or page is open. */
   overview: Overview | null
   onOverview: (overview: Overview) => void
@@ -121,6 +123,12 @@ export function Sidebar(props: Props) {
       <div className="mt-auto flex flex-col gap-0.5">
         <UpdateRow />
         <SyncRow onClick={props.onSettings} />
+        {props.issueCount > 0 && (
+          <NavItem Icon={CircleAlert} active={overview === 'issues'} onClick={() => onOverview('issues')}>
+            Issues
+            <span className="ml-auto text-label font-normal text-fg-3">{props.issueCount}</span>
+          </NavItem>
+        )}
         <NavItem Icon={Trash2} active={overview === 'trash'} onClick={() => onOverview('trash')}>
           Trash
           {props.trashCount > 0 && <span className="ml-auto text-label font-normal text-fg-3">{props.trashCount}</span>}

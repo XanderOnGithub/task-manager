@@ -18,6 +18,7 @@ import {
   FilePlus,
   Flag,
   Target,
+  CircleAlert,
   FileText,
   Layers,
   ListChecks,
@@ -42,6 +43,7 @@ import { DetailsPanel } from './features/tasks/DetailsPanel'
 import { UnsortedView } from './features/capture/Unsorted'
 import { PagesOverview, PageView } from './features/pages/Pages'
 import { TrashView } from './features/trash/Trash'
+import { IssuesView } from './features/issues/Issues'
 import { useTrash } from './features/trash/useTrash'
 import { useRowKeys } from './features/navigation/rowKeys'
 import { useLaunchCheck } from './platform/updates'
@@ -52,7 +54,13 @@ import { Onboarding } from './features/onboarding/Onboarding'
 import { Panel } from './shared/ui'
 
 /** What each overview is called in the window title. */
-const OVERVIEW_TITLES: Record<Overview, string> = { unsorted: 'Unsorted', tasks: 'Tasks', pages: 'Pages', trash: 'Trash' }
+const OVERVIEW_TITLES: Record<Overview, string> = {
+  unsorted: 'Unsorted',
+  tasks: 'Tasks',
+  pages: 'Pages',
+  trash: 'Trash',
+  issues: 'Issues',
+}
 
 /** Matches --spacing-sidebar in tokens.css. */
 const SIDEBAR_WIDTH = 244
@@ -183,6 +191,9 @@ export default function App() {
     { id: 'unsorted', label: 'Go to Unsorted', Icon: Layers, keywords: 'inbox', run: () => openOverview('unsorted') },
     { id: 'tasks', label: 'Go to Tasks', Icon: ListChecks, keywords: 'projects all board', run: () => openOverview('tasks') },
     { id: 'pages', label: 'Go to Pages', Icon: FileText, keywords: 'docs notes all', run: () => openOverview('pages') },
+    ...(snapshot?.issues.length
+      ? [{ id: 'issues', label: 'Go to Issues', Icon: CircleAlert, keywords: 'problems errors files', run: () => openOverview('issues') }]
+      : []),
     {
       id: 'sidebar',
       label: sidebarOpen ? 'Hide sidebar' : 'Show sidebar',
@@ -324,6 +335,7 @@ export default function App() {
     }
     if (overview === 'unsorted') return <UnsortedView entries={snapshot.unsorted} items={items} actions={actions} />
     if (overview === 'trash') return <TrashView entries={trash} actions={actions} />
+    if (overview === 'issues') return <IssuesView issues={snapshot.issues} />
     if (overview === 'pages') return <PagesOverview items={items} onOpen={openId} actions={actions} />
     if (open?.kind === 'page') return <PageView key={open.id} items={items} page={open} onOpen={openId} actions={actions} />
     return (
@@ -402,6 +414,7 @@ export default function App() {
           items={items}
           unsortedCount={snapshot?.unsorted.length ?? 0}
           trashCount={trash.length}
+          issueCount={snapshot?.issues.length ?? 0}
           overview={overview}
           onOverview={openOverview}
           openId={sidebarOpenId}

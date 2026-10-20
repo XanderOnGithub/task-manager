@@ -2,6 +2,8 @@
 
 use tauri::State;
 
+use task_core::fsutil::check_inside;
+
 use crate::state::{read, AppState, CmdResult};
 
 /// Shows the item's file or folder in Finder.
@@ -20,4 +22,20 @@ pub async fn item_path(state: State<'_, AppState>, id: String) -> CmdResult<Stri
             .ok_or_else(|| task_core::Error::NotFound(id.clone()))?;
         Ok(lib.abs(&item.path).display().to_string())
     })
+}
+
+/// Shows a file or folder by its path inside the data folder (the Issues view
+/// knows paths, not ids: the item may not have loaded at all).
+#[tauri::command]
+pub async fn reveal_path(state: State<'_, AppState>, path: String) -> CmdResult<()> {
+    let full = read(&state, |lib| {
+        check_inside(&path)?;
+        let full = lib.abs(&path);
+        if full.exists() {
+            Ok(full)
+        } else {
+            Err(task_core::Error::NotFound(path.clone()))
+        }
+    })?;
+    tauri_plugin_opener::reveal_item_in_dir(full).map_err(|e| e.to_string())
 }

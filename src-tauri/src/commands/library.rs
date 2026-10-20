@@ -4,7 +4,7 @@ use serde::Serialize;
 use tauri::State;
 
 use task_core::unsorted::{self, Entry};
-use task_core::{fix, fsutil, Issue, Item, Library};
+use task_core::{fix, fsutil, IssueView, Item, Library};
 
 use crate::state::{AppState, CmdResult};
 
@@ -14,7 +14,7 @@ use crate::state::{AppState, CmdResult};
 pub struct Snapshot {
     data_folder: String,
     items: Vec<Item>,
-    issues: Vec<Issue>,
+    issues: Vec<IssueView>,
     unsorted: Vec<Entry>,
 }
 
@@ -39,7 +39,7 @@ pub async fn load_library(state: State<'_, AppState>) -> CmdResult<Snapshot> {
     let snapshot = Snapshot {
         data_folder: root.display().to_string(),
         items: library.items.clone(),
-        issues: library.issues.clone(),
+        issues: library.issues.iter().map(IssueView::from).collect(),
         unsorted: entries,
     };
     data.library = Some(library);
