@@ -7,6 +7,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { getDataFolder, loadLibrary, onDataChanged, type Item, type Snapshot } from './api'
+import { notifyBodyChanges } from './bodyChanges'
 import { shareSnapshot } from './share'
 
 export interface Library {
@@ -48,7 +49,11 @@ export function useLibrary(): Library {
 
   useEffect(() => {
     void reload()
-    const stop = onDataChanged(() => void reload())
+    const stop = onDataChanged((paths) => {
+      // An open page re-reads its text if its own file is among the changes.
+      notifyBodyChanges(paths)
+      void reload()
+    })
     return () => {
       void stop.then((unlisten) => unlisten())
     }

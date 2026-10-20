@@ -1,4 +1,4 @@
-import { defineConfig } from 'vite'
+import { defineConfig } from 'vitest/config'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import pkg from './package.json' with { type: 'json' }
@@ -10,6 +10,13 @@ export default defineConfig({
   // The release stage ("alpha") from package.json, shown next to the version in Settings.
   define: { __APP_STAGE__: JSON.stringify(pkg.stage ?? '') },
   clearScreen: false,
+  // `pnpm test`: the plain-logic tests (lib/*.test.ts) and component tests
+  // (components/**/*.test.tsx). Components run in jsdom, a browser stand-in.
+  test: {
+    environment: 'jsdom',
+    include: ['src/**/*.test.{ts,tsx}'],
+    restoreMocks: true,
+  },
   server: {
     port: 1420,
     strictPort: true,

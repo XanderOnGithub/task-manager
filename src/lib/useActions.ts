@@ -109,7 +109,14 @@ export function useActions(reload: () => Promise<void>, items: Item[] = []) {
         return run(() => api.setField(item.id, 'icon', icon))
       },
 
-      writeBody: (item: Item, body: string) => run(() => api.writeBody(item.id, body)),
+      /**
+       * Saves an item's text. No reload afterwards: text isn't part of the
+       * library, so nothing on screen changes and the whole library needn't
+       * travel over again for every pause in typing. No error toast either:
+       * it rejects, and the editor keeps the text, retries and tells you once
+       * (see lib/saveQueue.ts).
+       */
+      writeBody: (item: Item, body: string) => api.writeBody(item.id, body),
 
       trash: async (item: Item) => {
         // Something with items inside asks first; a single task or empty

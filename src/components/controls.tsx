@@ -7,6 +7,8 @@ import { spring } from '../lib/motion'
 import { Ellipsis, Plus, X, type LucideIcon } from 'lucide-react'
 import type { Item } from '../lib/api'
 import { icon } from '../lib/items'
+import { metaPath, useBodyRevision } from '../lib/bodyChanges'
+import { useToast } from '../lib/toast'
 import { useBody } from '../lib/useBody'
 import type { TextStats } from './MarkdownEditor'
 
@@ -448,19 +450,37 @@ export function BodyEditor({
   /** Pages only: word and character counts as you type. */
   onStats?: (stats: TextStats) => void
 }) {
-  const body = useBody(item.id, item)
+  const toast = useToast()
+  // Reads the text again if its file changed outside the app (a sync, another editor).
+  const body = useBody(item.id, useBodyRevision(metaPath(item)))
   // Nothing until the text has loaded, so the editor never starts empty and
   // then jumps. One editor per item (the key), so undo history doesn't mix.
   const loading = <div className={className} aria-busy="true" />
-  if (body === null) return loading
+  if (body.status === 'loading') return loading
+  // A failed read is not an empty page: an empty editor would let the next
+  // edit replace the real text.
+  if (body.status === 'error') {
+    return (
+      <div role="alert" className={`flex flex-col items-start gap-2 text-meta font-normal text-fg-2 ${className}`}>
+        <span>Couldn't read this text. {body.message}</span>
+        <button
+          onClick={body.retry}
+          className="rounded-control bg-raised px-3 py-1 text-fg transition-colors duration-100 hover:bg-hover"
+        >
+          Try again
+        </button>
+      </div>
+    )
+  }
   return (
     <Suspense fallback={loading}>
       <MarkdownEditor
-      key={item.id}
-      value={body}
-      onSave={onSave}
-      placeholder={placeholder}
-      label={tone === 'muted' ? 'Description' : 'Page text'}
+        key={item.id}
+        value={body.body}
+        onSave={onSave}
+        onSaveError={(e) => toast({ message: `Couldn't save. Moss will keep trying. ${String(e)}`, tone: 'error' })}
+        placeholder={placeholder}
+        label={tone === 'muted' ? 'Description' : 'Page text'}
         className={`${tone === 'muted' ? 'text-fg-2' : 'text-fg'} ${className}`}
         onCreatePage={onCreatePage}
         onOpenPage={onOpenPage}

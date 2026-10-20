@@ -6,7 +6,8 @@
 // editor. Styles live in styles/editor.css.
 //
 // Saving: only after you actually change something (opening a page never
-// rewrites it), on blur, and after a short pause while typing.
+// rewrites it), on blur, and after a short pause while typing. The rules for
+// keeping unsaved text safe (retry, one write at a time) are in lib/saveQueue.ts.
 //
 // On top of that: select text for a small format toolbar, or type "/" for a
 // menu of blocks (headings, lists, checklists, dividers, tables, subpages).
@@ -65,6 +66,8 @@ import {
   type ToolbarState,
 } from './editor/EditorMenus'
 import { menuPlugin } from './editor/menuPlugin'
+import { normalize, toEditor } from '../lib/markdown'
+import { SaveQueue } from '../lib/saveQueue'
 import { exactShortcode, matchShortcodes } from './editor/emojiShortcodes'
 
 // Milkdown keeps empty paragraphs by writing `<br />` into the file. We'd
@@ -73,99 +76,6 @@ import { exactShortcode, matchShortcodes } from './editor/emojiShortcodes'
 // whose version turns a second break in a row into a new paragraph.
 const leftOut: MilkdownPlugin[] = [remarkPreserveEmptyLinePlugin, hardbreakKeymap].flat()
 const markdownBasics = commonmark.filter((plugin) => !leftOut.includes(plugin))
-
-/** How long typing has to pause before the page saves on its own. */
-const SAVE_AFTER_MS = 800
-
-/** A paragraph that only holds a non-breaking space, written as `&nbsp;`. */
-const SPACER = /^(&nbsp;|\u00a0)\s*$/
-
-/**
- * Tidy markdown before it goes to disk (outside code blocks, which stay exactly
- * as typed). Milkdown writes an empty paragraph as a `<br />` line, which only
- * adds noise to the file: drop those. Markdown from the editor (`fromEditor`)
- * also needs two fixes:
- * - Milkdown puts a blank line between every two blocks, empty paragraphs
- *   included, so n empty lines come out as 2n+1 blank lines in a row. Write
- *   n+1 instead: an empty line in the editor is one blank line more in the file.
- * - Drop the `&nbsp;` spacer lines the editor uses for extra blank lines (see
- *   `toEditor`), so the file keeps every blank line as a plain blank line.
- * End with one newline.
- */
-function normalize(markdown: string, fromEditor = false) {
-  const out: string[] = []
-  let inCode = false
-  let blanks = 0 // blank lines in a row, not yet written
-  const flush = () => {
-    const count = fromEditor && blanks > 1 ? Math.floor((blanks + 2) / 2) : blanks
-    for (let i = 0; i < count; i++) out.push('')
-    blanks = 0
-  }
-  for (const line of markdown.split('\n')) {
-    const fence = /^\s*(```|~~~)/.test(line)
-    if (inCode) {
-      out.push(line)
-      if (fence) inCode = false
-      continue
-    }
-    // A spacer is not a blank line: it ends the run of blanks around it.
-    if (fromEditor && SPACER.test(line)) {
-      flush()
-      continue
-    }
-    if (line.trim() === '') {
-      blanks++
-      continue
-    }
-    flush()
-    if (fence) {
-      inCode = true
-      out.push(line)
-      continue
-    }
-    if (line.trim() === '<br />') continue
-    // Table separator rows: Milkdown writes "| :---- | :- |" (left-aligned);
-    // plain dashes ("| ----- | --- |") read better and mean the same.
-    if (/^\|(\s*:-+\s*\|)+\s*$/.test(line)) {
-      out.push(line.replace(/:(-+)/g, (_, dashes: string) => `-${dashes.padEnd(2, '-')}`))
-      continue
-    }
-    out.push(line)
-  }
-  flush()
-  const text = out.join('\n').replace(/\s+$/, '')
-  return text ? `${text}\n` : ''
-}
-
-/**
- * Markdown folds several blank lines in a row into one paragraph break, so a
- * file with extra blank lines would lose them on load. For each extra blank
- * line, put an `&nbsp;` paragraph in its place: the editor shows an empty
- * line, and `normalize` turns it back into a plain blank line on save.
- * Outside code blocks, which stay exactly as typed.
- */
-function toEditor(markdown: string) {
-  const out: string[] = []
-  let inCode = false
-  let blanks = 0
-  for (const line of markdown.split('\n')) {
-    const fence = /^\s*(```|~~~)/.test(line)
-    if (!inCode && line.trim() === '') {
-      blanks++
-      continue
-    }
-    // Between two blocks: n blank lines show n-1 empty lines.
-    if (blanks > 0 && out.length > 0) {
-      out.push('')
-      for (let i = 1; i < blanks; i++) out.push('&nbsp;', '')
-    }
-    blanks = 0
-    out.push(line)
-    if (fence) inCode = !inCode
-  }
-  const text = out.join('\n')
-  return text ? `${text}\n` : ''
-}
 
 /** Word and character counts for the whole text, and for the selection if there is one. */
 export interface TextStats {
@@ -183,6 +93,7 @@ function countText(doc: EditorView['state']['doc'], from: number, to: number) {
 export function MarkdownEditor({
   value,
   onSave,
+  onSaveError,
   placeholder,
   label,
   className = '',
@@ -192,7 +103,10 @@ export function MarkdownEditor({
 }: {
   /** The saved markdown. Mount with `key={item.id}` so each item gets its own editor. */
   value: string
+  /** Writes the text. Must reject when it couldn't (the text is then kept and retried). */
   onSave: (markdown: string) => Promise<unknown> | void
+  /** Called once when saving starts failing, so the person can be told. */
+  onSaveError?: (error: unknown) => void
   placeholder: string
   label: string
   className?: string
@@ -205,12 +119,22 @@ export function MarkdownEditor({
 }) {
   const root = useRef<HTMLDivElement>(null)
   const editor = useRef<Editor | null>(null)
-  // The text on disk as far as we know, and the latest edit not yet saved.
-  const saved = useRef(normalize(value))
-  const pending = useRef<string | null>(null)
-  const timer = useRef(0)
+  // Saving is handled by the queue: it knows what is on disk, what is still
+  // waiting, and retries when a write fails.
   const save = useRef(onSave)
   save.current = onSave
+  const saveError = useRef(onSaveError)
+  saveError.current = onSaveError
+  const [queue] = useState(
+    () =>
+      new SaveQueue(
+        normalize(value),
+        async (text) => {
+          await save.current(text)
+        },
+        (error) => saveError.current?.(error),
+      ),
+  )
   const reportStats = useRef(onStats)
   reportStats.current = onStats
 
@@ -232,15 +156,6 @@ export function MarkdownEditor({
   // The key handler runs inside ProseMirror, so it reads the latest values here.
   const live = useRef({ slash, blocks, slashIndex, naming, colon, emojiMatches, colonIndex })
   live.current = { slash, blocks, slashIndex, naming, colon, emojiMatches, colonIndex }
-
-  const flush = () => {
-    window.clearTimeout(timer.current)
-    const text = pending.current
-    pending.current = null
-    if (text === null || text === saved.current) return
-    saved.current = text
-    void save.current(text)
-  }
 
   const bridge = useRef({
     update: (view: EditorView) => {
@@ -492,7 +407,7 @@ export function MarkdownEditor({
     const made = Editor.make()
       .config((ctx) => {
         ctx.set(rootCtx, el)
-        ctx.set(defaultValueCtx, toEditor(saved.current))
+        ctx.set(defaultValueCtx, toEditor(queue.saved))
         // "- item" rather than "* item", the more common style.
         ctx.update(remarkStringifyOptionsCtx, (prev) => ({ ...prev, bullet: '-' as const }))
         ctx.update(editorViewOptionsCtx, (prev) => ({
@@ -500,9 +415,7 @@ export function MarkdownEditor({
           attributes: { 'aria-label': label, 'data-placeholder': placeholder, spellcheck: 'true' },
         }))
         ctx.get(listenerCtx).markdownUpdated((_, markdown) => {
-          pending.current = normalize(markdown, true)
-          window.clearTimeout(timer.current)
-          timer.current = window.setTimeout(flush, SAVE_AFTER_MS)
+          queue.edit(normalize(markdown, true))
         })
       })
       .use(markdownBasics)
@@ -519,7 +432,8 @@ export function MarkdownEditor({
     })
     return () => {
       destroyed = true
-      flush()
+      void queue.flush()
+      queue.dispose()
       void editor.current?.destroy()
       editor.current = null
     }
@@ -528,13 +442,26 @@ export function MarkdownEditor({
   }, [])
 
   // The file changed somewhere else (another app, a sync). Take it, unless
-  // you're in the middle of editing.
+  // you're in the middle of editing: text that isn't saved yet wins, and is
+  // what gets saved next.
   useEffect(() => {
     const next = normalize(value)
-    if (next === saved.current || pending.current !== null) return
-    saved.current = next
+    if (queue.dirty || next === queue.saved) return
+    queue.adopt(next)
     editor.current?.action(replaceAll(toEditor(next)))
-  }, [value])
+  }, [value, queue])
+
+  // Closing or hiding the window: save what is waiting right now.
+  useEffect(() => {
+    const flushNow = () => void queue.flush()
+    const onHide = () => document.visibilityState === 'hidden' && flushNow()
+    window.addEventListener('beforeunload', flushNow)
+    document.addEventListener('visibilitychange', onHide)
+    return () => {
+      window.removeEventListener('beforeunload', flushNow)
+      document.removeEventListener('visibilitychange', onHide)
+    }
+  }, [queue])
 
   // Checklist boxes are drawn in CSS to the left of the text, so a click there
   // lands on the list item itself. Flip its checked state.
@@ -559,7 +486,7 @@ export function MarkdownEditor({
         onBlur={(e) => {
           // Moving into one of our own menus isn't leaving the editor.
           if (e.relatedTarget instanceof Element && e.relatedTarget.closest('[role="toolbar"], [role="listbox"], form')) return
-          flush()
+          void queue.flush()
           setToolbar(null)
           setTableBar(null)
           if (!live.current.naming) setSlash(null)
