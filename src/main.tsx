@@ -10,10 +10,10 @@ import '@fontsource/geist-mono/400.css'
 import './styles/app.css'
 import { MotionConfig, motion } from 'motion/react'
 import App from './App.tsx'
-import { spring } from './lib/motion'
-import { applyTheme } from './lib/theme'
-import { listenForTyping } from './lib/sounds'
-import { ToastProvider } from './components/Toasts'
+import { spring } from './shared/motion/springs'
+import { applyTheme } from './platform/theme'
+import { listenForTyping } from './sound/sounds'
+import { ToastProvider } from './shared/toast/Toasts'
 
 // Apply the saved theme before the first paint, so there's no flash.
 applyTheme()

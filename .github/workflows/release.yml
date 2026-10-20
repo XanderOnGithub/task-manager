@@ -144,7 +144,7 @@ jobs:
       # In-app updates: with the signing key in the repo's secrets, the build
       # also makes signed update files, and tauri-action uploads a latest.json
       # that lists them. The app reads that file to find new versions (see
-      # src/lib/updates.ts). Without the key, the release still builds, just
+      # src/platform/updates.ts). Without the key, the release still builds, just
       # without update files.
       - name: Turn on update files if the signing key is set
         shell: bash

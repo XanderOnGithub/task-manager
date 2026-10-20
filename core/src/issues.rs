@@ -30,6 +30,9 @@ pub enum Issue {
     },
     /// The file or folder name can't be a title (for example it contains ":").
     InvalidName { path: String },
+    /// The name works here but Windows can't store it (a "?" in it, say), so
+    /// syncing to a Windows computer would fail. Rename it.
+    NotPortable { path: String, reason: String },
     /// A project contains both milestone folders and task files.
     MixedChildren { path: String },
     /// A file is somewhere files aren't allowed, like directly inside an area.
@@ -57,6 +60,7 @@ impl Issue {
             | Issue::UnclosedFrontmatter { path }
             | Issue::InvalidValue { path, .. }
             | Issue::InvalidName { path }
+            | Issue::NotPortable { path, .. }
             | Issue::MixedChildren { path }
             | Issue::StrayFile { path }
             | Issue::TooDeep { path } => path,
@@ -74,11 +78,82 @@ impl Issue {
             Issue::UnclosedFrontmatter { .. } => "Details block at the top is never closed with ---".into(),
             Issue::InvalidValue { field, value, .. } => format!("\"{value}\" isn't a valid {field}"),
             Issue::InvalidName { .. } => "Name contains characters titles can't use".into(),
+            Issue::NotPortable { reason, .. } => format!("{reason}. Rename it to sync with Windows."),
             Issue::MixedChildren { .. } => {
                 "Project has both milestones and tasks. Move its tasks into a milestone.".into()
             }
             Issue::StrayFile { .. } => "File is in a place where only folders belong".into(),
             Issue::TooDeep { .. } => "Folder is nested too deep. Its contents aren't shown.".into(),
         }
+    }
+}
+
+/// An issue with everything the UI shows about it, so the wording lives in one
+/// place (`Issue::message`) and the front end doesn't repeat it.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct IssueView {
+    #[serde(flatten)]
+    pub issue: Issue,
+    /// What is wrong, one line.
+    pub message: String,
+    /// Moss repairs these itself while loading, so they rarely get this far.
+    pub fixable: bool,
+    /// What it is about, as a person would name it: the file or folder name
+    /// without `.md` (a folder's `_index.md` is named after the folder).
+    pub name: String,
+}
+
+impl From<&Issue> for IssueView {
+    fn from(issue: &Issue) -> Self {
+        let mut parts = issue.path().rsplit('/');
+        let last = parts.next().unwrap_or_default();
+        let name = if last == "_index.md" {
+            parts.next().unwrap_or(last)
+        } else {
+            last
+        };
+        IssueView {
+            issue: issue.clone(),
+            message: issue.message(),
+            fixable: issue.is_fixable(),
+            name: name.strip_suffix(".md").unwrap_or(name).to_owned(),
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn the_view_names_the_thing_and_carries_the_wording() {
+        let stray = Issue::StrayFile {
+            path: "areas/Home/Notes.md".into(),
+        };
+        let view = IssueView::from(&stray);
+        assert_eq!(view.name, "Notes");
+        assert!(!view.fixable);
+        assert_eq!(view.message, stray.message());
+
+        // A folder's own file is named after the folder.
+        let index = Issue::UnclosedFrontmatter {
+            path: "areas/Home/Renovate/_index.md".into(),
+        };
+        assert_eq!(IssueView::from(&index).name, "Renovate");
+    }
+
+    #[test]
+    fn the_json_has_the_kind_the_path_and_the_wording_side_by_side() {
+        let json = serde_json::to_value(IssueView::from(&Issue::NotPortable {
+            path: "areas/Why not?".into(),
+            reason: "Title can't contain \"?\" (Windows doesn't allow it)".into(),
+        }))
+        .unwrap();
+        assert_eq!(json["type"], "notPortable");
+        assert_eq!(json["path"], "areas/Why not?");
+        assert_eq!(json["name"], "Why not?");
+        assert!(json["message"].as_str().unwrap().contains("Rename it"));
+        assert_eq!(json["fixable"], false);
     }
 }

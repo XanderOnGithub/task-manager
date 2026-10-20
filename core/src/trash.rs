@@ -97,7 +97,8 @@ pub fn list(root: &Path) -> Result<Vec<TrashEntry>> {
 
 /// Deletes one thing from the trash for good.
 pub fn delete_forever(root: &Path, trash_rel: &str) -> Result<()> {
-    if !trash_rel.starts_with(&format!("{TRASH_DIR}/")) || trash_rel.contains("..") {
+    crate::fsutil::check_inside(trash_rel)?;
+    if !trash_rel.starts_with(&format!("{TRASH_DIR}/")) {
         return Err(Error::NotAllowed("That isn't in the trash".into()));
     }
     let path = root.join(trash_rel);

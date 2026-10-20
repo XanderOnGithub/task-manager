@@ -32,7 +32,7 @@ due: 2026-10-17
 Same footprint as the old one, so no counter cut.
 ```
 
-No account, no database, no sync service. Point any folder sync at it if you want it on more than one machine.
+No account, no database. Point any folder sync at it, or let Moss keep it in a GitHub repository (Settings → Sync) to use it on more than one machine.
 
 Built with [Tauri](https://tauri.app) (Rust) and React.
 
@@ -76,9 +76,13 @@ pnpm tauri dev
 The first dev run opens a copy of `sample-data/`, so there's something to look at.
 
 ```sh
-cargo test -p task-core                                  # tests
+cargo test --workspace                                   # Rust tests
+pnpm test                                                # front end tests
+pnpm lint && pnpm build                                  # lint (with accessibility checks) and type-check
 cargo run --release -p task-core --example bench         # loading benchmark
 ```
+
+How it is put together, how Git sync works, and what keeps it accessible: [docs/](docs/).
 
 Loading 10,000 tasks (plus 1,000 pages with 20 KB bodies) takes about 70 ms, because only the frontmatter of each file is read.
 

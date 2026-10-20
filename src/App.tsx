@@ -1,23 +1,24 @@
 // The app shell: sidebar on the window's vibrancy, solid panels on the right.
 // Layout follows the design canvas linked in CLAUDE.md.
 
-import { useSyncOnFocus } from './lib/useSync'
-import { useCallback, useEffect, useState } from 'react'
+import { useSyncOnFocus } from './features/sync/useSync'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
-import { spring } from './lib/motion'
-import { childrenOf, type Item, type TaskStatus } from './lib/api'
-import { trailOf } from './lib/items'
-import { NEXT_STATUS } from './lib/lanes'
-import { requestAdd, requestRename, type AddWhat } from './lib/requests'
-import { itemMenu } from './components/itemMenu'
-import { ContextMenu, type MenuItem } from './components/controls'
-import { isMac, keys } from './lib/platform'
-import { readPref, writePref } from './lib/prefs'
+import { spring } from './shared/motion/springs'
+import { type Item, type TaskStatus } from './platform/api'
+import { childrenOf, trailOf } from './domain/items'
+import { NEXT_STATUS } from './domain/lanes'
+import { requestAdd, requestRename, type AddWhat } from './app/requests'
+import { itemMenu } from './shared/itemMenu'
+import { ContextMenu, type MenuItem } from './shared/controls'
+import { isMac, keys } from './platform/os'
+import { readPref, writePref } from './platform/prefs'
 import {
   ArrowUpRight,
   FilePlus,
   Flag,
   Target,
+  CircleAlert,
   FileText,
   Layers,
   ListChecks,
@@ -31,23 +32,35 @@ import {
   Volume2,
   VolumeX,
 } from 'lucide-react'
-import { play, setSoundSettings, soundSettings } from './lib/sounds'
-import { saveTheme, toggleTheme } from './lib/theme'
-import { CommandPalette, type PaletteAction } from './components/CommandPalette'
-import { useActions } from './lib/useActions'
-import { useLibrary } from './lib/useLibrary'
-import { Sidebar, type Overview } from './components/Sidebar'
-import { ScopeView, type Layout } from './components/ScopeView'
-import { DetailsPanel } from './components/DetailsPanel'
-import { UnsortedView } from './components/Unsorted'
-import { PagesOverview, PageView } from './components/Pages'
-import { TrashView } from './components/Trash'
-import { useTrash } from './lib/useTrash'
-import { useRowKeys } from './lib/rowKeys'
-import { useLaunchCheck } from './lib/updates'
-import { ConfirmHost, QuickCapture, Settings } from './components/Dialogs'
-import { Onboarding } from './components/Onboarding'
-import { Panel } from './components/ui'
+import { play, setSoundSettings, soundSettings } from './sound/sounds'
+import { saveTheme, toggleTheme } from './platform/theme'
+import { CommandPalette, type PaletteAction } from './features/search/CommandPalette'
+import { useActions } from './app/useActions'
+import { useLibrary } from './app/useLibrary'
+import { Sidebar, type Overview } from './features/navigation/Sidebar'
+import { ScopeView, type Layout } from './features/tasks/ScopeView'
+import { DetailsPanel } from './features/tasks/DetailsPanel'
+import { UnsortedView } from './features/capture/Unsorted'
+import { PagesOverview, PageView } from './features/pages/Pages'
+import { TrashView } from './features/trash/Trash'
+import { IssuesView } from './features/issues/Issues'
+import { useTrash } from './features/trash/useTrash'
+import { useRowKeys } from './features/navigation/rowKeys'
+import { useLaunchCheck } from './platform/updates'
+import { QuickCapture } from './features/capture/QuickCapture'
+import { Settings } from './features/settings/Settings'
+import { ConfirmHost } from './shared/confirm/ConfirmHost'
+import { Onboarding } from './features/onboarding/Onboarding'
+import { Panel } from './shared/ui'
+
+/** What each overview is called in the window title. */
+const OVERVIEW_TITLES: Record<Overview, string> = {
+  unsorted: 'Unsorted',
+  tasks: 'Tasks',
+  pages: 'Pages',
+  trash: 'Trash',
+  issues: 'Issues',
+}
 
 /** Matches --spacing-sidebar in tokens.css. */
 const SIDEBAR_WIDTH = 244
@@ -58,6 +71,7 @@ export default function App() {
   useSyncOnFocus()
   const actions = useActions(reload, snapshot?.items ?? [])
   const trash = useTrash(snapshot, loads)
+  const mainRef = useRef<HTMLElement>(null)
   useLaunchCheck()
 
   // What's open: an overview (Unsorted, Tasks, Pages), or an area, project,
@@ -177,6 +191,9 @@ export default function App() {
     { id: 'unsorted', label: 'Go to Unsorted', Icon: Layers, keywords: 'inbox', run: () => openOverview('unsorted') },
     { id: 'tasks', label: 'Go to Tasks', Icon: ListChecks, keywords: 'projects all board', run: () => openOverview('tasks') },
     { id: 'pages', label: 'Go to Pages', Icon: FileText, keywords: 'docs notes all', run: () => openOverview('pages') },
+    ...(snapshot?.issues.length
+      ? [{ id: 'issues', label: 'Go to Issues', Icon: CircleAlert, keywords: 'problems errors files', run: () => openOverview('issues') }]
+      : []),
     {
       id: 'sidebar',
       label: sidebarOpen ? 'Hide sidebar' : 'Show sidebar',
@@ -301,6 +318,13 @@ export default function App() {
     trash: actions.trash,
   })
 
+  // What the window is called, and what a screen reader hears when you move
+  // between sections (the page itself doesn't reload, so nothing else says so).
+  const viewTitle = open ? open.title : overview ? OVERVIEW_TITLES[overview] : 'Tasks'
+  useEffect(() => {
+    document.title = `${viewTitle} · Moss`
+  }, [viewTitle])
+
   const content = () => {
     if (error || !snapshot) {
       return (
@@ -311,6 +335,7 @@ export default function App() {
     }
     if (overview === 'unsorted') return <UnsortedView entries={snapshot.unsorted} items={items} actions={actions} />
     if (overview === 'trash') return <TrashView entries={trash} actions={actions} />
+    if (overview === 'issues') return <IssuesView issues={snapshot.issues} />
     if (overview === 'pages') return <PagesOverview items={items} onOpen={openId} actions={actions} />
     if (open?.kind === 'page') return <PageView key={open.id} items={items} page={open} onOpen={openId} actions={actions} />
     return (
@@ -366,6 +391,16 @@ export default function App() {
     // On a Mac the background is see-through so the blur behind the window
     // shows; other systems draw no blur, so they get the same color, solid.
     <div className={`flex h-full ${isMac ? 'bg-window' : 'bg-window-solid'}`}>
+      {/* First stop for the keyboard: jump past the sidebar to the content. */}
+      <button
+        onClick={() => mainRef.current?.focus()}
+        className="sr-only z-50 rounded-control border border-border-menu bg-menu px-3 py-1.5 text-fg shadow-menu focus:not-sr-only focus:fixed focus:top-2 focus:left-1/2 focus:-translate-x-1/2"
+      >
+        Skip to content
+      </button>
+      <div role="status" className="sr-only">
+        {viewTitle}
+      </div>
       {/* The sidebar slides shut to zero width. Its contents keep their size
           and get clipped, so nothing reflows while it moves. */}
       <motion.div
@@ -379,6 +414,7 @@ export default function App() {
           items={items}
           unsortedCount={snapshot?.unsorted.length ?? 0}
           trashCount={trash.length}
+          issueCount={snapshot?.issues.length ?? 0}
           overview={overview}
           onOverview={openOverview}
           openId={sidebarOpenId}
@@ -422,7 +458,9 @@ export default function App() {
       </AnimatePresence>
 
       <main
-        className={`flex min-w-0 flex-1 py-2 pr-2 transition-[padding] duration-150 ease-snappy ${
+        ref={mainRef}
+        tabIndex={-1}
+        className={`flex min-w-0 flex-1 py-2 pr-2 outline-none transition-[padding] duration-150 ease-snappy ${
           sidebarOpen
             ? ''
             : `pl-2 ${isMac ? '[&>div>section:first-child>header]:pl-[112px]' : '[&>div>section:first-child>header]:pl-12'}`

@@ -1,4 +1,4 @@
-/* The rich text editor (components/MarkdownEditor.tsx). Milkdown ships no theme,
+/* The rich text editor (features/editor/MarkdownEditor.tsx). Milkdown ships no theme,
    so this is the whole look. Everything comes from tokens. */
 
 @import "@milkdown/kit/prose/view/style/prosemirror.css";

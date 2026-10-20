@@ -58,6 +58,6 @@ pub mod watch;
 
 // The names the app uses most, available as `task_core::Library` etc.
 pub use error::{Error, Result};
-pub use issues::Issue;
+pub use issues::{Issue, IssueView};
 pub use library::Library;
 pub use model::{Item, Kind, MILESTONE_COLORS};
