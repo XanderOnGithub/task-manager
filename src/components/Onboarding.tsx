@@ -177,16 +177,18 @@ function FolderStep({ onBack, onGithub, onDone }: { onBack: () => void; onGithub
         />
       </div>
 
-      <label className="flex cursor-pointer items-start gap-2.5">
+      <label htmlFor="start-with-example" className="flex cursor-pointer items-start gap-2.5">
         <input
+          id="start-with-example"
           type="checkbox"
+          aria-describedby="start-with-example-help"
           checked={example}
           onChange={(e) => setExample(e.currentTarget.checked)}
           className="mt-0.5 size-4 accent-accent"
         />
         <span className="flex flex-col">
           <span className="text-fg">Start with an example</span>
-          <span className="text-meta font-normal text-fg-3">
+          <span id="start-with-example-help" className="text-meta font-normal text-fg-3">
             A small home renovation to look around in. Delete it any time.
           </span>
         </span>

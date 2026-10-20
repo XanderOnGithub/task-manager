@@ -401,6 +401,8 @@ function KeyboardHelp() {
     ['Delete', 'Delete the row'],
     ['Space', 'Pick up the row, then arrows and Space to move it'],
     ['Esc', 'Close details'],
+    [keys('Enter'), 'In a page: tick or untick the checklist item'],
+    ['Shift+F10', 'Open the menu of the focused row'],
   ]
   return (
     <div className="flex flex-col gap-2">

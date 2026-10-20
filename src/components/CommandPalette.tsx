@@ -8,10 +8,12 @@
 // snapshot (instant); text is searched by the Rust core (search.rs).
 
 import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react'
-import { motion } from 'motion/react'
+import { createPortal } from 'react-dom'
+import { motion, useIsPresent } from 'motion/react'
 import { CornerDownLeft, FileText, Folder, Search, Target } from 'lucide-react'
 import { searchText, type Item, type TextHit } from '../lib/api'
 import { trailOf } from '../lib/items'
+import { useModalLayer } from '../lib/modalLayer'
 import { spring } from '../lib/motion'
 import { StatusIcon } from './ui'
 
@@ -66,6 +68,11 @@ export function CommandPalette({
   const [textHits, setTextHits] = useState<{ query: string; hits: TextHit[] }>({ query: '', hits: [] })
   const list = useRef<HTMLDivElement>(null)
   const highlightId = useId()
+  const listId = useId()
+  const dialog = useRef<HTMLDivElement>(null)
+  // Focus, Escape, the inert page behind: see lib/modalLayer.ts. Released as
+  // soon as the exit animation starts, so a command that moves focus can.
+  useModalLayer(dialog, onClose, useIsPresent())
   const q = query.trim().toLowerCase()
   const byId = useMemo(() => new Map(items.map((i) => [i.id, i])), [items])
 
@@ -145,22 +152,31 @@ export function CommandPalette({
   }
 
   let n = -1
-  return (
-    <div className="fixed inset-0 z-40" onMouseDown={onClose}>
+  return createPortal(
+    // The backdrop is only a click target for pointer users; keyboard users close with Escape.
+    <div role="presentation" className="fixed inset-0 z-40" onMouseDown={onClose}>
       <motion.div
+        ref={dialog}
         role="dialog"
+        aria-modal="true"
         aria-label="Search"
+        tabIndex={-1}
         initial={{ opacity: 0, scale: 0.97, y: -8 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.98, y: -4, transition: { duration: 0.1 } }}
         transition={spring.snappy}
         onMouseDown={(e) => e.stopPropagation()}
-        className="absolute top-[14vh] left-1/2 flex w-[560px] max-w-[calc(100vw-32px)] -translate-x-1/2 flex-col overflow-hidden rounded-panel border border-border-menu bg-menu shadow-window"
+        className="absolute top-[14vh] left-1/2 flex w-[560px] max-w-[calc(100vw-32px)] -translate-x-1/2 flex-col overflow-hidden rounded-panel border border-border-menu bg-menu shadow-window outline-none"
       >
         <div className="flex h-12 items-center gap-2.5 border-b border-border px-4">
           <Search size={16} strokeWidth={1.75} className="shrink-0 text-fg-3" aria-hidden="true" />
           <input
             autoFocus
+            role="combobox"
+            aria-expanded="true"
+            aria-controls={listId}
+            aria-autocomplete="list"
+            aria-activedescendant={rows.length ? `${listId}-${selected}` : undefined}
             value={query}
             onChange={(e) => {
               setQuery(e.currentTarget.value)
@@ -175,10 +191,8 @@ export function CommandPalette({
               } else if (e.key === 'Enter') {
                 e.preventDefault()
                 run(rows[selected])
-              } else if (e.key === 'Escape') {
-                e.preventDefault()
-                onClose()
               }
+              // Escape is handled by the dialog (lib/modalLayer.ts).
             }}
             placeholder="Search or run a command"
             aria-label="Search or run a command"
@@ -189,18 +203,22 @@ export function CommandPalette({
 
         {/* Never scrolls sideways: the sliding highlight can poke out for a
             frame while it moves between rows of different heights. */}
-        <div ref={list} role="listbox" aria-label="Results" className="flex max-h-[min(380px,60vh)] flex-col overflow-x-hidden overflow-y-auto p-1.5">
+        <div ref={list} id={listId} role="listbox" aria-label="Results" className="flex max-h-[min(380px,60vh)] flex-col overflow-x-hidden overflow-y-auto p-1.5">
           {groups.map((group) => (
-            <div key={group.label} className="flex flex-col">
-              <div className="px-2.5 pt-2 pb-1 text-label tracking-label text-fg-3 uppercase">{group.label}</div>
+            <div key={group.label} role="group" aria-label={group.label} className="flex flex-col">
+              <div aria-hidden="true" className="px-2.5 pt-2 pb-1 text-label tracking-label text-fg-3 uppercase">
+                {group.label}
+              </div>
               {group.rows.map((row) => {
                 n++
                 const i = n
                 return (
                   <button
                     key={row.key}
+                    id={`${listId}-${i}`}
                     data-index={i}
                     role="option"
+                    tabIndex={-1}
                     aria-selected={i === selected}
                     onMouseMove={() => i !== selected && setIndex(i)}
                     onClick={() => run(row)}
@@ -217,8 +235,13 @@ export function CommandPalette({
           ))}
           {rows.length === 0 && <p className="px-3 py-6 text-center text-fg-3">Nothing found</p>}
         </div>
+        {/* Said aloud as the results change. */}
+        <div role="status" className="sr-only">
+          {rows.length === 0 ? 'No results' : `${rows.length} ${rows.length === 1 ? 'result' : 'results'}`}
+        </div>
       </motion.div>
-    </div>
+    </div>,
+    document.body,
   )
 }
 

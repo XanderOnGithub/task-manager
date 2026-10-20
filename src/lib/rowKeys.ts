@@ -16,6 +16,7 @@
 
 import { useEffect, useRef } from 'react'
 import type { Item } from './api'
+import { isTextEntry } from './focus'
 
 export interface RowKeyHandlers {
   byId: Map<string, Item>
@@ -39,7 +40,7 @@ export function useRowKeys(handlers: RowKeyHandlers) {
     const onKey = (e: KeyboardEvent) => {
       if (e.defaultPrevented || e.metaKey || e.ctrlKey || e.altKey) return
       const target = e.target as HTMLElement | null
-      if (!target || isTyping(target)) return
+      if (!target || isTextEntry(target)) return
       // Nothing focused yet (clicking a row doesn't always focus it): the
       // arrows start from the row you last clicked, the selected one, or the top.
       if (target === document.body && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
@@ -78,6 +79,9 @@ export function useRowKeys(handlers: RowKeyHandlers) {
           return go(nearest(row, 'right'))
         case 'Enter':
           if (!item) return
+          // Enter on a button inside the row (the status circle, the fold
+          // arrow, a ⋯ menu) is that button's own, not "open this row".
+          if (isNestedControl(target, row)) return
           e.preventDefault()
           if (item.kind === 'task' || item.kind === 'milestone') select(item.id)
           else open(item.id)
@@ -125,9 +129,11 @@ function startingRow(selectedId: string | null): HTMLElement | null {
   return visible(lastClicked) ?? visible(selected) ?? document.querySelector<HTMLElement>(`main ${ROW}`)
 }
 
-/** Text fields and the editor keep their keys. */
-function isTyping(el: HTMLElement): boolean {
-  return el.isContentEditable || el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT'
+/** True for a button, link or similar inside `row` (not the row itself). */
+function isNestedControl(target: HTMLElement, row: HTMLElement): boolean {
+  if (target === row) return false
+  const control = target.closest('button, a[href], summary, [role="button"], [role="menuitem"], [role="switch"], [role="checkbox"], [role="radio"]')
+  return control !== null && control !== row && row.contains(control)
 }
 
 /**

@@ -265,6 +265,20 @@ export function MarkdownEditor({
           return true
         }
       }
+      // Ctrl/⌘+Enter ticks or unticks the checklist item the cursor is in. The
+      // boxes are drawn in CSS, so a click toggles them (see toggleCheckbox);
+      // this is the way to do it without a mouse.
+      if (event.key === 'Enter' && (event.metaKey || event.ctrlKey) && !event.shiftKey && !event.altKey) {
+        const { state } = view
+        const { $from } = state.selection
+        for (let depth = $from.depth; depth > 0; depth--) {
+          const node = $from.node(depth)
+          if (node.attrs.checked == null) continue
+          view.dispatch(state.tr.setNodeMarkup($from.before(depth), undefined, { ...node.attrs, checked: !node.attrs.checked }))
+          play('check', { pitch: node.attrs.checked ? 0.9 : 1 })
+          return true
+        }
+      }
       // ":name" emoji menu: arrows move, Enter or Tab inserts, Escape closes.
       // Typing the closing ":" of a full name inserts it too, as in Slack.
       const { colon, emojiMatches, colonIndex } = live.current
@@ -480,8 +494,11 @@ export function MarkdownEditor({
 
   return (
     <>
+      {/* Only a wrapper: the text field inside is the editor (its own role and label).
+          The handlers here are the checklist-box click, leaving the editor, and link clicks. */}
       <div
         ref={root}
+        role="presentation"
         onMouseDown={toggleCheckbox}
         onBlur={(e) => {
           // Moving into one of our own menus isn't leaving the editor.

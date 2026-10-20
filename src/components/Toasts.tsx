@@ -1,10 +1,12 @@
 // Renders one toast at a time (a new one replaces the old one), bottom center.
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 import { AnimatePresence, motion } from 'motion/react'
 import { spring } from '../lib/motion'
 import { ToastContext, type ToastInput } from '../lib/toast'
 import { play } from '../lib/sounds'
+import { isTextEntry } from '../lib/focus'
 import { keys } from '../lib/platform'
 
 /** How long a toast stays up. Longer when there's an Undo to reach for. */
@@ -30,13 +32,12 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     await action?.()
   }, [toast])
 
-  // ⌘Z runs the toast's Undo while it's showing, except inside a text field,
-  // where ⌘Z undoes typing as usual.
+  // ⌘Z runs the toast's Undo while it's showing, except in a text field or the
+  // page editor, where ⌘Z undoes typing as usual.
   useEffect(() => {
     if (!toast?.undo) return
     const onKey = (e: KeyboardEvent) => {
-      const typing = e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement
-      if ((e.metaKey || e.ctrlKey) && !e.shiftKey && e.key.toLowerCase() === 'z' && !typing) {
+      if ((e.metaKey || e.ctrlKey) && !e.shiftKey && e.key.toLowerCase() === 'z' && !isTextEntry(e.target)) {
         e.preventDefault()
         void undo()
       }
@@ -48,11 +49,21 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   return (
     <ToastContext.Provider value={show}>
       {children}
-      <AnimatePresence>
+      {/* Screen readers hear a message from a region that is always there;
+          one that appears together with its text is often missed. Drawn in a
+          portal so it still works while a dialog has made the page inert. */}
+      {createPortal(
+        <>
+          <div role="status" className="sr-only">
+            {toast && toast.tone !== 'error' ? toast.message : ''}
+          </div>
+          <div role="alert" className="sr-only">
+            {toast?.tone === 'error' ? toast.message : ''}
+          </div>
+          <AnimatePresence>
       {toast && (
         <motion.div
           key={toast.key}
-          role="status"
           initial={{ opacity: 0, y: 12, scale: 0.96, x: '-50%' }}
           animate={{ opacity: 1, y: 0, scale: 1, x: '-50%', transition: spring.pop }}
           exit={{ opacity: 0, y: 8, scale: 0.98, x: '-50%', transition: spring.snappy }}
@@ -86,6 +97,9 @@ export function ToastProvider({ children }: { children: ReactNode }) {
         </motion.div>
       )}
       </AnimatePresence>
+        </>,
+        document.body,
+      )}
     </ToastContext.Provider>
   )
 }
