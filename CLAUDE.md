@@ -14,24 +14,33 @@ Moss is a local-first desktop app for tasks and pages: capture first into Unsort
 ## Repo layout
 
 ```
-core/           task-core: the file format. Load, validate, write. No Tauri; fully tested.
-  src/          one module per job (see core/src/lib.rs for the map)
-  tests/        end-to-end tests against a copy of sample-data/
+core/           task-core: the file format, Git sync and GitHub. Load, validate, write. No Tauri; fully tested.
+  src/          one module per job (see core/src/lib.rs for the map); git/ is one file per action
+  tests/        end-to-end tests against a copy of sample-data/ (data_folder, sync, load_budget)
   examples/     bench.rs: loading benchmark (10k tasks by default)
 src-tauri/      the desktop app: Tauri commands that call into core
-  src/lib.rs    every command the UI can call
-src/            React front end
-  lib/api.ts    typed wrappers for the commands. Keep in sync with src-tauri/src/lib.rs
-  styles/       app.css (entry), tokens.css (Tailwind theme), base.css, motion.css
+  src/          lib.rs (composition), state.rs, settings.rs, folder.rs, commands/ (one file per job), sync/ (one file per action)
+src/            React front end, by feature (see docs/ARCHITECTURE.md)
+  app/          loading the library, every action the UI can take (useActions), requests between views
+  domain/       what the data means: item index, dates, lanes, links. No React, no IPC
+  platform/     the outside world: api.ts (typed commands), prefs, theme, updates, OS facts
+  sound/        sounds
+  shared/       controls, ui, motion, toast, confirm, drag, a11y helpers
+  features/     capture, editor, issues, navigation, onboarding, pages, search, settings, sync, tasks, trash
+  styles/       app.css (entry), tokens.css (Tailwind theme), base.css, motion.css, editor.css
+docs/           ARCHITECTURE, SYNC, ACCESSIBILITY, CONTRIBUTING
 sample-data/    the renovation example from the mockups; dev builds open a copy of it
 media/          README GIFs (media/readme) and the trailer, recorded from the real app; see media/README.md
 brand/          the Moss mark (icon.svg), the moss° wordmarks (wordmark.py draws them), icon-1024.png (source for `pnpm tauri icon`)
 ```
 
+Component names below are given without their folder; find them under `src/features/<area>/` or `src/shared/` (`docs/ARCHITECTURE.md` has the map).
+
 ## Commands
 
 - `pnpm tauri dev`: run the app (dev builds open a copy of sample-data/ if no folder is set)
-- `cargo test -p task-core`: core tests
+- `cargo test --workspace`: Rust tests (core: file format, Git sync with a local bare repo, a loading speed limit)
+- `pnpm test`: front end tests (logic, keyboard and screen reader behavior of dialogs and menus, text color contrast)
 - `cargo run --release -p task-core --example bench`: loading benchmark
 - `cargo clippy --workspace --all-targets` and `cargo fmt --all`: lint and format Rust
 - `pnpm lint` and `pnpm build`: lint and type-check the front end
@@ -43,7 +52,7 @@ Moss is in alpha (`"stage": "alpha"` in package.json; Settings shows "Alpha 0.1.
 - Never commit to `main` directly. Work happens on `feature/…`, `fix/…` or `refactor/…` branches, each merged by pull request into the current release branch (now `release/alpha-0.1.8`).
 - When the release branch is ready, a pull request from it into `main` ships it. `.github/workflows/release.yml` runs on every push to `main`: if the version in `src-tauri/tauri.conf.json` isn't released yet, it builds macOS (Apple silicon + Intel), Windows (installers + a portable .exe) and Linux installers and publishes "Moss alpha X.Y.Z" with notes from the PRs. Otherwise it does nothing.
 - Next version: branch `release/alpha-0.2` from `main` and bump `version` in tauri.conf.json, package.json and both Cargo.toml files on it.
-- In-app updates: `tauri-plugin-updater` reads `latest.json` from the newest GitHub release (`src/lib/updates.ts`; checks a few seconds after launch in real builds, "Update to X" in the sidebar, "Check for updates" in Settings). Update files are signed: the private key lives only in the repo secrets `TAURI_SIGNING_PRIVATE_KEY` + `_PASSWORD`, the public key in `tauri.conf.json` → `plugins.updater.pubkey`. Never commit the private key. Lose it and installed copies can't update any more.
+- In-app updates: `tauri-plugin-updater` reads `latest.json` from the newest GitHub release (`src/platform/updates.ts`; checks a few seconds after launch in real builds, "Update to X" in the sidebar, "Check for updates" in Settings). Update files are signed: the private key lives only in the repo secrets `TAURI_SIGNING_PRIVATE_KEY` + `_PASSWORD`, the public key in `tauri.conf.json` → `plugins.updater.pubkey`. Never commit the private key. Lose it and installed copies can't update any more.
 - CI (`ci.yml`) runs on every pull request and on pushes to `main` and `release/**`.
 
 ## Rules for the code
@@ -51,9 +60,14 @@ Moss is in alpha (`"stage": "alpha"` in package.json; Settings shows "Alpha 0.1.
 - All file reading and writing goes through `core`. The front end never touches files directly.
 - Writes don't update the in-memory library. The app drops its cache and reloads; files are the single source of truth.
 - The watcher ignores reads (Linux reports every file open; counting them made each load trigger another) and the app skips the watcher's echo of its own writes for a second (`OWN_WRITE_WINDOW` in src-tauri), so one action is one reload.
-- Reloads keep unchanged items as the same objects (`lib/share.ts`), and task rows and board cards are `memo`ized with their insides split from the dnd-kit wrapper, so a change redraws only the rows it touched. Keep callbacks passed to rows stable (`useCallback`), and don't create new item objects for rows.
+- Reloads keep unchanged items as the same objects (`app/share.ts`), and task rows and board cards are `memo`ized with their insides split from the dnd-kit wrapper, so a change redraws only the rows it touched. Keep callbacks passed to rows stable (`useCallback`), and don't create new item objects for rows.
 - Problems in the data folder become `Issue`s, never crashes. Only id-related issues are fixed automatically.
-- Every change to core behavior gets a test in `core/tests/data_folder.rs` or next to the code.
+- Every change to core behavior gets a test in `core/tests/data_folder.rs` or next to the code. Front end behavior gets a `*.test.ts(x)` beside it.
+- Never lose what someone wrote: name collisions (trash, copies) pick another name instead of replacing; Git conflicts keep both versions; a failed save keeps the text and retries (`features/editor/saveQueue.ts`); a failed read is an error with Try again, never an empty editor.
+- Paths that come from outside the Rust code are checked with `fsutil::check_inside` before they are joined onto the data folder. Input to Git (addresses, branches) is validated and never starts with `-`.
+- Anything that changes files in the data folder holds `AppState::lock_folder` (the `write()` helper does); Git's local steps hold it too. Lock order: folder, then data. See docs/ARCHITECTURE.md.
+- Rust: one action per file (a command, a Git step, a sync step); `mod.rs` says what each file is for.
+- Accessibility is a rule, not a polish pass: see docs/ACCESSIBILITY.md. Dialogs use `Modal` / `useModalLayer`, menus and radio groups work with the arrow keys, row shortcuts don't steal keys from controls and text fields, text contrast is tested (`styles/contrast.test.ts`), `pnpm lint` runs jsx-a11y.
 
 ## Styling
 
@@ -67,18 +81,22 @@ Moss is in alpha (`"stage": "alpha"` in package.json; Settings shows "Alpha 0.1.
 
 ## Front-end structure
 
-- `src/lib/useLibrary.ts` loads the snapshot and reloads on `data-changed`. `src/lib/useActions.ts` holds every change the UI can make (each one calls Rust, shows a toast with Undo where it makes sense, and reloads). Add new actions there, not in components.
-- `src/components/controls.tsx`: InlineAdd, EditableTitle, Menu, Segmented, Modal, BodyEditor, DateField. `ui.tsx`: Panel, chips, status icon, due date, progress.
-- Navigation: one sidebar tree, areas → projects → pages (`AreaTree.tsx`, one DndContext for all three; page rows in `PageTree.tsx`, page drag logic in `lib/pageDrag.ts`). Above it, three overviews: Unsorted, Tasks (every project, List/Board) and Pages (every area and project with its pages). `App.tsx` keeps what's open as an overview or an item id; opening anything unfolds the sidebar down to it.
-- Task views: `ScopeView.tsx` shows everything (scope null, the Tasks overview), an area, project or milestone (breadcrumb, List/Board). List: `AreaList.tsx` (projects with their open tasks) or `ProjectList.tsx` (a project's milestones/tasks, or a milestone's tasks), then the area's or project's pages (`PageSection`). Board: `Board.tsx` for any of them. `tasksUnder()` in `lib/items.ts` collects the tasks inside anything (null = all).
-- Pages: `Pages.tsx` (PageView, PagesOverview, PageSection; word count in the corner, Settings → Word count). Type `:name` for emoji (`editor/emojiShortcodes.ts`, gemoji). Shift+Enter always adds a line break (our key handler; the preset's is left out). Text: `MarkdownEditor.tsx` (Milkdown) for pages and every description. Rich text on screen, plain markdown on disk ("-" bullets, no `<br />`), saved only after a real edit. Extra blank lines stay as plain blank lines in the file: the editor shows each as an empty `&nbsp;` paragraph (`toEditor` on load, `normalize(…, true)` on save in `MarkdownEditor.tsx`). Styles in `styles/editor.css`. Loaded lazily.
+- `src/app/useLibrary.ts` loads the snapshot and reloads on `data-changed`. `src/app/useActions.ts` holds every change the UI can make (each one calls Rust, shows a toast with Undo where it makes sense, and reloads). Add new actions there, not in components.
+- `src/shared/controls/` (one file each): InlineAdd, EditableTitle, Menu, Segmented, Modal, BodyEditor, DateField. `ui.tsx`: Panel, chips, status icon, due date, progress.
+- Navigation: one sidebar tree, areas → projects → pages (`AreaTree.tsx`, one DndContext for all three; page rows in `PageTree.tsx`, page drag logic in `features/pages/pageDrag.ts`). Above it, three overviews: Unsorted, Tasks (every project, List/Board) and Pages (every area and project with its pages). `App.tsx` keeps what's open as an overview or an item id; opening anything unfolds the sidebar down to it.
+- Task views: `ScopeView.tsx` shows everything (scope null, the Tasks overview), an area, project or milestone (breadcrumb, List/Board). List: `AreaList.tsx` (projects with their open tasks) or `ProjectList.tsx` (a project's milestones/tasks, or a milestone's tasks), then the area's or project's pages (`PageSection`). Board: `Board.tsx` for any of them. `tasksUnder()` in `domain/items.ts` collects the tasks inside anything (null = all).
+- Pages: `Pages.tsx` (PageView, PagesOverview, PageSection; word count in the corner, Settings → Word count). Type `:name` for emoji (`features/editor/emojiShortcodes.ts`, gemoji). Shift+Enter always adds a line break (our key handler; the preset's is left out). Text: `MarkdownEditor.tsx` (Milkdown) for pages and every description. Rich text on screen, plain markdown on disk ("-" bullets, no `<br />`), saved only after a real edit. Extra blank lines stay as plain blank lines in the file: the editor shows each as an empty `&nbsp;` paragraph (`toEditor` on load, `normalize(…, true)` on save in `MarkdownEditor.tsx`). Styles in `styles/editor.css`. Loaded lazily.
 - First launch: `Onboarding.tsx` (welcome, then the data folder: Documents/Moss or any folder, optionally with the example). The example is `sample-data/`, built into the app binary (`include_dir!` in src-tauri; after changing sample-data run `cargo clean -p moss`) and written only into an empty folder (`core/src/example.rs`). Dev builds skip it unless started with `MOSS_ONBOARDING=1`.
-- Right-click: `ContextMenu` (controls.tsx) replaces the web view's menu everywhere. Rows carry `data-item={id}`; right-clicking one opens Open + its ⋯ menu (App.tsx `menuFor`). Text fields and the editor keep the system menu; Shift-right-click in dev shows the web view's (Inspect). Rename from there opens the item and asks its view to edit the title; "New …" (only what fits inside: area → project/page, project → task or milestone/page, milestone → task, page → subpage) opens it and focuses its "Add a …" field (`lib/requests.ts`; fields have ids like `add-task-<id>`). Give new item rows `data-item` too.
-- Trash: deleting moves the item into `.trash/` with a `<name>.from` note of where it was (`core/src/trash.rs`), so the Trash view (above Settings, `Trash.tsx`, `lib/useTrash.ts`) can restore it any time in its 30 days, delete it for good, or empty everything. Restoring refuses if the place it goes back into was deleted too. Deleting something with items inside asks first (`lib/confirm.ts` + `ConfirmHost`); single tasks and empty pages delete straight away (Undo covers them).
-- Keyboard rows: `lib/rowKeys.ts` (hooked up in App.tsx). Any `data-item` row: ↑↓ (same column on the board), ←→ (board columns), Enter opens (tasks and milestones in the details panel, which then follows the arrows), S next status, Delete/Backspace deletes, Esc closes details. Rows are found on screen, so folding and order match what you see. Rows that aren't draggable get `tabIndex={-1}` so the arrows can land on them. Enter no longer starts a keyboard drag (Space only, `drag.ts`). The list is in Settings → Keyboard.
+- Right-click: `ContextMenu` (controls.tsx) replaces the web view's menu everywhere. Rows carry `data-item={id}`; right-clicking one opens Open + its ⋯ menu (App.tsx `menuFor`). Text fields and the editor keep the system menu; Shift-right-click in dev shows the web view's (Inspect). Rename from there opens the item and asks its view to edit the title; "New …" (only what fits inside: area → project/page, project → task or milestone/page, milestone → task, page → subpage) opens it and focuses its "Add a …" field (`app/requests.ts`; fields have ids like `add-task-<id>`). Give new item rows `data-item` too.
+- Trash: deleting moves the item into `.trash/` with a `<name>.from` note of where it was (`core/src/trash.rs`), so the Trash view (above Settings, `Trash.tsx`, `features/trash/useTrash.ts`) can restore it any time in its 30 days, delete it for good, or empty everything. Restoring refuses if the place it goes back into was deleted too. Deleting something with items inside asks first (`shared/confirm/confirm.ts` + `ConfirmHost`); single tasks and empty pages delete straight away (Undo covers them).
+- Keyboard rows: `features/navigation/rowKeys.ts` (hooked up in App.tsx). Any `data-item` row: ↑↓ (same column on the board), ←→ (board columns), Enter opens (tasks and milestones in the details panel, which then follows the arrows), S next status, Delete/Backspace deletes, Esc closes details. Rows are found on screen, so folding and order match what you see. Rows that aren't draggable get `tabIndex={-1}` so the arrows can land on them. Enter no longer starts a keyboard drag (Space only, `drag.ts`). The list is in Settings → Keyboard.
+- Text in the editor: `features/editor/` (`BodyEditor` reads it via `useBody`, `MarkdownEditor` edits it, `SaveQueue` saves it, `markdown.ts` converts to and from the editor's form with CommonMark fence rules, `bodyChanges.ts` tells an open page its file changed outside). Saving text does not reload the library. Ctrl/⌘+Enter ticks a checklist item.
+- The index: `domain/items.ts` (`childrenOf`, `itemById`, `tasksUnder`, `taskCounts`, `trailOf`) answers from an index built once per `items` array. The returned arrays are shared: don't change them.
+- Issues: `features/issues/Issues.tsx` (sidebar row while there are any; wording from `core/src/issues.rs`, so write it once). Names Windows can't store are an Issue (`notPortable`) and are refused for new titles (`core/src/names.rs`).
+- Page links: `/page` writes `[Name](Name.md#id-<id>)` (`domain/links.ts`): other apps ignore the fragment; Moss finds the page by id even after a rename, and falls back to the name for older links.
 - Cursor: everything clickable shows the pointer (one rule in `styles/base.css`).
-- Shortcut labels: always `keys('N')` from `lib/platform.ts` ("⌘N" on a Mac, "Ctrl+N" elsewhere), never a literal ⌘.
-- Toasts: `useToast()`; ⌘Z runs the visible toast's Undo. ⌘N opens Quick capture. ⌘\ hides the sidebar (remembered via `lib/prefs.ts`).
+- Shortcut labels: always `keys('N')` from `platform/os.ts` ("⌘N" on a Mac, "Ctrl+N" elsewhere), never a literal ⌘.
+- Toasts: `useToast()`; ⌘Z runs the visible toast's Undo. ⌘N opens Quick capture. ⌘\ hides the sidebar (remembered via `platform/prefs.ts`).
 - Search: `CommandPalette.tsx` (⌘K). Items by title (matched in the UI), actions (go to, Light mode / Dark mode / Toggle dark mode / Match system mode, sounds, sidebar, plus typed: add to Unsorted, new task in the open project, new page in the open area or project), and text matches from `core/src/search.rs` via `search_text`.
 - Editor menus: `components/editor/` (selection toolbar, "/" block menu with /page). `/page` creates a subpage and writes a relative link `[Name](Name.md)`; clicking it opens the page.
 - Dragging pages in the sidebar: drop zones on a page are top quarter = above, middle = subpage, bottom quarter = below; dropping on an area or project row moves the page there.
@@ -86,13 +104,13 @@ Moss is in alpha (`"stage": "alpha"` in package.json; Settings shows "Alpha 0.1.
 ## Motion
 
 The app should feel smooth and considered, never gamified. Library: Motion (`motion/react`).
-- Springs only, from `src/lib/motion.ts`: `spring.snappy` (default, ~140ms), `spring.smooth` (size changes, panels, ~220ms), `spring.pop` (small overshoot, only for completing a task or dropping a card). No hand-written durations. Keep things quick: hover transitions are 100–150ms.
+- Springs only, from `src/shared/motion/springs.ts`: `spring.snappy` (default, ~140ms), `spring.smooth` (size changes, panels, ~220ms), `spring.pop` (small overshoot, only for completing a task or dropping a card). No hand-written durations. Keep things quick: hover transitions are 100–150ms.
 - Motion explains cause and effect: where something came from and where it went. Don't animate for decoration.
 - Nothing animates on first render (`initial={false}`), only on changes.
 - Building blocks: `Collapse` (open/close by height, staggered rows), `ListRow` (rows entering and leaving a list), `StatusIcon` (ring, half fill, pop, check draws), `TaskTitle` (strikethrough sweep), `layoutId` for shared highlights (segmented thumb, sidebar selection) and board cards moving between columns.
 - Reduce motion is respected through `<MotionConfig reducedMotion="user">` in main.tsx and a rule in motion.css.
-- Drag and drop: dnd-kit. Shared pieces in `src/lib/drag.ts` (sensors, collision, drop settle, click swallowing) and `src/lib/useTwoLevelDrag.ts` (groups holding items: milestones/tasks in `ProjectList.tsx`, areas/projects in `AreaTree.tsx`). We draw the held item ourselves in `<DragOverlay>` with `Lifted`: velocity tilt up to ~6° (less for wide rows), spring swing back, 2% lift. The overlay face must match the row's padding so nothing jumps on pickup. Dragging a group folds all groups; a folded area opens while it holds the dragged project. Board cards change status by column and fly with `layoutId`. Every move goes through `actions.move` (toast + Undo when the parent changes). Keyboard: focus a row, Space, arrows, Space.
-- Sounds: `src/lib/sounds.ts`. Soft low knocks, not tunes: each is a ZzFX "body" (a low thump whose pitch drops fast) plus, for most, a tiny low-passed click so it reads on laptop speakers. Pitch varies a little on every play (the recipe's randomness); the same sound can't stack within 35ms. Eleven: pickUp, drop, slot (dragging past a new spot; higher moving up), complete, status, select (Create as; pitch per option), capture, delete, undo, check (page checkbox), open (⌘K). Plus optional typing sounds, creamy rather than clicky (key, keyShift for capitals and symbols, keySpace, keyEnter, and a distinct rising keyDelete), off by default, under Settings → Sounds → Fun, with a dropdown of styles (Soft = the original ZzFX recipes in `sounds.ts`; Creamy, Popping, Mouth pop, Water drops and Clicky are built from layered parts in `keyStyles.ts` and played by `keySynth.ts` with Web Audio, with release sounds on key-up where a style has one). A press varies only ±2.5% pitch and ±10% level: more wobble than that sounds like a melody. Never on hover, plain clicks or navigation. Settings → Sounds: everything on/off, volume, each sound on its own with a play button (stored with `lib/prefs.ts`). Tune them on the sound test page (https://claude.ai/artifact/Cnzk2o44TdfL9tYS4z3YHP) and paste the arrays into `SOUNDS`.
+- Drag and drop: dnd-kit. Shared pieces in `src/shared/drag/drag.ts` (sensors, collision, drop settle, click swallowing) and `src/shared/drag/useTwoLevelDrag.ts` (groups holding items: milestones/tasks in `ProjectList.tsx`, areas/projects in `AreaTree.tsx`). We draw the held item ourselves in `<DragOverlay>` with `Lifted`: velocity tilt up to ~6° (less for wide rows), spring swing back, 2% lift. The overlay face must match the row's padding so nothing jumps on pickup. Dragging a group folds all groups; a folded area opens while it holds the dragged project. Board cards change status by column and fly with `layoutId`. Every move goes through `actions.move` (toast + Undo when the parent changes). Keyboard: focus a row, Space, arrows, Space.
+- Sounds: `src/sound/sounds.ts`. Soft low knocks, not tunes: each is a ZzFX "body" (a low thump whose pitch drops fast) plus, for most, a tiny low-passed click so it reads on laptop speakers. Pitch varies a little on every play (the recipe's randomness); the same sound can't stack within 35ms. Eleven: pickUp, drop, slot (dragging past a new spot; higher moving up), complete, status, select (Create as; pitch per option), capture, delete, undo, check (page checkbox), open (⌘K). Plus optional typing sounds, creamy rather than clicky (key, keyShift for capitals and symbols, keySpace, keyEnter, and a distinct rising keyDelete), off by default, under Settings → Sounds → Fun, with a dropdown of styles (Soft = the original ZzFX recipes in `sounds.ts`; Creamy, Popping, Mouth pop, Water drops and Clicky are built from layered parts in `keyStyles.ts` and played by `keySynth.ts` with Web Audio, with release sounds on key-up where a style has one). A press varies only ±2.5% pitch and ±10% level: more wobble than that sounds like a melody. Never on hover, plain clicks or navigation. Settings → Sounds: everything on/off, volume, each sound on its own with a play button (stored with `platform/prefs.ts`). Tune them on the sound test page (https://claude.ai/artifact/Cnzk2o44TdfL9tYS4z3YHP) and paste the arrays into `SOUNDS`.
 - 120fps: WebKit caps pages at 60fps on macOS (the plugin notes that macOS 26 may no longer apply the cap). `src-tauri/src/high_refresh.rs` uses `tauri-plugin-macos-fps` to flip WebKit's private "prefer 60fps" flag behind an experimental Settings switch, shown only on macOS (Windows and Linux already draw at the display's refresh rate). Animations must look right at both 60 and 120.
 - Sidebar tree drags re-measure every frame (`MeasuringStrategy.Always` in `AreaTree.tsx`) because picking up an area folds the others mid-drag, and the tree's scrollbar is hidden while anything is held (`data-tree-dragging` + `.sidebar-scroll` in base.css).
 
@@ -103,6 +121,7 @@ The app should feel smooth and considered, never gamified. Library: Motion (`mot
 - **Project**: goal with a finish line, inside one Area.
 - **Milestone**: optional checkpoint inside a Project.
 - **Task**: one concrete action, one sitting.
+- **Issue**: something Moss found in the data folder it couldn't make sense of (listed under Issues in the sidebar, with Reveal).
 - **Page**: a documentation page. Belongs to an area or a project, and can have subpages.
 
 ## Data on disk (must stay human-readable)
@@ -124,7 +143,7 @@ data/
 - A project's children are all milestones or all tasks, never mixed. Its `Pages` folder doesn't count; it isn't an item, so no project or milestone may be called "Pages".
 - Older folders (`tasks/` + `notes/`) move to this layout when opened (`core/src/migrate.rs`); old notes go to a "Reference" area.
 - Frontmatter: `id` (10-char random id, never changes), `status`, `order` (fractional index key), `created`, optional `due`, `color` (milestones only, stored by name: `dusty-blue`, `mauve`, `rose`, `teal`, `lavender`, `sand`), `icon` (pages only: one emoji, e.g. `icon: 🌿`).
-- Statuses: task `todo|doing|done`, plus the optional lanes `later|waiting` (always valid on disk; Settings → Board lanes shows them, `lib/lanes.ts`), milestone `open|done`, project `active|paused|done|dropped`.
+- Statuses: task `todo|doing|done`, plus the optional lanes `later|waiting` (always valid on disk; Settings → Board lanes shows them, `domain/lanes.ts`), milestone `open|done`, project `active|paused|done|dropped`.
 - Done items stay in place. Startup reads frontmatter only into an in-memory index; a file watcher keeps it current.
 
 ## Language rules (all UI copy)
@@ -144,7 +163,7 @@ data/
 - Milestones are tinted chips (muted fill + matching border, no icon), using the milestone palette.
 - Due dates: calendar icon; gray normally, muted amber when due soon, muted red when overdue.
 - Window vibrancy on sidebar and background only; content panels are solid and rounded.
-- Brand: the mark is a lowercase m made of two moss mounds and a leaf (`brand/icon.svg`, `<MossMark>` in `components/Brand.tsx`, colors `--color-brand-*`). Wordmark is "moss°", drawn in the mark's style (the m, then o and s in the same round stroke, the leaf, a leaf-green ring for the °): `<MossWordmark>` in the sidebar, `brand/wordmark-*.svg` in the README, generated by `brand/wordmark.py`. The app's name in text is "Moss".
+- Brand: the mark is a lowercase m made of two moss mounds and a leaf (`brand/icon.svg`, `<MossMark>` in `shared/Brand.tsx`, colors `--color-brand-*`). Wordmark is "moss°", drawn in the mark's style (the m, then o and s in the same round stroke, the leaf, a leaf-green ring for the °): `<MossWordmark>` in the sidebar, `brand/wordmark-*.svg` in the README, generated by `brand/wordmark.py`. The app's name in text is "Moss".
 - No file paths in the UI. Every item's ⋯ menu has Reveal in Finder, Copy path, Rename, Delete.
 
 ## Build order
@@ -153,16 +172,13 @@ M1 file format + Rust core + 10k-file benchmark → M2 app shell + tokens → M3
 
 Status: M1–M6 are built (core, shell, Unsorted flow, create / edit / delete with Undo, Settings, motion pass, drag and drop, rich text editor), plus area and milestone pages with List/Board and a release workflow. Branding done (Moss). Sidebar hides with ⌘\; trash older than 30 days is emptied on open. Sounds (tunable, plus optional typing sounds), ⌘K search and commands, editor toolbar and "/" blocks are in. Navigation is one tree (areas → projects → pages) with Tasks and Pages overviews. Next: use it daily and fix what bugs you.
 
-## Git sync (branch `feature/git-sync`)
+## Git sync
 
-Settings → Sync (`SyncSettings.tsx`): sign in with GitHub, create a repository or use an existing one, then see status (Sync now, Pause, Stop syncing, Sign out).
-- Core: `core/src/git.rs` shells out to the installed `git` (no Git library; without it: "Install Git to use sync."). `core/src/github.rs` does the GitHub side over HTTPS (`ureq`): device-flow sign-in, list repos, create repo. Tests: `core/tests/sync.rs` (two folders + a bare repo standing in for GitHub).
-- Sign-in is GitHub's device flow: the UI shows a code and opens github.com/login/device. It needs the public client id of an OAuth app with device flow turned on, passed at build time as `MOSS_GITHUB_CLIENT_ID` (repository variable in release.yml). Without it the button is disabled. The token lives in the system keychain (`keyring`), never in a file; Git gets it per command through env vars, never in the remote URL.
-- `src-tauri/src/sync.rs` is the glue and a background thread: commits a minute after the last change ("Moss: 4 changes"), pulls on launch, when the window regains focus and every 5 minutes, pushes after a commit, commits on quit. Pulled files reach the UI through `data-changed`.
-- `.gitattributes` gets `unsorted.md merge=union`; `.gitignore` gets `.trash/`. The watcher ignores `.git/`.
-- A real conflict keeps this computer's version and saves the other as "Title (from other computer).md" (no `id:`, so it gets a fresh one). `_index.md` conflicts keep ours with no copy.
-- First launch: the folder step has "Get files from GitHub" (`GithubStep` in `Onboarding.tsx`): sign in, pick a repository, it is fetched into Documents/Moss and synced.
-- Sidebar: `SyncRow` (Sidebar.tsx) shows "Synced 2 min ago" / Syncing / Paused / Sync failed above Settings while this folder syncs.
+Full description: `docs/SYNC.md`. In short: Settings → Sync (`SyncSettings.tsx`): sign in with GitHub, create a repository or use an existing one, then see status (Sync now, Pause, Stop syncing, Sign out). First launch has "Get files from GitHub" (`GithubStep` in `Onboarding.tsx`). The sidebar's `SyncRow` shows the status while this folder syncs.
+- Core: `core/src/git/` shells out to the installed `git` (one file per action; without git: "Install Git to use sync."). `core/src/github.rs` does the GitHub side over HTTPS (`ureq`). Tests: `core/tests/sync.rs` (two folders and a bare repository standing in for GitHub).
+- Sign-in is GitHub's device flow and needs the public client id of an OAuth app (not a GitHub App) with device flow on, passed at build time as `MOSS_GITHUB_CLIENT_ID` (a repository variable for releases). The token lives in the system keychain and reaches Git only through environment variables for one command.
+- `src-tauri/src/sync/` (one file per action) is the glue and a background thread: commits a minute after the last change, pulls on launch, on window focus and every 5 minutes, pushes after a commit, commits on quit. Git operations run one at a time (`Runtime::exclusive`) and take the folder lock for commit and merge.
+- A real conflict keeps this computer's version and saves the other as "Title (from other computer).md" (numbered if taken; no `id:`). A folder's `_index.md` gets the other text appended under a divider. If saving fails the merge is undone. `unsorted.md` merges by union.
 - Not done yet: listing conflict copies as Issues, GitHub Enterprise.
 
 ## Backlog (after v1)

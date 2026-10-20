@@ -24,12 +24,12 @@ fn loading_three_thousand_tasks_stays_fast() {
             format!("---\nid: PRJ{project:07}\nstatus: active\n---\n"),
         )
         .unwrap();
-        for task in 0..100 {
+        for (task, key) in keys.iter().enumerate() {
             fs::write(
                 folder.join(format!("Task {task}.md")),
                 format!(
                     "---\nid: T{project:03}{task:06}\nstatus: todo\norder: {}\n---\nBody {task}\n",
-                    keys[task]
+                    key
                 ),
             )
             .unwrap();
