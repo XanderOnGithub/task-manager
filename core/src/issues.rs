@@ -33,6 +33,10 @@ pub enum Issue {
     /// The name works here but Windows can't store it (a "?" in it, say), so
     /// syncing to a Windows computer would fail. Rename it.
     NotPortable { path: String, reason: String },
+    /// Git sync kept the other computer's version of this item next to yours
+    /// ("Sink (from other computer)"). Compare the two, keep what you want,
+    /// then delete the copy.
+    ConflictCopy { path: String, id: String },
     /// A project contains both milestone folders and task files.
     MixedChildren { path: String },
     /// A file is somewhere files aren't allowed, like directly inside an area.
@@ -51,6 +55,14 @@ impl Issue {
         )
     }
 
+    /// The item to open for this issue, when there is one.
+    pub fn item_id(&self) -> Option<&str> {
+        match self {
+            Issue::ConflictCopy { id, .. } => Some(id),
+            _ => None,
+        }
+    }
+
     /// The path the issue is about.
     pub fn path(&self) -> &str {
         match self {
@@ -61,6 +73,7 @@ impl Issue {
             | Issue::InvalidValue { path, .. }
             | Issue::InvalidName { path }
             | Issue::NotPortable { path, .. }
+            | Issue::ConflictCopy { path, .. }
             | Issue::MixedChildren { path }
             | Issue::StrayFile { path }
             | Issue::TooDeep { path } => path,
@@ -79,6 +92,9 @@ impl Issue {
             Issue::InvalidValue { field, value, .. } => format!("\"{value}\" isn't a valid {field}"),
             Issue::InvalidName { .. } => "Name contains characters titles can't use".into(),
             Issue::NotPortable { reason, .. } => format!("{reason}. Rename it to sync with Windows."),
+            Issue::ConflictCopy { .. } => {
+                "The other computer's version. Compare it with yours, keep what you want, then delete this copy.".into()
+            }
             Issue::MixedChildren { .. } => {
                 "Project has both milestones and tasks. Move its tasks into a milestone.".into()
             }
@@ -99,6 +115,8 @@ pub struct IssueView {
     pub message: String,
     /// Moss repairs these itself while loading, so they rarely get this far.
     pub fixable: bool,
+    /// An item that can be opened from the Issues view (the copy itself).
+    pub item_id: Option<String>,
     /// What it is about, as a person would name it: the file or folder name
     /// without `.md` (a folder's `_index.md` is named after the folder).
     pub name: String,
@@ -117,6 +135,7 @@ impl From<&Issue> for IssueView {
             issue: issue.clone(),
             message: issue.message(),
             fixable: issue.is_fixable(),
+            item_id: issue.item_id().map(str::to_owned),
             name: name.strip_suffix(".md").unwrap_or(name).to_owned(),
         }
     }

@@ -1106,3 +1106,34 @@ fn repeat_is_checked_and_belongs_to_tasks() {
         .iter()
         .any(|i| matches!(i, Issue::InvalidValue { field, .. } if field == "repeat")));
 }
+
+#[test]
+fn a_copy_saved_by_git_sync_is_listed_as_an_issue_you_can_open() {
+    let (_dir, root) = sample();
+    let lib = load(&root);
+    let tile = lib.get("TSKTILE001").unwrap().clone();
+    let copy_path = root.join(
+        tile.path
+            .replace("Pick tile.md", "Pick tile (from other computer).md"),
+    );
+    fs::write(
+        &copy_path,
+        "---\nstatus: doing\n---\nWritten on the other computer\n",
+    )
+    .unwrap();
+
+    let lib = load(&root);
+    let issue = lib
+        .issues
+        .iter()
+        .find(|i| matches!(i, Issue::ConflictCopy { .. }))
+        .expect("the copy is an issue");
+    let id = issue.item_id().expect("and can be opened").to_owned();
+    assert_eq!(lib.get(&id).unwrap().title, "Pick tile (from other computer)");
+    assert!(!issue.is_fixable());
+    // It is an ordinary task too, so it can be read, merged by hand and deleted.
+    assert_eq!(
+        ops::read_body(&lib, &id).unwrap().trim(),
+        "Written on the other computer"
+    );
+}

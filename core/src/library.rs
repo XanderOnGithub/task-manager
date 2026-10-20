@@ -291,6 +291,15 @@ impl Library {
             }
         };
 
+        // Git sync's "(from other computer)" copies are listed as Issues until
+        // you've looked at them and deleted them.
+        if names::is_conflict_copy(title) {
+            self.issues.push(Issue::ConflictCopy {
+                path: rel.to_owned(),
+                id: id.clone(),
+            });
+        }
+
         // Each field is checked; a bad value becomes an issue and is ignored.
         let mut check = |field: &str, ok: &dyn Fn(&str) -> bool| -> Option<String> {
             let value = fm.get(field)?;
