@@ -5,6 +5,7 @@
 // Opens each screen (list, board, Unsorted, pages, Issues, Trash, Settings, search,
 // first launch) in the light and dark themes against a pretend backend, and
 // reports what axe-core finds. Exits with an error if anything is found.
+// Runs with Reduce motion on, so a color is never measured halfway through a fade.
 // Needs a Chromium: set CHROMIUM_PATH, or run `pnpm exec playwright-core install chromium`.
 //
 // What this can't tell you: how a screen reader sounds. See docs/ACCESSIBILITY.md.
@@ -40,7 +41,7 @@ const snapshot = { dataFolder: '/Users/me/Moss', items, issues: [{ type: 'notPor
 
 const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined, args: ['--no-sandbox'] })
 async function open(theme, needsFolder = false) {
-  const page = await browser.newPage({ viewport: { width: 1280, height: 820 }, colorScheme: theme })
+  const page = await browser.newPage({ viewport: { width: 1280, height: 820 }, colorScheme: theme, reducedMotion: 'reduce' })
   await page.addInitScript(({ snapshot, needsFolder }) => {
     const handlers = {
       get_data_folder: () => (needsFolder ? null : snapshot.dataFolder), load_library: () => snapshot, list_trash: () => [{ path: '.trash/20261016-223512-Old.md', original: 'areas/Home/Old.md', title: 'Old', kind: 'task', from: ['Home'], deleted: '2026-10-16 22:35' }],
