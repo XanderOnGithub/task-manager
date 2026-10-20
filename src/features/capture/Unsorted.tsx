@@ -6,7 +6,7 @@
 //   3. pick a destination (or press Enter) → it's filed, a toast offers Undo,
 //      and the next item opens so you can keep going.
 
-import { useMemo, useState, type ReactNode } from 'react'
+import { useMemo, useState, type ReactNode, useId } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import { spring } from '../../shared/motion/springs'
 import { Collapse } from '../../shared/motion/pieces'
@@ -176,6 +176,7 @@ function DestinationPicker({
   const all = useMemo(() => destinations(items, fileAs), [items, fileAs])
   const shown = all.filter((d) => `${d.name} ${d.context}`.toLowerCase().includes(filter.trim().toLowerCase()))
   const active = Math.min(highlight, shown.length - 1)
+  const listId = useId()
 
   return (
     <div className="flex flex-col gap-1.5">
@@ -185,6 +186,11 @@ function DestinationPicker({
           <Search size={12} strokeWidth={2} aria-hidden="true" />
           <input
             autoFocus
+            role="combobox"
+            aria-expanded="true"
+            aria-controls={listId}
+            aria-autocomplete="list"
+            aria-activedescendant={shown[active] ? `${listId}-${active}` : undefined}
             value={filter}
             onChange={(e) => {
               setFilter(e.target.value)
@@ -210,7 +216,7 @@ function DestinationPicker({
         </label>
       </div>
 
-      <div role="listbox" aria-label={TITLES[fileAs]} className="-ml-1.5 flex max-h-[232px] flex-col gap-px overflow-y-auto">
+      <div id={listId} role="listbox" aria-label={TITLES[fileAs]} className="-ml-1.5 flex max-h-[232px] flex-col gap-px overflow-y-auto">
         {shown.length === 0 && (
           <p className="px-2 py-1.5 text-[12.5px] text-fg-3">
             {all.length === 0 ? emptyMessage(fileAs) : 'No matches'}
@@ -219,7 +225,9 @@ function DestinationPicker({
         {shown.map((d, i) => (
           <button
             key={d.id}
+            id={`${listId}-${i}`}
             role="option"
+            tabIndex={-1}
             aria-selected={i === active}
             onClick={() => onPick(d)}
             onMouseEnter={() => setHighlight(i)}

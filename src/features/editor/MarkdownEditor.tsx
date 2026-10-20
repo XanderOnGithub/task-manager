@@ -493,8 +493,20 @@ export function MarkdownEditor({
     })
   }
 
+  // Focus stays in the text while the "/" and ":" menus are open, so a screen
+  // reader isn't told which row is highlighted. Say it, and how many there are.
+  const menuSpeech =
+    slash && !naming && blocks.length > 0
+      ? `${blocks[Math.min(slashIndex, blocks.length - 1)].label}, ${Math.min(slashIndex, blocks.length - 1) + 1} of ${blocks.length}`
+      : colon && !slash && emojiMatches.length > 0
+        ? `${emojiMatches[Math.min(colonIndex, emojiMatches.length - 1)].name}, ${Math.min(colonIndex, emojiMatches.length - 1) + 1} of ${emojiMatches.length}`
+        : ''
+
   return (
     <>
+      <div role="status" className="sr-only">
+        {menuSpeech}
+      </div>
       {/* Only a wrapper: the text field inside is the editor (its own role and label).
           The handlers here are the checklist-box click, leaving the editor, and link clicks. */}
       <div
