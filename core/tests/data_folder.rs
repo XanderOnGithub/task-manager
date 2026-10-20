@@ -515,6 +515,59 @@ fn trash_and_restore() {
     assert!(lib.get("TSKINSTL01").is_some());
 }
 
+#[test]
+fn same_named_items_deleted_together_both_reach_the_trash() {
+    let (_dir, root) = sample();
+    let lib = load(&root);
+    let home = by_title(&lib, "Home").id.clone();
+    let a = ops::create(&lib, Kind::Project, Some(&home), "Garden", "").unwrap();
+    let b = ops::create(&lib, Kind::Project, Some(&home), "Garage", "").unwrap();
+    let lib = load(&root);
+    let first = ops::create(&lib, Kind::Task, Some(&a), "Tidy up", "from the garden").unwrap();
+    let second = ops::create(&lib, Kind::Task, Some(&b), "Tidy up", "from the garage").unwrap();
+
+    // Same name, same second: the second must not replace the first.
+    let lib = load(&root);
+    let one = ops::trash(&lib, &first).unwrap();
+    let lib = load(&root);
+    let two = ops::trash(&lib, &second).unwrap();
+    assert_ne!(one, two);
+    assert!(fs::read_to_string(root.join(&one))
+        .unwrap()
+        .contains("from the garden"));
+    assert!(fs::read_to_string(root.join(&two))
+        .unwrap()
+        .contains("from the garage"));
+    assert_eq!(task_core::trash::list(&root).unwrap().len(), 2);
+}
+
+#[test]
+fn restoring_refuses_paths_outside_the_data_folder() {
+    let (dir, root) = sample();
+    let lib = load(&root);
+    let trashed = ops::trash(&lib, "TSKTILE001").unwrap();
+    let lib = load(&root);
+
+    for target in [
+        "../escaped.md",
+        "/tmp/escaped.md",
+        "areas/../../escaped.md",
+        ".trash/again.md",
+    ] {
+        assert!(
+            matches!(ops::restore(&lib, &trashed, target), Err(Error::NotAllowed(_))),
+            "{target}"
+        );
+    }
+    // And only things from the trash can be restored.
+    assert!(matches!(
+        ops::restore(&lib, "areas/Home/_index.md", "areas/Home/copy.md"),
+        Err(Error::NotAllowed(_))
+    ));
+    assert!(!dir.path().join("escaped.md").exists());
+    assert!(root.join(&trashed).exists(), "still in the trash");
+}
+
 // ---------------------------------------------------------------------------
 // Unsorted
 // ---------------------------------------------------------------------------
