@@ -45,7 +45,7 @@ pub struct Outcome {
 
 /// True if `git` can be run at all.
 pub fn available() -> bool {
-    Command::new("git")
+    git_command()
         .arg("--version")
         .output()
         .map(|o| o.status.success())
@@ -270,9 +270,25 @@ fn write_if_missing(path: &Path, text: &str) -> Result<()> {
     Ok(())
 }
 
+/// A `git` command that doesn't flash a console window. On Windows, starting a
+/// console program from an app with no console opens a window for it, and sync
+/// runs Git every few seconds. `CREATE_NO_WINDOW` stops that. Other systems
+/// have nothing to do.
+fn git_command() -> Command {
+    #[allow(unused_mut)]
+    let mut cmd = Command::new("git");
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+        cmd.creation_flags(CREATE_NO_WINDOW);
+    }
+    cmd
+}
+
 /// Runs `git <args>` in `dir`. Returns what it printed, or its error message.
 fn git(dir: &Path, token: Option<&str>, args: &[&str]) -> Result<String> {
-    let mut cmd = Command::new("git");
+    let mut cmd = git_command();
     cmd.current_dir(dir)
         .args(args)
         // Never stop to ask for a password on a terminal that isn't there.
