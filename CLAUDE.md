@@ -161,7 +161,8 @@ Settings → Sync (`SyncSettings.tsx`): sign in with GitHub, create a repository
 - `src-tauri/src/sync.rs` is the glue and a background thread: commits a minute after the last change ("Moss: 4 changes"), pulls on launch, when the window regains focus and every 5 minutes, pushes after a commit, commits on quit. Pulled files reach the UI through `data-changed`.
 - `.gitattributes` gets `unsorted.md merge=union`; `.gitignore` gets `.trash/`. The watcher ignores `.git/`.
 - A real conflict keeps this computer's version and saves the other as "Title (from other computer).md" (no `id:`, so it gets a fresh one). `_index.md` conflicts keep ours with no copy.
-- Not done yet: "Clone from a Git repo" at onboarding, a sidebar indicator, listing conflict copies as Issues, GitHub Enterprise.
+- First launch: the folder step has "Get files from GitHub" (`GithubStep` in `Onboarding.tsx`): sign in, pick a repository, it is fetched into Documents/Moss and synced.
+- Not done yet: a sidebar indicator, listing conflict copies as Issues, GitHub Enterprise.
 
 ## Backlog (after v1)
 

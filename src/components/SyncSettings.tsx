@@ -63,7 +63,7 @@ type Run = (work: Promise<unknown>, done?: string) => Promise<unknown>
 
 // --- Step 1: sign in ----------------------------------------------------
 
-function SignIn({ available }: { available: boolean }) {
+export function SignIn({ available }: { available: boolean }) {
   const [code, setCode] = useState<DeviceCode | null>(null)
   const [error, setError] = useState<string | null>(null)
 
@@ -167,7 +167,11 @@ function ChooseRepo({ run }: { run: Run }) {
           { value: 'existing', label: 'Use an existing one' },
         ]}
       />
-      {mode === 'create' ? <CreateRepo run={run} /> : <ExistingRepo run={run} />}
+      {mode === 'create' ? (
+        <CreateRepo run={run} />
+      ) : (
+        <ExistingRepo onUse={(repo) => run(syncConnect(repo), 'Syncing with GitHub')} />
+      )}
     </div>
   )
 }
@@ -206,7 +210,8 @@ function CreateRepo({ run }: { run: Run }) {
   )
 }
 
-function ExistingRepo({ run }: { run: Run }) {
+/** Your repositories, to pick one. `onUse` does the connecting (Settings and first launch differ). */
+export function ExistingRepo({ onUse }: { onUse: (repo: GithubRepo) => Promise<unknown> }) {
   const [repos, setRepos] = useState<GithubRepo[] | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [filter, setFilter] = useState('')
@@ -224,7 +229,7 @@ function ExistingRepo({ run }: { run: Run }) {
   )
   const connect = async (repo: GithubRepo) => {
     setBusy(repo.fullName)
-    await run(syncConnect(repo), 'Syncing with GitHub')
+    await onUse(repo)
     setBusy(null)
   }
 
