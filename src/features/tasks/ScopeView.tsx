@@ -9,10 +9,10 @@
 
 import { useState } from 'react'
 import { Calendar, List, Plus, SquareKanban } from 'lucide-react'
-import { childrenOf, type Item, type ProjectStatus } from '../../platform/api'
+import { type Item, type ProjectStatus } from '../../platform/api'
+import { childrenOf, statusLabel, taskCounts, trailOf } from '../../domain/items'
 import { AreaList } from './AreaList'
 import { dueLabel } from '../../domain/dates'
-import { statusLabel, taskCounts, trailOf } from '../../domain/items'
 import type { Actions } from '../../app/useActions'
 import { useAddRequest, useRenameRequest } from '../../app/requests'
 import { Board } from './Board'

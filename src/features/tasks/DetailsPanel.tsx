@@ -2,9 +2,9 @@
 
 import { useState, type CSSProperties, type ReactNode } from 'react'
 import { X } from 'lucide-react'
-import { childrenOf, MILESTONE_COLORS, type Item, type MilestoneColor, type Status } from '../../platform/api'
+import { type Item, type MilestoneColor, type Status } from '../../platform/api'
+import { childrenOf, MILESTONE_COLORS, statusLabel } from '../../domain/items'
 import { shortDate } from '../../domain/dates'
-import { statusLabel } from '../../domain/items'
 import { useLanes } from '../../domain/lanes'
 import { useRenameRequest } from '../../app/requests'
 import type { Actions } from '../../app/useActions'

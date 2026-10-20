@@ -160,27 +160,6 @@ export const onDataChanged = (callback: (paths: string[]) => void): Promise<Unli
 // Helpers
 // ---------------------------------------------------------------------------
 
-/**
- * Children of `parent` in display order. An area or project holds two lists,
- * its projects/milestones/tasks and its pages; `pages` picks which.
- */
-export function childrenOf(items: Item[], parent: string | null, pages = false): Item[] {
-  return items
-    .filter((i) => i.parent === parent && (i.kind === 'page') === pages)
-    .sort(compareForDisplay)
-}
-
-/** Same order as the Rust side: order key first, then title. */
-export function compareForDisplay(a: Item, b: Item): number {
-  if (a.order && b.order) return a.order < b.order ? -1 : a.order > b.order ? 1 : a.title.localeCompare(b.title)
-  if (a.order) return -1
-  if (b.order) return 1
-  return a.title.localeCompare(b.title, undefined, { sensitivity: 'base' })
-}
-
-/** The milestone palette, in picker order. Names match `--color-ms-*` in tokens.css. */
-export const MILESTONE_COLORS: MilestoneColor[] = ['dusty-blue', 'mauve', 'rose', 'teal', 'lavender', 'sand']
-
 /** Experimental 120fps drawing (macOS only). */
 export interface HighRefresh {
   supported: boolean

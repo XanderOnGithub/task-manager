@@ -11,7 +11,8 @@ import {
   type DragOverEvent,
   type DragStartEvent,
 } from '@dnd-kit/core'
-import { childrenOf, type Item } from '../../platform/api'
+import { type Item } from '../../platform/api'
+import { childrenOf } from '../../domain/items'
 import { useDragState } from '../../shared/drag/drag'
 import type { Actions } from '../../app/useActions'
 
