@@ -3,7 +3,7 @@
 
 import type { CSSProperties, ReactNode } from 'react'
 import { Calendar, Repeat } from 'lucide-react'
-import { motion } from 'motion/react'
+import * as m from 'motion/react-m'
 import { spring } from './motion/springs'
 import type { Item, MilestoneColor, Status } from '../platform/api'
 import { dueLabel, dueTone } from '../domain/dates'
@@ -93,7 +93,7 @@ export function StatusIcon({ status, size = 16 }: { status: Status | null; size?
         strokeDasharray={later ? '3.2 2.6' : undefined}
         className="transition-colors duration-150"
       />
-      <motion.path
+      <m.path
         d="M10 9v6M14 9v6"
         stroke="currentColor"
         strokeWidth="2"
@@ -103,7 +103,7 @@ export function StatusIcon({ status, size = 16 }: { status: Status | null; size?
         animate={waiting ? { opacity: 1, scale: 1 } : { opacity: 0, scale: 0.5 }}
         transition={spring.snappy}
       />
-      <motion.path
+      <m.path
         d="M12 6.5a5.5 5.5 0 0 1 0 11z"
         fill="currentColor"
         style={{ transformOrigin: '12px 12px' }}
@@ -111,7 +111,7 @@ export function StatusIcon({ status, size = 16 }: { status: Status | null; size?
         animate={doing ? { opacity: 1, rotate: 0 } : { opacity: 0, rotate: -120 }}
         transition={spring.snappy}
       />
-      <motion.circle
+      <m.circle
         cx="12"
         cy="12"
         r="9"
@@ -121,7 +121,7 @@ export function StatusIcon({ status, size = 16 }: { status: Status | null; size?
         animate={done ? { scale: 1, opacity: 1 } : { scale: 0.4, opacity: 0 }}
         transition={done ? spring.pop : spring.snappy}
       />
-      <motion.path
+      <m.path
         d="m8.5 12 2.5 2.5 4.5-5"
         fill="none"
         strokeWidth="2.2"
@@ -146,14 +146,14 @@ export function TaskTitle({ title, done, className = '' }: { title: string; done
   return (
     // At least ~half the row stays for the title, however long the chips next to it are.
     <span className={`min-w-[min(45%,10rem)] flex-1 truncate transition-colors duration-150 ${done ? 'text-fg-3' : 'text-fg'} ${className}`}>
-      <motion.span
+      <m.span
         initial={false}
         animate={{ backgroundSize: done ? '100% 1px' : '0% 1px' }}
         transition={spring.smooth}
         className="bg-[linear-gradient(currentColor,currentColor)] bg-[position:0_58%] bg-no-repeat"
       >
         {title}
-      </motion.span>
+      </m.span>
     </span>
   )
 }
@@ -189,7 +189,7 @@ export function Progress({ done, total, className = '' }: { done: number; total:
   const pct = total === 0 ? 0 : Math.round((done / total) * 100)
   return (
     <span aria-hidden="true" className={`flex h-[3px] overflow-hidden rounded-full bg-track ${className}`}>
-      <motion.span
+      <m.span
         className="rounded-full bg-accent"
         initial={false}
         animate={{ width: `${pct}%` }}

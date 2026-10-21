@@ -8,7 +8,7 @@ import '@fontsource/geist-sans/600.css'
 import '@fontsource/geist-mono/400.css'
 
 import './styles/app.css'
-import { MotionConfig, motion } from 'motion/react'
+import { domAnimation, LazyMotion, MotionConfig, motion } from 'motion/react'
 import App from './App.tsx'
 import { spring } from './shared/motion/springs'
 import { applyTheme } from './platform/theme'
@@ -24,18 +24,17 @@ createRoot(document.getElementById('root')!).render(
   <StrictMode>
     {/* reducedMotion="user": follows the macOS Reduce motion setting. */}
     <MotionConfig reducedMotion="user" transition={spring.snappy}>
-      <ToastProvider>
-        {/* The one animation on first render: the window fades in on launch
+      {/* The small animation set (no layout or drag). Rows use the lighter `m` components, which
+          need it; see shared/motion/pieces.tsx. */}
+      <LazyMotion features={domAnimation} strict>
+        <ToastProvider>
+          {/* The one animation on first render: the window fades in on launch
             instead of appearing all at once. Everything after that uses initial={false}. */}
-        <motion.div
-          className="h-full"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={spring.smooth}
-        >
-          <App />
-        </motion.div>
-      </ToastProvider>
+          <motion.div className="h-full" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={spring.smooth}>
+            <App />
+          </motion.div>
+        </ToastProvider>
+      </LazyMotion>
     </MotionConfig>
   </StrictMode>,
 )

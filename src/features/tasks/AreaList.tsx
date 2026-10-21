@@ -4,8 +4,10 @@
 // the project and milestone pages, where there's one place to drop into.
 
 import { BlockedMark } from './BlockedMark'
+import { useProgressive } from '../../app/useProgressive'
 import { memo, useState } from 'react'
-import { AnimatePresence, motion } from 'motion/react'
+import { AnimatePresence } from 'motion/react'
+import * as m from 'motion/react-m'
 import { ArrowUpRight, ChevronDown, Target } from 'lucide-react'
 import { type Item } from '../../platform/api'
 import { childrenOf, statusLabel, tasksUnder } from '../../domain/items'
@@ -27,9 +29,14 @@ interface Props {
   showAdd?: boolean
 }
 
+/** Projects drawn straight away when a long list opens (see useProgressive). */
+const FIRST_PROJECTS = 3
+
 export function AreaList({ items, area, selectedId, onSelect, onCycleStatus, onOpen, actions, showAdd = true }: Props) {
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
-  const projects = childrenOf(items, area.id)
+  const allProjects = childrenOf(items, area.id)
+  // The first few projects are what you see; the rest are drawn a moment later.
+  const projects = allProjects.slice(0, useProgressive(allProjects.length, FIRST_PROJECTS))
 
   return (
     <div className="flex flex-col gap-[22px]">
@@ -59,9 +66,9 @@ export function AreaList({ items, area, selectedId, onSelect, onCycleStatus, onO
                 aria-expanded={isOpen}
                 className="flex rounded-md p-1 text-fg-3 hover:text-fg-2"
               >
-                <motion.span initial={false} animate={{ rotate: isOpen ? 0 : -90 }} transition={spring.snappy} className="flex">
+                <m.span initial={false} animate={{ rotate: isOpen ? 0 : -90 }} transition={spring.snappy} className="flex">
                   <ChevronDown size={14} strokeWidth={2} aria-hidden="true" />
-                </motion.span>
+                </m.span>
               </button>
               <button
                 onClick={() => onOpen(project.id)}
