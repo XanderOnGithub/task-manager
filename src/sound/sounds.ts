@@ -17,7 +17,7 @@
 import { ZZFX, ZZFXSound } from 'zzfx'
 import { readPref, writePref } from '../platform/prefs'
 import { LEVEL_WOBBLE, PITCH_WOBBLE, playVoices, wobble } from './keySynth'
-import { KEY_STYLES, pressVoices, releaseVoices, type KeyStyleName } from './keyStyles'
+import { KEY_STYLES, pressVoices, type KeyStyleName } from './keyStyles'
 
 export const SOUNDS = {
   /** Picking something up to drag it: a light tap. */
@@ -131,9 +131,8 @@ export type TypingStyle = 'default' | KeyStyleName
 export const TYPING_STYLE_INFO: { id: TypingStyle; label: string }[] = [
   { id: 'default', label: 'Soft' },
   { id: 'creamy', label: 'Creamy' },
-  { id: 'pop', label: 'Popping' },
-  { id: 'mouth', label: 'Mouth pop' },
   { id: 'water', label: 'Water drops' },
+  { id: 'pop', label: 'Pop' },
   { id: 'clicky', label: 'Clicky' },
 ]
 
@@ -173,6 +172,9 @@ export interface SoundSettings {
 
 const DEFAULTS: SoundSettings = { on: true, volume: 0.6, muted: [], typing: false, typingStyle: 'default' }
 let settings: SoundSettings = { ...DEFAULTS, ...readPref<Partial<SoundSettings>>('sound', {}) }
+// Styles that were merged: "Popping" and "Mouth pop" became "Pop" and "Water drops" kept its name.
+// ("pop" used to be Popping; it now means the old Mouth pop, which is the closest.)
+if ((settings.typingStyle as string) === 'mouth') settings = { ...settings, typingStyle: 'pop' }
 const cache = new Map<string, ZZFXSound[]>()
 const lastPlayed = new Map<SoundName, number>()
 
@@ -196,7 +198,10 @@ export function setSoundSettings(next: SoundSettings) {
  *   (typing sounds excepted: fast typing should sound like fast typing).
  * - `force`: play even if muted (the test buttons in Settings).
  */
-export function play(name: SoundName, { pitch = 1, force = false }: { pitch?: number; force?: boolean } = {}) {
+export function play(
+  name: SoundName,
+  { pitch = 1, force = false, big = false }: { pitch?: number; force?: boolean; big?: boolean } = {},
+) {
   if (!force && (!settings.on || settings.muted.includes(name))) return
   if (settings.volume <= 0) return
   const now = performance.now()
@@ -207,7 +212,7 @@ export function play(name: SoundName, { pitch = 1, force = false }: { pitch?: nu
     if (ZZFX.audioContext.state === 'suspended') void ZZFX.audioContext.resume()
     // A typing sound comes from the chosen style (an unknown saved style falls back to Soft).
     if (TYPING.includes(name as TypingSound)) {
-      typingSound(name as TypingSound, 'press')
+      typingSound(name as TypingSound, big)
       return
     }
     let layers = cache.get(name)
@@ -221,41 +226,51 @@ export function play(name: SoundName, { pitch = 1, force = false }: { pitch?: nu
   }
 }
 
-/** Plays a typing sound in the chosen style, varied a little (pitch ±2.5%, level ±10%). */
-function typingSound(name: TypingSound, part: 'press' | 'release') {
+/** What the last Web Audio typing press was, so the next press can cut it short instead of piling on. */
+let lastPress: { choke: (ms?: number) => void } | null = null
+/** A soft ceiling for the typing sounds (a low-pass and a limiter), made once. */
+let keyOut: AudioNode | null = null
+function keyOutput(ctx: AudioContext): AudioNode {
+  if (keyOut) return keyOut
+  // Nothing above 7 kHz, and a limiter so a loud press (or three at once) can't clip.
+  const lowpass = ctx.createBiquadFilter()
+  lowpass.type = 'lowpass'
+  lowpass.frequency.value = 7000
+  lowpass.Q.value = 0.5
+  const limiter = ctx.createDynamicsCompressor()
+  limiter.threshold.value = -10
+  limiter.knee.value = 6
+  limiter.ratio.value = 12
+  limiter.attack.value = 0.002
+  limiter.release.value = 0.08
+  lowpass.connect(limiter).connect(ctx.destination)
+  keyOut = lowpass
+  return keyOut
+}
+
+/**
+ * Plays a typing sound in the chosen style, varied a little (pitch ±2.5%, level ±10%).
+ * `big` is for Backspace or Enter with a modifier (delete a word, send): lower, longer, much louder.
+ */
+function typingSound(name: TypingSound, big: boolean) {
   const id = settings.typingStyle in KEY_STYLES ? (settings.typingStyle as KeyStyleName) : null
   const pitch = 1 + wobble() * PITCH_WOBBLE
   const level = settings.volume * (1 + wobble() * LEVEL_WOBBLE)
   if (!id) {
-    // Soft: ZzFX recipes, which add their own small pitch change on every play. No release sound.
-    if (part === 'press') {
-      const key = `soft:${name}`
-      let layers = cache.get(key)
-      if (!layers) {
-        layers = SOFT[name].map((recipe) => new ZZFXSound([...recipe]))
-        cache.set(key, layers)
-      }
-      for (const layer of layers) layer.play(level, 1)
+    // Soft: ZzFX recipes, which add their own small pitch change on every play.
+    const key = `soft:${name}`
+    let layers = cache.get(key)
+    if (!layers) {
+      layers = SOFT[name].map((recipe) => new ZZFXSound([...recipe]))
+      cache.set(key, layers)
     }
+    for (const layer of layers) layer.play(big ? level * 1.6 : level, big ? 0.82 : 1)
     return
   }
-  const voices = part === 'press' ? pressVoices(KEY_STYLES[id], name) : releaseVoices(KEY_STYLES[id], name)
-  if (voices.length === 0) return
+  const voices = pressVoices(KEY_STYLES[id], name, big)
   const ctx = ZZFX.audioContext
-  playVoices(ctx, ctx.destination, voices, { pitch, gain: level * ZZFX.volume })
-}
-
-/** Plays the sound of a key coming back up, for the styles that have one (Creamy, Clicky). */
-export function playRelease(name: SoundName, { force = false }: { force?: boolean } = {}) {
-  if (!TYPING.includes(name as TypingSound)) return
-  if (!force && !settings.on) return
-  if (settings.volume <= 0) return
-  try {
-    if (ZZFX.audioContext.state === 'suspended') void ZZFX.audioContext.resume()
-    typingSound(name as TypingSound, 'release')
-  } catch {
-    // No audio device, or audio blocked: stay silent.
-  }
+  lastPress?.choke()
+  lastPress = playVoices(ctx, keyOutput(ctx), voices, { pitch, gain: level * ZZFX.volume })
 }
 
 /** True for things you type into: text fields and the page editor. */
@@ -272,17 +287,21 @@ function isTypingTarget(target: EventTarget | null) {
  * Shortcuts (⌘, Ctrl, Alt) and keys that don't type (arrows, Shift) are quiet.
  */
 export function listenForTyping() {
-  // Keys whose press made a sound, so their release can too (by physical key, since Shift may change `key`).
-  const down = new Map<string, TypingSound>()
   const onKey = (e: KeyboardEvent) => {
-    if (!settings.typing || e.metaKey || e.ctrlKey || e.altKey || (e.repeat && e.key !== 'Backspace')) return
+    if (!settings.typing || (e.repeat && e.key !== 'Backspace')) return
     if (!isTypingTarget(e.target)) return
+    const removes = e.key === 'Backspace' || e.key === 'Delete'
+    const modifier = e.metaKey || e.ctrlKey || e.altKey
+    // Shortcuts (⌘C, Ctrl+A) stay silent. Backspace and Enter with Shift or a
+    // modifier (delete a word, a new line, send) get a heavier sound instead.
+    if (modifier && !removes && e.key !== 'Enter') return
+    const big = (removes && (modifier || e.shiftKey)) || (e.key === 'Enter' && (modifier || e.shiftKey))
     const sound: TypingSound | null =
       e.key === ' '
         ? 'keySpace'
         : e.key === 'Enter'
           ? 'keyEnter'
-          : e.key === 'Backspace' || e.key === 'Delete'
+          : removes
             ? 'keyDelete'
             : e.key.length === 1
               ? // Shift held, or a character that needs it (capitals, !, ?).
@@ -290,21 +309,8 @@ export function listenForTyping() {
                 ? 'keyShift'
                 : 'key'
               : null
-    if (sound) {
-      play(sound)
-      down.set(e.code, sound)
-    }
-  }
-  const onKeyUp = (e: KeyboardEvent) => {
-    const sound = down.get(e.code)
-    if (!sound) return
-    down.delete(e.code)
-    if (settings.typing) playRelease(sound)
+    if (sound) play(sound, { big })
   }
   window.addEventListener('keydown', onKey, true)
-  window.addEventListener('keyup', onKeyUp, true)
-  return () => {
-    window.removeEventListener('keydown', onKey, true)
-    window.removeEventListener('keyup', onKeyUp, true)
-  }
+  return () => window.removeEventListener('keydown', onKey, true)
 }
