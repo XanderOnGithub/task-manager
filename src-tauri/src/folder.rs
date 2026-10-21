@@ -33,13 +33,21 @@ pub fn open(app: &AppHandle, data: &mut Data, root: PathBuf) {
     }
 
     let handle = app.clone();
+    let watched = root.clone();
     match watch::watch(&root, move |paths| {
         if let Ok(mut data) = handle.state::<AppState>().data.lock() {
             data.last_activity = Some(std::time::Instant::now());
             // Our own save, seen a moment later: the UI already reloaded right
             // after the command, so a second reload would only redo that work.
-            if data.last_write.is_some_and(|at| at.elapsed() < OWN_WRITE_WINDOW) {
-                return;
+            // Only if every changed file is one of ours: not touched since our
+            // write finished. An outside edit in the same second (a phone adding
+            // to Unsorted) is newer than that, so it still reloads.
+            if let (Some(at), Some(written)) = (data.last_write, data.last_write_time) {
+                if at.elapsed() < OWN_WRITE_WINDOW
+                    && paths.iter().all(|p| not_changed_since(&watched, p, written))
+                {
+                    return;
+                }
             }
             // Someone else changed the files: forget the cached library.
             data.library = None;
@@ -70,4 +78,13 @@ pub fn dev_sample(app: &AppHandle) -> Option<PathBuf> {
         example::add_example(&source, &target).ok()?;
     }
     Some(target)
+}
+
+/// True if `rel` (a path inside `root`) is gone or has not been modified since
+/// `written`. Our own saves are the files this holds for.
+fn not_changed_since(root: &std::path::Path, rel: &str, written: std::time::SystemTime) -> bool {
+    match std::fs::metadata(root.join(rel)).and_then(|m| m.modified()) {
+        Ok(modified) => modified <= written,
+        Err(_) => true,
+    }
 }

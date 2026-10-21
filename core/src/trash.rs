@@ -45,9 +45,9 @@ pub struct TrashEntry {
 
 /// Writes the note next to a freshly trashed item.
 pub(crate) fn note_origin(root: &Path, trash_rel: &str, original_rel: &str) -> Result<()> {
-    fs::write(
-        root.join(format!("{trash_rel}{FROM}")),
-        format!("{original_rel}\n"),
+    crate::fsutil::write_atomic(
+        &root.join(format!("{trash_rel}{FROM}")),
+        &format!("{original_rel}\n"),
     )?;
     Ok(())
 }

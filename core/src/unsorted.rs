@@ -17,7 +17,7 @@ use std::io::ErrorKind;
 use serde::{Deserialize, Serialize};
 
 use crate::error::{Error, Result};
-use crate::fsutil::write_atomic;
+use crate::fsutil::{modify_atomic, write_atomic};
 use crate::library::{Library, UNSORTED_FILE};
 use crate::model::Kind;
 use crate::names::title_from_text;
@@ -67,15 +67,20 @@ pub fn add(lib: &Library, text: &str, now: &str) -> Result<Entry> {
     if text.is_empty() {
         return Err(Error::InvalidName("Item can't be empty".into()));
     }
-    let mut file = read_text(lib)?;
-    if !file.is_empty() && !file.ends_with('\n') {
-        file.push('\n');
-    }
     let raw = format!("- {now} {text}");
-    let line = file.lines().count();
-    file.push_str(&raw);
-    file.push('\n');
-    write_atomic(&lib.abs(UNSORTED_FILE), &file)?;
+    // Redone from the file's newest text if it changed while we were adding
+    // (a phone appending a line, say), so that line is kept.
+    let mut line = 0;
+    modify_atomic(&lib.abs(UNSORTED_FILE), |current| {
+        let mut file = current.to_owned();
+        if !file.is_empty() && !file.ends_with('\n') {
+            file.push('\n');
+        }
+        line = file.lines().count();
+        file.push_str(&raw);
+        file.push('\n');
+        Ok::<_, Error>(file)
+    })?;
     Ok(Entry {
         line,
         raw,
@@ -113,37 +118,37 @@ pub fn stamp_missing(lib: &Library, now: &str) -> Result<usize> {
 /// Removes one entry. Fails with `Changed` if that line isn't in the file
 /// anymore (it was edited elsewhere), so the wrong line is never deleted.
 pub fn remove(lib: &Library, entry: &Entry) -> Result<()> {
-    let text = read_text(lib)?;
-    let mut lines: Vec<&str> = text.lines().collect();
+    modify_atomic(&lib.abs(UNSORTED_FILE), |text| {
+        let mut lines: Vec<&str> = text.lines().collect();
 
-    // Usually the line is where we left it; if lines were added above it, look
-    // for the same text elsewhere.
-    let position = if lines.get(entry.line) == Some(&entry.raw.as_str()) {
-        Some(entry.line)
-    } else {
-        lines.iter().position(|l| *l == entry.raw)
-    };
-    let Some(position) = position else {
-        return Err(Error::Changed("Unsorted".into()));
-    };
-    lines.remove(position);
+        // Usually the line is where we left it; if lines were added above it, look
+        // for the same text elsewhere.
+        let position = if lines.get(entry.line) == Some(&entry.raw.as_str()) {
+            Some(entry.line)
+        } else {
+            lines.iter().position(|l| *l == entry.raw)
+        };
+        let Some(position) = position else {
+            return Err(Error::Changed("Unsorted".into()));
+        };
+        lines.remove(position);
 
-    let mut out = lines.join("\n");
-    if !out.is_empty() {
-        out.push('\n');
-    }
-    write_atomic(&lib.abs(UNSORTED_FILE), &out)?;
-    Ok(())
+        let mut out = lines.join("\n");
+        if !out.is_empty() {
+            out.push('\n');
+        }
+        Ok(out)
+    })
 }
 
 /// Puts a removed entry back at its old line (the Undo after filing).
 pub fn restore(lib: &Library, entry: &Entry) -> Result<()> {
-    let text = read_text(lib)?;
-    let mut lines: Vec<&str> = text.lines().collect();
-    let at = entry.line.min(lines.len());
-    lines.insert(at, &entry.raw);
-    write_atomic(&lib.abs(UNSORTED_FILE), &(lines.join("\n") + "\n"))?;
-    Ok(())
+    modify_atomic(&lib.abs(UNSORTED_FILE), |text| {
+        let mut lines: Vec<&str> = text.lines().collect();
+        let at = entry.line.min(lines.len());
+        lines.insert(at, &entry.raw);
+        Ok::<_, Error>(lines.join("\n") + "\n")
+    })
 }
 
 /// Turns an entry into a task, page or project inside `parent`, then removes it

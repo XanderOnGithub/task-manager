@@ -1,8 +1,9 @@
 //! Small file-system helpers shared by the write operations.
 
 use std::fs;
-use std::io;
+use std::io::{self, Write};
 use std::path::Path;
+use std::sync::atomic::{AtomicU64, Ordering};
 
 use chrono::Local;
 
@@ -15,9 +16,61 @@ use chrono::Local;
 pub fn write_atomic(path: &Path, contents: &str) -> io::Result<()> {
     let dir = path.parent().unwrap_or(Path::new("."));
     let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("file");
-    let temp = dir.join(format!(".{name}.tmp"));
-    fs::write(&temp, contents)?;
-    fs::rename(&temp, path)
+    // A name of its own, so two saves of the same file (or a save and a sync)
+    // never write into the same temporary file. Still `.name.<n>.tmp`, which
+    // the watcher and the backups both ignore.
+    let temp = dir.join(format!(
+        ".{name}.{}-{}.tmp",
+        std::process::id(),
+        TEMP_COUNTER.fetch_add(1, Ordering::Relaxed)
+    ));
+
+    let result = (|| {
+        let mut file = fs::File::create(&temp)?;
+        file.write_all(contents.as_bytes())?;
+        // Without this, a power cut right after the rename can leave the new
+        // name pointing at a file whose contents never reached the disk: empty.
+        file.sync_all()?;
+        drop(file);
+        fs::rename(&temp, path)
+    })();
+    if result.is_err() {
+        let _ = fs::remove_file(&temp);
+        return result;
+    }
+    // Make the rename itself survive a power cut too (Unix only; best effort).
+    #[cfg(unix)]
+    if let Ok(dir) = fs::File::open(dir) {
+        let _ = dir.sync_all();
+    }
+    Ok(())
+}
+
+static TEMP_COUNTER: AtomicU64 = AtomicU64::new(0);
+
+/// Reads a file (`""` if it doesn't exist yet), lets `change` turn its text into
+/// the new text, and saves that atomically, unless the file changed on disk in
+/// the meantime (an editor, a sync): then it starts again from the new text, so
+/// an outside edit is not overwritten with a change based on the old one.
+/// After a few tries it gives up with an error instead of overwriting.
+pub fn modify_atomic<E: From<io::Error>>(
+    path: &Path,
+    mut change: impl FnMut(&str) -> Result<String, E>,
+) -> Result<(), E> {
+    let read = || match fs::read_to_string(path) {
+        Ok(text) => Ok(text),
+        Err(e) if e.kind() == io::ErrorKind::NotFound => Ok(String::new()),
+        Err(e) => Err(e),
+    };
+    for _ in 0..3 {
+        let before = read()?;
+        let after = change(&before)?;
+        if read()? == before {
+            write_atomic(path, &after)?;
+            return Ok(());
+        }
+    }
+    Err(io::Error::other("The file keeps changing. Try again in a moment.").into())
 }
 
 /// Checks that `rel` is a path inside the data folder: relative, with `/`
@@ -104,5 +157,71 @@ mod tests {
         ] {
             assert!(check_inside(bad).is_err(), "{bad}");
         }
+    }
+}
+
+#[cfg(test)]
+mod atomic_tests {
+    use super::*;
+
+    #[test]
+    fn a_save_leaves_only_the_file_and_never_a_temporary() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("Task.md");
+        write_atomic(&path, "one").unwrap();
+        write_atomic(&path, "two").unwrap();
+        assert_eq!(fs::read_to_string(&path).unwrap(), "two");
+        let names: Vec<_> = fs::read_dir(dir.path())
+            .unwrap()
+            .map(|e| e.unwrap().file_name())
+            .collect();
+        assert_eq!(names, vec![std::ffi::OsString::from("Task.md")]);
+    }
+
+    #[test]
+    fn a_failed_save_leaves_the_old_file_and_no_temporary() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("Task.md");
+        fs::write(&path, "keep me").unwrap();
+        // A folder can't be replaced by a file: the rename fails.
+        let blocked = dir.path().join("Folder");
+        fs::create_dir(&blocked).unwrap();
+        assert!(write_atomic(&blocked, "x").is_err());
+        assert_eq!(fs::read_to_string(&path).unwrap(), "keep me");
+        assert_eq!(fs::read_dir(dir.path()).unwrap().count(), 2);
+    }
+
+    #[test]
+    fn a_change_made_elsewhere_during_an_edit_is_not_overwritten() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("Task.md");
+        fs::write(&path, "a").unwrap();
+        let mut calls = 0;
+        modify_atomic(&path, |text| {
+            calls += 1;
+            if calls == 1 {
+                // An editor saves while we are working on the old text.
+                fs::write(&path, "a + typed elsewhere").unwrap();
+            }
+            Ok::<_, io::Error>(format!("{text}!"))
+        })
+        .unwrap();
+        assert_eq!(calls, 2);
+        assert_eq!(fs::read_to_string(&path).unwrap(), "a + typed elsewhere!");
+    }
+
+    #[test]
+    fn a_file_that_never_stops_changing_is_an_error_not_an_overwrite() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("Task.md");
+        fs::write(&path, "0").unwrap();
+        let mut n = 0;
+        let result = modify_atomic(&path, |text| {
+            n += 1;
+            fs::write(&path, format!("{n}")).unwrap();
+            Ok::<_, io::Error>(format!("{text}x"))
+        });
+        assert!(result.is_err());
+        assert_eq!(fs::read_to_string(&path).unwrap(), "3");
     }
 }
