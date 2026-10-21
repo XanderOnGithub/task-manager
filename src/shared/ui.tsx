@@ -28,7 +28,7 @@ export function Panel({ label, className = '', children }: { label: string; clas
  */
 export function PanelHeader({ children }: { children: ReactNode }) {
   return (
-    <header className="@container/header flex h-12 shrink-0 items-center gap-2.5 border-b border-border pr-3.5 pl-[18px]">
+    <header data-tauri-drag-region className="@container/header flex h-12 shrink-0 items-center gap-2.5 border-b border-border pr-3.5 pl-[18px]">
       {children}
     </header>
   )

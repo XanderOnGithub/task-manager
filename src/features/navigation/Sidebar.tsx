@@ -60,7 +60,7 @@ export function Sidebar(props: Props) {
       {/* Top row: the traffic lights (on a Mac), the app's name, and a drag
           handle for the window. The name doesn't take clicks, so dragging
           there moves the window. */}
-      <div data-tauri-drag-region className="flex h-5 items-center">
+      <div data-tauri-drag-region className="-mt-2.5 flex h-[30px] items-center pt-2.5">
         <span
           className={`pointer-events-none flex items-center gap-1.5 select-none ${isMac ? 'pl-20' : 'pl-1'}`}
         >

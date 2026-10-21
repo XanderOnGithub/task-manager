@@ -477,6 +477,11 @@ export default function App() {
         )}
       </AnimatePresence>
 
+      {/* A strip along the top edge of the window, like the title bar in other
+          apps: drag it to move the window (the sidebar's top row and every
+          panel header do the same). */}
+      <div data-tauri-drag-region aria-hidden="true" className="fixed inset-x-0 top-0 z-10 h-2" />
+
       <main
         ref={mainRef}
         tabIndex={-1}
