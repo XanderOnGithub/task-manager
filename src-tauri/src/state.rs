@@ -31,8 +31,8 @@ pub const DATA_CHANGED: &str = "data-changed";
 /// `watch::QUIET_PERIOD` (250ms), so our writes show up about then. The
 /// window is generous so a busy disk doesn't slip past it.
 ///
-/// The trade-off: an outside change landing in that same second (say, your
-/// phone adding to Unsorted) isn't shown until the next change of any kind.
+/// An outside change landing in that same second still shows: the watcher
+/// only skips files that haven't been modified since our write (folder.rs).
 pub const OWN_WRITE_WINDOW: Duration = Duration::from_millis(1000);
 
 /// Commands return `Result<T, String>`: the string is shown to you as-is.
@@ -60,6 +60,8 @@ pub struct Data {
     /// When a command last wrote files. The watcher sees those writes too, a
     /// moment later; this lets it tell them apart from outside changes.
     pub last_write: Option<Instant>,
+    /// The same moment as a file time, to tell our files from ones edited after.
+    pub last_write_time: Option<std::time::SystemTime>,
     /// When anything in the folder last changed, by us or from outside. Git
     /// sync waits for a quiet minute after this before committing.
     pub last_activity: Option<Instant>,
@@ -114,6 +116,7 @@ pub fn write<T>(state: &AppState, f: impl FnOnce(&Library) -> task_core::Result<
     let mut data = state.data()?;
     data.library = None;
     data.last_write = Some(Instant::now());
+    data.last_write_time = Some(std::time::SystemTime::now());
     data.last_activity = data.last_write;
     result
 }

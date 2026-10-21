@@ -16,7 +16,7 @@ use std::path::Path;
 use crate::blockers;
 use crate::error::{Error, Result};
 use crate::frontmatter::{self, Frontmatter};
-use crate::fsutil::{self, title_taken, write_atomic};
+use crate::fsutil::{self, modify_atomic, title_taken, write_atomic};
 use crate::id;
 use crate::library::{has_pages, is_date, Library, AREAS_DIR, INDEX_FILE, PAGES_DIR};
 use crate::model::{is_icon, Item, Kind, MILESTONE_COLORS};
@@ -276,15 +276,10 @@ pub fn read_body(lib: &Library, id: &str) -> Result<String> {
 /// Replaces an item's body, keeping its frontmatter exactly as it was.
 pub fn write_body(lib: &Library, id: &str, body: &str) -> Result<()> {
     let item = find(lib, id)?;
-    let path = lib.abs(&item.meta_path());
-    let text = if path.exists() {
-        fs::read_to_string(&path)?
-    } else {
-        String::new()
-    };
-    let (fm, _old_body) = frontmatter::split(&text).map_err(|_| unclosed(&item.title))?;
-    write_atomic(&path, &frontmatter::join(&fm, body))?;
-    Ok(())
+    modify_atomic(&lib.abs(&item.meta_path()), |text| {
+        let (fm, _old_body) = frontmatter::split(text).map_err(|_| unclosed(&item.title))?;
+        Ok::<_, Error>(frontmatter::join(&fm, body))
+    })
 }
 
 /// Moves an item (and everything inside it) to the hidden `.trash` folder,
@@ -551,22 +546,18 @@ fn least_used_color(siblings: &[&Item]) -> &'static str {
 /// Reads a file's frontmatter, lets `change` edit it, and saves. The body is
 /// kept exactly as it was. A missing file is created (folders without
 /// `_index.md`).
-pub(crate) fn update_frontmatter(path: &Path, change: impl FnOnce(&mut Frontmatter)) -> Result<()> {
-    let text = if path.exists() {
-        fs::read_to_string(path)?
-    } else {
-        String::new()
-    };
-    let (mut fm, body) = frontmatter::split(&text).map_err(|_| {
-        let name = path
-            .file_name()
-            .map(|n| n.to_string_lossy().into_owned())
-            .unwrap_or_default();
-        unclosed(&name)
-    })?;
-    change(&mut fm);
-    write_atomic(path, &frontmatter::join(&fm, body))?;
-    Ok(())
+pub(crate) fn update_frontmatter(path: &Path, mut change: impl FnMut(&mut Frontmatter)) -> Result<()> {
+    modify_atomic(path, |text| {
+        let (mut fm, body) = frontmatter::split(text).map_err(|_| {
+            let name = path
+                .file_name()
+                .map(|n| n.to_string_lossy().into_owned())
+                .unwrap_or_default();
+            unclosed(&name)
+        })?;
+        change(&mut fm);
+        Ok::<_, Error>(frontmatter::join(&fm, body))
+    })
 }
 
 fn unclosed(title: &str) -> Error {

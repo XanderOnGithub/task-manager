@@ -1214,3 +1214,78 @@ fn a_task_can_wait_on_other_tasks_but_not_in_a_circle() {
     ops::set_field(&lib, "TSKTILE001", "blocked_by", None).unwrap();
     assert!(load(&root).get("TSKTILE001").unwrap().blocked_by.is_empty());
 }
+
+#[test]
+fn hostile_frontmatter_is_isolated_and_the_rest_still_loads() {
+    let (_dir, root) = sample();
+    let tile = load(&root).get("TSKTILE001").unwrap().meta_path();
+    let path = root.join(&tile);
+
+    // Lines that aren't valid "key: value" YAML, a stray colon, a tab, a "---"
+    // inside the body and even a second "---" block must not break anything.
+    let junk = "---\nid: TSKTILE001\nstatus: doing\n: : :\n\t- nested\n[broken\nkey with spaces: x\n---\nBody with a rule:\n\n---\n\nand `---` more\n";
+    fs::write(&path, junk).unwrap();
+    let lib = load(&root);
+    assert_eq!(lib.get("TSKTILE001").unwrap().status.as_deref(), Some("doing"));
+    assert!(lib.items.len() > 10, "the rest of the folder still loads");
+
+    // Changing a field keeps the odd lines and the whole body exactly.
+    ops::set_field(&lib, "TSKTILE001", "due", Some("2026-11-01")).unwrap();
+    let text = fs::read_to_string(&path).unwrap();
+    assert!(text.contains("[broken\n") && text.contains("\t- nested\n"));
+    assert!(text.ends_with("Body with a rule:\n\n---\n\nand `---` more\n"));
+
+    // A block that is never closed is an Issue on that one file, not a crash,
+    // and writing to it is refused instead of guessing where it ends.
+    fs::write(&path, "---\nid: TSKTILE001\nstatus: doing\nno end\n").unwrap();
+    let lib = load(&root);
+    assert!(lib
+        .issues
+        .iter()
+        .any(|i| matches!(i, Issue::UnclosedFrontmatter { .. })));
+    assert!(lib.items.len() > 10);
+    assert!(ops::set_field(&lib, "TSKTILE001", "due", Some("2026-11-01")).is_err());
+    assert_eq!(
+        fs::read_to_string(&path).unwrap(),
+        "---\nid: TSKTILE001\nstatus: doing\nno end\n"
+    );
+
+    // Empty, binary-looking and BOM-prefixed files load too.
+    fs::write(&path, "").unwrap();
+    load(&root);
+    fs::write(&path, b"\xef\xbb\xbf---\r\nid: TSKTILE001\r\n---\r\ntext").unwrap();
+    assert!(load(&root).get("TSKTILE001").is_some());
+}
+
+#[test]
+fn renaming_an_area_with_hundreds_of_tasks_keeps_every_id_and_is_quick() {
+    let (_dir, root) = sample();
+    let lib = load(&root);
+    let home = by_title(&lib, "Home").id.clone();
+    let project = ops::create(&lib, Kind::Project, Some(&home), "Bulk", "").unwrap();
+    let lib = load(&root);
+    let before = lib.items.len();
+    // 500 tasks written straight into the folder: renaming the area is one rename.
+    let dir = root.join(&lib.get(&project).unwrap().path);
+    for n in 0..500 {
+        fs::write(
+            dir.join(format!("Bulk {n}.md")),
+            format!("---\nid: BULK{n:06}\nstatus: todo\n---\n"),
+        )
+        .unwrap();
+    }
+    let lib = load(&root);
+    assert_eq!(lib.items.len(), before + 500);
+
+    let started = std::time::Instant::now();
+    ops::rename(&lib, &home, "Household").unwrap();
+    let lib = load(&root);
+    assert!(started.elapsed() < Duration::from_secs(2));
+    assert_eq!(lib.items.len(), before + 500);
+    assert!(lib
+        .get("BULK000499")
+        .unwrap()
+        .path
+        .starts_with("areas/Household/"));
+    assert!(lib.issues.is_empty());
+}
