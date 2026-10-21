@@ -58,7 +58,15 @@ async function open(theme, needsFolder = false) {
 }
 let total = 0
 async function audit(page, label) {
-  await page.waitForTimeout(500)
+  // Let fades and springs finish first: a color measured halfway through an
+  // opacity fade fails contrast on a slow machine (the CI runner), though the
+  // finished screen passes. Two quiet checks in a row means it has settled.
+  await page.waitForTimeout(400)
+  for (let quiet = 0, tries = 0; quiet < 2 && tries < 40; tries++) {
+    const running = await page.evaluate(() => document.getAnimations().length + document.querySelectorAll('[style*="opacity: 0."]').length)
+    quiet = running === 0 ? quiet + 1 : 0
+    await page.waitForTimeout(150)
+  }
   const res = await page.evaluate(async () => await window.axe.run(document, { resultTypes: ['violations'] }))
   const v = res.violations.map((x) => `${x.id} (${x.impact}) x${x.nodes.length}: ${x.nodes[0].html.slice(0, 110).replace(/\s+/g, ' ')}`)
   total += v.length
