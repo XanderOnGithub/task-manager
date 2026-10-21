@@ -85,8 +85,8 @@ export function releaseVoices(style: KeyStyle, kind: KeyKind): Voice[] {
 const tick = (hz: number, gain: number, at: Voice['at'], decayMs = 2.5): Voice => ({
   wave: 'noise',
   hz: 0,
-  filter: { type: 'bandpass', hz, q: 1 },
-  attackMs: 0.2,
+  filter: { type: 'bandpass', hz: Math.min(hz, 2200), q: 1 },
+  attackMs: 0.6,
   decayMs,
   gain,
   at,
@@ -100,7 +100,7 @@ export const KEY_STYLES = {
       // The case ringing, quietly.
       { wave: 'sine', hz: 700, attackMs: 1, decayMs: 22, gain: 0.05 },
       // A faint clack, about 30% of the thock.
-      { wave: 'noise', hz: 0, filter: { type: 'bandpass', hz: 2500, q: 1 }, attackMs: 0.5, decayMs: 5, gain: 0.28 },
+      { wave: 'noise', hz: 0, filter: { type: 'bandpass', hz: 2200, q: 1 }, attackMs: 0.6, decayMs: 5, gain: 0.196 },
     ],
     // The space bar's stabilizers, rattling twice, very quietly.
     space: [tick(3000, 0.12, [8, 22]), tick(2800, 0.1, [26, 48])],
@@ -118,7 +118,7 @@ export const KEY_STYLES = {
   pop: {
     body: [
       // The membrane tearing: a very short, bright burst.
-      { wave: 'noise', hz: 0, filter: { type: 'bandpass', hz: 4000, q: 0.7 }, attackMs: 0.2, decayMs: 2, gain: 0.42 },
+      { wave: 'noise', hz: 0, filter: { type: 'bandpass', hz: 2200, q: 0.7 }, attackMs: 0.6, decayMs: 2, gain: 0.294 },
       // The air pocket ringing, falling 20%.
       { wave: 'sine', hz: 1200, to: 960, glideMs: 15, attackMs: 0.3, decayMs: 20, gain: 0.28 },
     ],
@@ -136,7 +136,7 @@ export const KEY_STYLES = {
   mouth: {
     body: [
       // The lip letting go: barely there.
-      { wave: 'noise', hz: 0, filter: { type: 'bandpass', hz: 2500, q: 1 }, attackMs: 0.1, decayMs: 0.8, gain: 0.12 },
+      { wave: 'noise', hz: 0, filter: { type: 'bandpass', hz: 2200, q: 1 }, attackMs: 0.6, decayMs: 0.8, gain: 0.084 },
       // The mouth ringing as the pressure evens out, falling 13%.
       { wave: 'sine', hz: 520, to: 452, glideMs: 30, attackMs: 0.3, decayMs: 45, gain: 0.38 },
     ],
@@ -154,7 +154,7 @@ export const KEY_STYLES = {
       // The bubble: a chirp up 40% that rings out.
       { wave: 'sine', hz: 1000, to: 1400, glideMs: 30, attackMs: 1, decayMs: 100, gain: 0.32 },
       // The drop hitting the surface.
-      { wave: 'noise', hz: 0, filter: { type: 'bandpass', hz: 3000, q: 1 }, attackMs: 0.2, decayMs: 1.5, gain: 0.1 },
+      { wave: 'noise', hz: 0, filter: { type: 'bandpass', hz: 2200, q: 1 }, attackMs: 0.6, decayMs: 1.5, gain: 0.07 },
       // The room: two quiet, dulled echoes of the bubble.
       { wave: 'sine', hz: 1000, to: 1400, glideMs: 30, attackMs: 1, decayMs: 100, gain: 0.07, at: 95, filter: { type: 'lowpass', hz: 2500 } },
       { wave: 'sine', hz: 1000, to: 1400, glideMs: 30, attackMs: 1, decayMs: 100, gain: 0.03, at: 175, filter: { type: 'lowpass', hz: 2000 } },
@@ -173,11 +173,11 @@ export const KEY_STYLES = {
   clicky: {
     body: [
       // The click leaf: a short ringing tone and a burst of noise, loudest and brightest.
-      { wave: 'sine', hz: 3000, attackMs: 0.2, decayMs: 5, gain: 0.22 },
-      { wave: 'noise', hz: 0, filter: { type: 'bandpass', hz: 3000, q: 1.5 }, attackMs: 0.1, decayMs: 1, gain: 1.4 },
+      { wave: 'sine', hz: 2000, attackMs: 0.6, decayMs: 5, gain: 0.16 },
+      { wave: 'noise', hz: 0, filter: { type: 'bandpass', hz: 2200, q: 1 }, attackMs: 0.6, decayMs: 1, gain: 0.98 },
       // Bottom-out just after: a short, hard thock, with some mid noise.
       { wave: 'triangle', hz: 240, to: 188, glideMs: 12, attackMs: 0.8, decayMs: 28, gain: 0.26, at: [8, 16], link: 'bottom' },
-      { wave: 'noise', hz: 0, filter: { type: 'bandpass', hz: 1650, q: 0.8 }, attackMs: 0.3, decayMs: 6, gain: 0.3, at: [8, 16], link: 'bottom' },
+      { wave: 'noise', hz: 0, filter: { type: 'bandpass', hz: 1650, q: 0.8 }, attackMs: 0.6, decayMs: 6, gain: 0.21, at: [8, 16], link: 'bottom' },
     ],
     // The spring, faintly.
     extras: [{ wave: 'sine', hz: 4500, attackMs: 0.5, decayMs: 30, gain: 0.02, at: 2 }],
@@ -185,8 +185,8 @@ export const KEY_STYLES = {
     // Letting go: the leaf clicks again at about 60% and a little higher, then the key tops out.
     release: [
       { wave: 'sine', hz: 3300, attackMs: 0.2, decayMs: 4, gain: 0.14 },
-      { wave: 'noise', hz: 0, filter: { type: 'bandpass', hz: 3300, q: 1.5 }, attackMs: 0.1, decayMs: 1, gain: 0.84 },
-      { wave: 'noise', hz: 0, filter: { type: 'bandpass', hz: 1800, q: 0.8 }, attackMs: 0.3, decayMs: 5, gain: 0.22, at: 8 },
+      { wave: 'noise', hz: 0, filter: { type: 'bandpass', hz: 2200, q: 1 }, attackMs: 0.6, decayMs: 1, gain: 0.588 },
+      { wave: 'noise', hz: 0, filter: { type: 'bandpass', hz: 1800, q: 0.8 }, attackMs: 0.6, decayMs: 5, gain: 0.154, at: 8 },
     ],
     feel: {
       key: { pitch: 1, length: 1, level: 1 },
