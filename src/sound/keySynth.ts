@@ -1,16 +1,18 @@
 // A tiny synth for the typing sounds that are built from parts, the way a real
-// key sound is: a few short layers played together (a thock, a click, a puff of
-// noise), each with its own pitch, glide, decay and filter.
+// key sound is: a few short layers played together (a thock, a tick, a chirp),
+// each with its own pitch, glide, decay and filter. Only pure tones: noise
+// turns into hiss and crackle on in-ear monitors.
 //
-// ZzFX can't do this: it has no band-pass filter and can't start a layer a few
-// milliseconds late, so these go through Web Audio directly. Each press builds
-// its layers, plays them and lets them go; nothing is kept between presses.
+// ZzFX can't start a layer a few milliseconds late or glide on an exponential
+// curve, so these go through Web Audio directly. Each press builds its layers,
+// plays them and lets them go; nothing is kept between presses except the
+// `choke` of the last press, which the next press uses to cut it short.
 
 /** One layer of a key sound. */
 export interface Voice {
   /** A pitched tone, or white noise (shaped by `filter`). */
-  wave: 'sine' | 'triangle' | 'noise'
-  /** Tone pitch in Hz. Unused by noise, which is shaped by `filter`. */
+  wave: 'sine' | 'triangle'
+  /** Tone pitch in Hz. */
   hz: number
   /** Tone pitch it glides to, over `glideMs`, on an exponential curve (how pitch really falls). */
   to?: number
@@ -35,19 +37,6 @@ export const LEVEL_WOBBLE = 0.1
 /** A random number from -1 to 1. */
 export const wobble = () => Math.random() * 2 - 1
 
-// One second of white noise per audio context, reused by every noise layer.
-const noiseBuffers = new WeakMap<BaseAudioContext, AudioBuffer>()
-function noiseBuffer(ctx: BaseAudioContext) {
-  let buffer = noiseBuffers.get(ctx)
-  if (!buffer) {
-    buffer = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate)
-    const data = buffer.getChannelData(0)
-    for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1
-    noiseBuffers.set(ctx, buffer)
-  }
-  return buffer
-}
-
 /**
  * Plays the layers together, starting at `start` (seconds on the context's clock).
  * - `pitch`: 1 = as designed. Moves every tone by the same amount.
@@ -60,6 +49,10 @@ export function playVoices(
   { pitch = 1, gain = 1, start = ctx.currentTime }: { pitch?: number; gain?: number; start?: number } = {},
 ) {
   const links = new Map<string, number>()
+  // Every layer of one press goes through this, so the whole press can be faded at once.
+  const bus = ctx.createGain()
+  bus.connect(out)
+  let lastEnd = start
   for (const voice of voices) {
     // When this layer starts, after the press.
     let at = 0
@@ -72,7 +65,8 @@ export function playVoices(
       at = voice.at
     }
     const t0 = start + at / 1000
-    const attack = (voice.attackMs ?? 0.5) / 1000
+    // At least 1 ms: a faster start is a click.
+    const attack = Math.max(voice.attackMs ?? 1.5, 1) / 1000
     const decay = voice.decayMs / 1000
     const end = t0 + attack + decay
 
@@ -84,24 +78,13 @@ export function playVoices(
     level.gain.exponentialRampToValueAtTime(Math.max(peak * 0.001, 1e-6), end)
 
     // The sound itself.
-    let source: AudioScheduledSourceNode
-    if (voice.wave === 'noise') {
-      const noise = ctx.createBufferSource()
-      noise.buffer = noiseBuffer(ctx)
-      noise.loop = true
-      source = noise
-      // Start at a random point in the noise, so no two presses share a texture.
-      noise.start(t0, Math.random() * 0.9)
-    } else {
-      const tone = ctx.createOscillator()
-      tone.type = voice.wave
-      tone.frequency.setValueAtTime(voice.hz * pitch, t0)
-      if (voice.to !== undefined) {
-        tone.frequency.exponentialRampToValueAtTime(voice.to * pitch, t0 + (voice.glideMs ?? voice.decayMs) / 1000)
-      }
-      source = tone
-      tone.start(t0)
+    const source = ctx.createOscillator()
+    source.type = voice.wave
+    source.frequency.setValueAtTime(voice.hz * pitch, t0)
+    if (voice.to !== undefined) {
+      source.frequency.exponentialRampToValueAtTime(voice.to * pitch, t0 + (voice.glideMs ?? voice.decayMs) / 1000)
     }
+    source.start(t0)
     source.stop(end + 0.02)
 
     if (voice.filter) {
@@ -113,8 +96,18 @@ export function playVoices(
     } else {
       source.connect(level)
     }
-    level.connect(out)
+    level.connect(bus)
+    lastEnd = Math.max(lastEnd, end)
     // Let the nodes go once the layer has finished.
     source.onended = () => level.disconnect()
+  }
+  // The bus goes once the last layer is done.
+  window.setTimeout(() => bus.disconnect(), (lastEnd - ctx.currentTime) * 1000 + 100)
+  return {
+    /** Cuts this press short (a few milliseconds of fade), so presses in quick succession don't pile up. */
+    choke(ms = 12) {
+      bus.gain.cancelScheduledValues(ctx.currentTime)
+      bus.gain.setTargetAtTime(0, ctx.currentTime, ms / 3000)
+    },
   }
 }

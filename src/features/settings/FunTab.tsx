@@ -7,7 +7,6 @@ import { ChevronDown } from 'lucide-react'
 import {
   IMPACT_SOUND_INFO,
   play,
-  playRelease,
   setSoundSettings,
   soundSettings,
   TYPING_STYLE_INFO,
@@ -32,12 +31,9 @@ export function FunTab() {
   // A little typed phrase, for hearing the keyboard sounds without typing.
   const demoTyping = () => {
     const keys: SoundName[] = ['keyShift', 'key', 'key', 'key', 'keySpace', 'key', 'key', 'keyDelete', 'keyDelete', 'key', 'keyShift', 'keyEnter']
-    keys.forEach((k, i) => {
-      const at = i * 95 + Math.random() * 30
-      window.setTimeout(() => play(k, { force: true }), at)
-      // Styles with a release sound play it as the key comes back up.
-      window.setTimeout(() => playRelease(k, { force: true }), at + 60)
-    })
+    keys.forEach((k, i) => window.setTimeout(() => play(k, { force: true }), i * 95 + Math.random() * 30))
+    // Then Ctrl+Backspace (delete a word), the heavy one.
+    window.setTimeout(() => play('keyDelete', { force: true, big: true }), keys.length * 95 + 160)
   }
   const demoParticles = () => {
     const x = window.innerWidth / 2
