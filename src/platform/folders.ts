@@ -7,3 +7,9 @@ export async function pickFolder(): Promise<string | null> {
   const chosen = await open({ directory: true, title: 'Choose a data folder' })
   return typeof chosen === 'string' ? chosen : null
 }
+
+/** Opens the native file picker for a backup zip. Returns the chosen file, or null if cancelled. */
+export async function pickBackupFile(): Promise<string | null> {
+  const chosen = await open({ title: 'Choose a backup', filters: [{ name: 'Backup', extensions: ['zip'] }] })
+  return typeof chosen === 'string' ? chosen : null
+}

@@ -2,10 +2,12 @@
 // Layout follows the design canvas linked in CLAUDE.md.
 
 import { useSyncOnFocus } from './features/sync/useSync'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import { spring } from './shared/motion/springs'
-import { type Item, type TaskStatus } from './platform/api'
+import { onSyncConflicts, type Item, type TaskStatus } from './platform/api'
+import { setBlockedItems } from './app/blockedStore'
+import { useToast } from './shared/toast/toast'
 import { childrenOf, trailOf } from './domain/items'
 import { NEXT_STATUS } from './domain/lanes'
 import { requestAdd, requestRename, type AddWhat } from './app/requests'
@@ -18,7 +20,9 @@ import {
   FilePlus,
   Flag,
   Target,
+  CalendarCheck,
   CircleAlert,
+  Undo2,
   FileText,
   Layers,
   ListChecks,
@@ -44,10 +48,13 @@ import { UnsortedView } from './features/capture/Unsorted'
 import { PagesOverview, PageView } from './features/pages/Pages'
 import { TrashView } from './features/trash/Trash'
 import { IssuesView } from './features/issues/Issues'
+import { TodayView } from './features/today/Today'
+import { dueNowCount } from './features/today/plan'
 import { useTrash } from './features/trash/useTrash'
 import { useRowKeys } from './features/navigation/rowKeys'
 import { useLaunchCheck } from './platform/updates'
 import { QuickCapture } from './features/capture/QuickCapture'
+import { HistoryDialog } from './features/history/History'
 import { Settings } from './features/settings/Settings'
 import { ConfirmHost } from './shared/confirm/ConfirmHost'
 import { Onboarding } from './features/onboarding/Onboarding'
@@ -56,6 +63,7 @@ import { Panel } from './shared/ui'
 /** What each overview is called in the window title. */
 const OVERVIEW_TITLES: Record<Overview, string> = {
   unsorted: 'Unsorted',
+  today: 'Today',
   tasks: 'Tasks',
   pages: 'Pages',
   trash: 'Trash',
@@ -70,6 +78,18 @@ export default function App() {
   const { snapshot, error, needsFolder, byId, loads, reload } = useLibrary()
   useSyncOnFocus()
   const actions = useActions(reload, snapshot?.items ?? [])
+  const toast = useToast()
+  // Rows ask this store what their task waits on (app/blockedStore.ts).
+  const libraryItems = snapshot?.items
+  useLayoutEffect(() => setBlockedItems(libraryItems ?? []), [libraryItems])
+
+  // A sync that kept both versions of a file says so, and where to look.
+  useEffect(() => {
+    const stop = onSyncConflicts((count) =>
+      toast({ message: `Kept both versions of ${count === 1 ? 'a file' : `${count} files`}. See Issues.` }),
+    )
+    return () => void stop.then((off) => off()).catch(() => {})
+  }, [toast])
   const trash = useTrash(snapshot, loads)
   const mainRef = useRef<HTMLElement>(null)
   useLaunchCheck()
@@ -84,7 +104,7 @@ export default function App() {
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
   const [collapsedPages, setCollapsedPages] = useState<Set<string>>(new Set())
   const [revealed, setRevealed] = useState<string | undefined>()
-  const [dialog, setDialog] = useState<'capture' | 'settings' | 'search' | null>(null)
+  const [dialog, setDialog] = useState<'capture' | 'settings' | 'search' | 'history' | null>(null)
   const [sidebarOpen, setSidebarOpen] = useState(() => readPref('sidebarOpen', true))
   const toggleSidebar = () =>
     setSidebarOpen((open) => {
@@ -188,7 +208,9 @@ export default function App() {
 
   const paletteActions: PaletteAction[] = [
     { id: 'capture', label: 'Quick capture', Icon: Plus, keywords: 'add new unsorted', shortcut: keys('N'), run: () => setDialog('capture') },
+    { id: 'history', label: 'Recent changes', Icon: Undo2, keywords: 'undo history', run: () => setDialog('history') },
     { id: 'unsorted', label: 'Go to Unsorted', Icon: Layers, keywords: 'inbox', run: () => openOverview('unsorted') },
+    { id: 'today', label: 'Go to Today', Icon: CalendarCheck, keywords: 'due overdue upcoming', run: () => openOverview('today') },
     { id: 'tasks', label: 'Go to Tasks', Icon: ListChecks, keywords: 'projects all board', run: () => openOverview('tasks') },
     { id: 'pages', label: 'Go to Pages', Icon: FileText, keywords: 'docs notes all', run: () => openOverview('pages') },
     ...(snapshot?.issues.length
@@ -334,8 +356,9 @@ export default function App() {
       )
     }
     if (overview === 'unsorted') return <UnsortedView entries={snapshot.unsorted} items={items} actions={actions} />
+    if (overview === 'today') return <TodayView items={items} onOpen={openId} onCycleStatus={cycleStatus} />
     if (overview === 'trash') return <TrashView entries={trash} actions={actions} />
-    if (overview === 'issues') return <IssuesView issues={snapshot.issues} />
+    if (overview === 'issues') return <IssuesView issues={snapshot.issues} onOpen={openId} />
     if (overview === 'pages') return <PagesOverview items={items} onOpen={openId} actions={actions} />
     if (open?.kind === 'page') return <PageView key={open.id} items={items} page={open} onOpen={openId} actions={actions} />
     return (
@@ -413,6 +436,7 @@ export default function App() {
         <Sidebar
           items={items}
           unsortedCount={snapshot?.unsorted.length ?? 0}
+          dueCount={dueNowCount(items)}
           trashCount={trash.length}
           issueCount={snapshot?.issues.length ?? 0}
           overview={overview}
@@ -457,6 +481,11 @@ export default function App() {
         )}
       </AnimatePresence>
 
+      {/* A strip along the top edge of the window, like the title bar in other
+          apps: drag it to move the window (the sidebar's top row and every
+          panel header do the same). */}
+      <div data-tauri-drag-region aria-hidden="true" className="fixed inset-x-0 top-0 z-10 h-2" />
+
       <main
         ref={mainRef}
         tabIndex={-1}
@@ -493,6 +522,7 @@ export default function App() {
       </AnimatePresence>
       <ContextMenu menuFor={menuFor} />
       <ConfirmHost />
+      {dialog === 'history' && <HistoryDialog onClose={() => setDialog(null)} />}
       {dialog === 'capture' && <QuickCapture onCapture={actions.capture} onClose={() => setDialog(null)} />}
       {dialog === 'settings' && (
         <Settings dataFolder={snapshot?.dataFolder ?? null} onClose={() => setDialog(null)} onFolderChanged={reload} />

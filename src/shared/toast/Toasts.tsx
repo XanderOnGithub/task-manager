@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom'
 import { AnimatePresence, motion } from 'motion/react'
 import { spring } from '../motion/springs'
 import { ToastContext, type ToastInput } from './toast'
+import { latestUndoable, recordUndo, undoEntry } from './history'
 import { play } from '../../sound/sounds'
 import { isTextEntry } from '../a11y/focus'
 import { keys } from '../../platform/os'
@@ -14,37 +15,47 @@ const DURATION_MS = 4000
 const DURATION_WITH_UNDO_MS = 7000
 
 export function ToastProvider({ children }: { children: ReactNode }) {
-  const [toast, setToast] = useState<(ToastInput & { key: number }) | null>(null)
+  // `historyId` links the toast to its entry in the undo history (history.ts).
+  const [toast, setToast] = useState<(ToastInput & { key: number; historyId?: number }) | null>(null)
   const timer = useRef<number | undefined>(undefined)
 
   const show = useCallback((input: ToastInput) => {
     window.clearTimeout(timer.current)
-    setToast({ ...input, key: Date.now() })
+    const historyId = input.undo ? recordUndo(input.message, input.undo) : undefined
+    setToast({ ...input, key: Date.now(), historyId })
     timer.current = window.setTimeout(() => setToast(null), input.undo ? DURATION_WITH_UNDO_MS : DURATION_MS)
   }, [])
 
   useEffect(() => () => window.clearTimeout(timer.current), [])
 
   const undo = useCallback(async () => {
-    const action = toast?.undo
+    const id = toast?.historyId
     setToast(null)
-    if (action) play('undo')
-    await action?.()
+    if (id === undefined) return
+    play('undo')
+    await undoEntry(id)
   }, [toast])
 
-  // ⌘Z runs the toast's Undo while it's showing, except in a text field or the
-  // page editor, where ⌘Z undoes typing as usual.
+  // ⌘Z undoes the change in the toast while it's showing, and after the toast
+  // is gone, the newest change before it (history.ts). Not in a text field or
+  // the page editor, where ⌘Z undoes typing as usual.
   useEffect(() => {
-    if (!toast?.undo) return
     const onKey = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && !e.shiftKey && e.key.toLowerCase() === 'z' && !isTextEntry(e.target)) {
+      if (!((e.metaKey || e.ctrlKey) && !e.shiftKey && e.key.toLowerCase() === 'z') || isTextEntry(e.target)) return
+      if (toast?.undo) {
         e.preventDefault()
         void undo()
+        return
       }
+      const latest = latestUndoable()
+      if (!latest) return
+      e.preventDefault()
+      play('undo')
+      void undoEntry(latest.id).then(() => show({ message: `Undid: ${latest.message}` }))
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [toast, undo])
+  }, [toast, undo, show])
 
   return (
     <ToastContext.Provider value={show}>

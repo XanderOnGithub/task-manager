@@ -9,6 +9,7 @@
 //   little sway when you stop.
 // - Dropping glides it into its slot; the neighbours have already made room.
 
+import { pickUpDust } from '../impact/impact'
 import { useMemo, useRef, useState } from 'react'
 import {
   closestCenter,
@@ -118,6 +119,7 @@ export function useDragState() {
       },
       start: (event: DragStartEvent) => {
         play('pickUp')
+        pickUpDust(event.active.rect.current.initial)
         lastOver.current = null
         setActive({
           id: String(event.active.id),

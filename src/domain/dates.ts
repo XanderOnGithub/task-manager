@@ -25,6 +25,11 @@ export function dueLabel(due: string): string {
   })
 }
 
+/** "Fri, Oct 23": a date with its weekday, for saying what was understood. */
+export function weekdayLabel(due: string): string {
+  return fromIso(due).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
+}
+
 /** Finished items never look urgent. */
 export function dueTone(due: string, done: boolean): DueTone {
   if (done) return 'normal'
@@ -51,7 +56,7 @@ function fromIso(iso: string): Date {
   return new Date(y, m - 1, d)
 }
 
-function toIso(date: Date): string {
+export function toIso(date: Date): string {
   const pad = (n: number) => String(n).padStart(2, '0')
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
 }
@@ -68,4 +73,15 @@ export function stampLabel(stamp: string): string {
   if (days === 0) return when.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
   if (days === 1) return 'Yesterday'
   return when.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+}
+
+/** "Just now", "2 min ago", "3 h ago", "5 days ago". */
+export function ago(then: number, now: number): string {
+  const minutes = Math.max(0, Math.floor((now - then) / 60_000))
+  if (minutes < 1) return 'just now'
+  if (minutes < 60) return `${minutes} min ago`
+  const hours = Math.floor(minutes / 60)
+  if (hours < 24) return `${hours} h ago`
+  const days = Math.floor(hours / 24)
+  return `${days} ${days === 1 ? 'day' : 'days'} ago`
 }

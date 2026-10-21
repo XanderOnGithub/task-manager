@@ -18,7 +18,8 @@ import {
   type GithubRepo,
   type SyncInfo,
 } from '../../platform/api'
-import { ago, useSync } from './useSync'
+import { ago } from '../../domain/dates'
+import { useSync } from './useSync'
 import { useToast } from '../../shared/toast/toast'
 import { Segmented, Switch } from '../../shared/controls'
 

@@ -82,6 +82,12 @@ impl AppState {
             .map_err(|_| "The app hit an internal error. Restart it.".to_owned())
     }
 
+    /// Waits for any running Git operation and holds the right to run one, so
+    /// something that rewrites the whole folder (a restore) can't overlap a sync.
+    pub fn sync_exclusive(&self) -> std::sync::MutexGuard<'_, ()> {
+        self.sync.lock_exclusive()
+    }
+
     /// Takes the folder lock: hold it while files in the data folder change.
     pub fn lock_folder(&self) -> MutexGuard<'_, ()> {
         // The guard holds no data, so a lock poisoned by a panic is still safe to use.

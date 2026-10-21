@@ -1,7 +1,8 @@
 import { act, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { useEffect } from 'react'
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { clearHistory } from './history'
 import { useToast } from './toast'
 import { appRoot } from '../../test/setup'
 import { ToastProvider } from './Toasts'
@@ -23,6 +24,8 @@ function Shows({ undo, message = 'Deleted Pick tile', tone }: { undo?: () => voi
 const mount = (ui: React.ReactElement) =>
   render(<ToastProvider>{ui}</ToastProvider>, { container: appRoot.appendChild(document.createElement('div')) })
 
+beforeEach(clearHistory)
+
 describe('toasts', () => {
   it('⌘Z runs Undo from anywhere on the page', async () => {
     const undo = vi.fn()
@@ -39,6 +42,20 @@ describe('toasts', () => {
     screen.getByRole('textbox', { name: 'Title' }).focus()
     await userEvent.keyboard('{Control>}z{/Control}')
     expect(undo).not.toHaveBeenCalled()
+  })
+
+  it('⌘Z keeps working after the toast is gone, going further back each time', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    const undo = vi.fn()
+    mount(<Shows undo={undo} />)
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(8000) // the toast has timed out
+    })
+    vi.useRealTimers()
+    await userEvent.keyboard('{Control>}z{/Control}')
+    expect(undo).toHaveBeenCalledTimes(1)
+    await userEvent.keyboard('{Control>}z{/Control}')
+    expect(undo).toHaveBeenCalledTimes(1) // nothing older to undo
   })
 
   it('announces the message in a region that is always there, and errors assertively', () => {

@@ -6,12 +6,12 @@
 // is left needs a person: a name Windows can't store, a details block that was
 // never closed, a file in a folder where only folders belong.
 
-import { CircleAlert, FolderOpen } from 'lucide-react'
+import { ArrowUpRight, CircleAlert, FolderOpen } from 'lucide-react'
 import { revealPath, type Issue } from '../../platform/api'
 import { useToast } from '../../shared/toast/toast'
 import { Panel, PanelHeader } from '../../shared/ui'
 
-export function IssuesView({ issues }: { issues: Issue[] }) {
+export function IssuesView({ issues, onOpen }: { issues: Issue[]; onOpen?: (id: string) => void }) {
   const toast = useToast()
   const reveal = (path: string) => revealPath(path).catch((e) => toast({ message: String(e), tone: 'error' }))
 
@@ -41,6 +41,16 @@ export function IssuesView({ issues }: { issues: Issue[] }) {
                   <span className="truncate text-fg">{issue.name}</span>
                   <span className="text-meta font-normal text-fg-3">{issue.message}</span>
                 </span>
+                {issue.itemId && onOpen && (
+                  <button
+                    onClick={() => onOpen(issue.itemId!)}
+                    className="flex h-7 shrink-0 items-center gap-1.5 rounded-control px-2 text-fg-2 transition-colors duration-100 hover:bg-raised hover:text-fg"
+                  >
+                    <ArrowUpRight size={13} strokeWidth={2} aria-hidden="true" />
+                    <span>Open</span>
+                    <span className="sr-only"> {issue.name}</span>
+                  </button>
+                )}
                 <button
                   onClick={() => void reveal(issue.path)}
                   className="flex h-7 shrink-0 items-center gap-1.5 rounded-control px-2 text-fg-2 transition-colors duration-100 hover:bg-raised hover:text-fg"

@@ -2,7 +2,7 @@
 
 use tauri::State;
 
-use task_core::{ops, Kind};
+use task_core::{fsutil, ops, Kind};
 
 use crate::state::{write, AppState, CmdResult};
 
@@ -47,4 +47,13 @@ pub async fn set_field(
     value: Option<String>,
 ) -> CmdResult<()> {
     write(&state, |lib| ops::set_field(lib, &id, &field, value.as_deref()))
+}
+
+/// Changes a task's status. For a repeating task that is finished, the task
+/// goes back to Todo with its next due date, which is returned.
+#[tauri::command]
+pub async fn set_status(state: State<'_, AppState>, id: String, status: String) -> CmdResult<Option<String>> {
+    write(&state, |lib| {
+        ops::set_status(lib, &id, &status, fsutil::today_date())
+    })
 }

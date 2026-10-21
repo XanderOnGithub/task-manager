@@ -9,8 +9,11 @@
 //! Ids live inside the files, so renaming or moving a file never changes its id.
 
 use std::fs;
+
+use chrono::NaiveDate;
 use std::path::Path;
 
+use crate::blockers;
 use crate::error::{Error, Result};
 use crate::frontmatter::{self, Frontmatter};
 use crate::fsutil::{self, title_taken, write_atomic};
@@ -19,6 +22,7 @@ use crate::library::{has_pages, is_date, Library, AREAS_DIR, INDEX_FILE, PAGES_D
 use crate::model::{is_icon, Item, Kind, MILESTONE_COLORS};
 use crate::names::check_title;
 use crate::order;
+use crate::repeat::Repeat;
 use crate::trash;
 
 /// Creates a new item and returns its id.
@@ -27,6 +31,28 @@ use crate::trash;
 /// A page's parent is an area, a project or another page. `body` is the text
 /// under the frontmatter (often empty).
 pub fn create(lib: &Library, kind: Kind, parent: Option<&str>, title: &str, body: &str) -> Result<String> {
+    create_with_due(lib, kind, parent, title, body, None)
+}
+
+/// Like `create`, for a task that is due on `due` (`YYYY-MM-DD`) from the start.
+/// (The library in memory doesn't know about the new file, so the date goes into
+/// the file as it is written rather than being set afterwards.)
+pub fn create_with_due(
+    lib: &Library,
+    kind: Kind,
+    parent: Option<&str>,
+    title: &str,
+    body: &str,
+    due: Option<&str>,
+) -> Result<String> {
+    if let Some(due) = due {
+        if kind != Kind::Task || !is_date(due) {
+            return Err(Error::InvalidValue {
+                field: "due".to_owned(),
+                value: due.to_owned(),
+            });
+        }
+    }
     check_title(title)?;
     check_reserved(kind, title)?;
 
@@ -55,6 +81,7 @@ pub fn create(lib: &Library, kind: Kind, parent: Option<&str>, title: &str, body
     }
     fm.set("order", Some(&next_order(&siblings)));
     fm.set("created", Some(&fsutil::today()));
+    fm.set("due", due);
     if kind == Kind::Milestone {
         fm.set("color", Some(least_used_color(&siblings)));
     }
@@ -166,9 +193,18 @@ pub fn move_item(lib: &Library, id: &str, new_parent: Option<&str>, before: Opti
     Ok(())
 }
 
-/// Changes one field: `status`, `due` or `color`. `None` clears it.
+/// Changes one field: `status`, `due`, `color`, `icon`, `repeat` or `blocked_by`
+/// (a list of task ids, joined with commas). `None` clears it.
 pub fn set_field(lib: &Library, id: &str, field: &str, value: Option<&str>) -> Result<()> {
     let item = find(lib, id)?;
+    if field == "blocked_by" {
+        if item.kind != Kind::Task {
+            return Err(Error::NotAllowed("Only a task can wait on other tasks".into()));
+        }
+        let ids = value.map(blockers::parse).unwrap_or_default();
+        let stored = blockers::validate(lib, id, &ids)?;
+        return update_frontmatter(&lib.abs(&item.meta_path()), |fm| fm.set(field, stored.as_deref()));
+    }
     let invalid = || Error::InvalidValue {
         field: field.to_owned(),
         value: value.unwrap_or("").to_owned(),
@@ -183,12 +219,44 @@ pub fn set_field(lib: &Library, id: &str, field: &str, value: Option<&str>) -> R
         ("color", None) => item.kind == Kind::Milestone,
         ("icon", Some(v)) => item.kind == Kind::Page && is_icon(v),
         ("icon", None) => item.kind == Kind::Page,
+        ("repeat", Some(v)) => item.kind == Kind::Task && Repeat::parse(v).is_some(),
+        ("repeat", None) => item.kind == Kind::Task,
         _ => return Err(Error::NotAllowed(format!("\"{field}\" can't be changed here"))),
     };
     if !ok {
         return Err(invalid());
     }
+    // Stored in its canonical words ("every 1 week" is written "weekly").
+    let canonical = (field == "repeat")
+        .then(|| value.and_then(Repeat::parse))
+        .flatten()
+        .map(|r| r.text());
+    let value = canonical.as_deref().or(value);
     update_frontmatter(&lib.abs(&item.meta_path()), |fm| fm.set(field, value))
+}
+
+/// Changes a task's status. Finishing a repeating task doesn't leave it done:
+/// it goes back to Todo with its due date moved to the next time it is due
+/// (see `repeat.rs`), and the new date is returned so the app can say so.
+/// Anything else is `set_field("status", ...)` and returns `None`.
+pub fn set_status(lib: &Library, id: &str, status: &str, today: NaiveDate) -> Result<Option<String>> {
+    let item = find(lib, id)?;
+    let repeat = item.repeat.as_deref().and_then(Repeat::parse);
+    match (status, repeat) {
+        ("done", Some(repeat)) if item.kind == Kind::Task => {
+            let due = item
+                .due
+                .as_deref()
+                .and_then(|d| NaiveDate::parse_from_str(d, "%Y-%m-%d").ok());
+            let next = repeat.next_due(due, today).format("%Y-%m-%d").to_string();
+            update_frontmatter(&lib.abs(&item.meta_path()), |fm| {
+                fm.set("status", Some("todo"));
+                fm.set("due", Some(&next));
+            })?;
+            Ok(Some(next))
+        }
+        _ => set_field(lib, id, "status", Some(status)).map(|()| None),
+    }
 }
 
 /// Reads an item's body: the text under the frontmatter.

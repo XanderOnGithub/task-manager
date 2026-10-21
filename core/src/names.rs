@@ -81,6 +81,30 @@ pub fn portable_problem(title: &str) -> Option<String> {
     None
 }
 
+/// The title of the copy Git sync saves when two computers changed the same
+/// file: "Sink (from other computer)", then "Sink (from other computer 2)", ...
+pub fn conflict_copy_title(stem: &str, n: u32) -> String {
+    if n <= 1 {
+        format!("{stem} (from other computer)")
+    } else {
+        format!("{stem} (from other computer {n})")
+    }
+}
+
+/// True for a title made by `conflict_copy_title`.
+pub fn is_conflict_copy(title: &str) -> bool {
+    let Some(rest) = title.strip_suffix(')') else {
+        return false;
+    };
+    let Some((_, tail)) = rest.rsplit_once(" (from other computer") else {
+        return false;
+    };
+    tail.is_empty()
+        || tail
+            .strip_prefix(' ')
+            .is_some_and(|n| !n.is_empty() && n.bytes().all(|b| b.is_ascii_digit()))
+}
+
 /// Turns free text (like an Unsorted line) into a usable title.
 ///
 /// Returns the title, and `true` if anything had to change, so the caller can
@@ -167,6 +191,28 @@ mod tests {
             assert!(check_title(t).is_err(), "{t:?}");
         }
         assert!(check_title(&"x".repeat(MAX_TITLE_CHARS + 1)).is_err());
+    }
+
+    #[test]
+    fn conflict_copies_are_recognised_by_their_names() {
+        assert_eq!(conflict_copy_title("Sink", 1), "Sink (from other computer)");
+        assert_eq!(conflict_copy_title("Sink", 3), "Sink (from other computer 3)");
+        for yes in [
+            "Sink (from other computer)",
+            "Sink (from other computer 2)",
+            "A (b) (from other computer 12)",
+        ] {
+            assert!(is_conflict_copy(yes), "{yes}");
+        }
+        for no in [
+            "Sink",
+            "Sink (from other computer",
+            "Sink (from other computer x)",
+            "Sink (from other computers)",
+            "(from other computer) notes",
+        ] {
+            assert!(!is_conflict_copy(no), "{no}");
+        }
     }
 
     #[test]

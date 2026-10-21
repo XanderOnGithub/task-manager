@@ -3,6 +3,7 @@
 // Drag a card into another column to change its status. Clicking a card's
 // circle also changes status, and the card flies to its new column.
 
+import { BlockedMark } from './BlockedMark'
 import { memo, useEffect, useState } from 'react'
 import {
   closestCenter,
@@ -252,6 +253,7 @@ const CardFace = memo(function CardFace({
           {task.title}
         </button>
       </div>
+      <BlockedMark task={task} />
       {(milestone || project || task.due) && (
         // Reads left to right like a sentence and wraps to the start of the
         // next line when the card is narrow, so nothing is left stranded.

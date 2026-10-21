@@ -64,6 +64,11 @@ pub fn title_taken(dir: &Path, title: &str, except: Option<&str>) -> io::Result<
     Ok(false)
 }
 
+/// Today's date, in your time zone.
+pub fn today_date() -> chrono::NaiveDate {
+    Local::now().date_naive()
+}
+
 /// Today's date as `YYYY-MM-DD`, in your time zone.
 pub fn today() -> String {
     Local::now().format("%Y-%m-%d").to_string()

@@ -49,7 +49,10 @@ src-tauri/src/sync/ config  runtime  token  info  login  logout  repos  connect 
 
 **The watcher ignores `.git/`**, and `git status` only runs when something in the folder has changed since the last look, not on a timer.
 
+## Conflict copies
+
+A copy named "Title (from other computer)" is listed under Issues (`Issue::ConflictCopy`) with Open and Reveal. After a sync that kept both versions Moss also shows a toast ("Kept both versions of N files. See Issues."). Delete the copy once you have kept what you want. The naming lives in `core/src/names.rs`, so the Git step and the Issue check agree.
+
 ## Not done yet
 
 - GitHub Enterprise (the address is fixed to github.com).
-- Listing the "(from other computer)" copies as Issues.
