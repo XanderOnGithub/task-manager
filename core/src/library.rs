@@ -28,6 +28,7 @@ use std::path::{Path, PathBuf};
 use chrono::NaiveDate;
 use serde::Serialize;
 
+use crate::blockers;
 use crate::frontmatter::{self, Frontmatter};
 use crate::id;
 use crate::issues::Issue;
@@ -334,6 +335,16 @@ impl Library {
         } else {
             None
         };
+        let blocked_by = if kind == Kind::Task {
+            fm.get("blocked_by")
+                .map(blockers::parse)
+                .unwrap_or_default()
+                .into_iter()
+                .filter(|b| *b != id)
+                .collect()
+        } else {
+            Vec::new()
+        };
         let icon = if kind == Kind::Page {
             check("icon", &is_icon)
         } else {
@@ -355,6 +366,7 @@ impl Library {
             color,
             icon,
             repeat,
+            blocked_by,
         });
         id
     }

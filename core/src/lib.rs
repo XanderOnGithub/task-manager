@@ -19,6 +19,7 @@
 //! - `watch`       notices changes made outside the app
 //! - `frontmatter` reads and writes the `---` block at the top of a file
 //! - `backup`      zip backups of the data folder: create, list, prune, restore
+//! - `blockers`   tasks that wait on other tasks (`blocked_by`)
 //! - `repeat`      repeating tasks: "weekly", "every 2 weeks", and the next due date
 //! - `order`       sort keys that let you reorder by changing one file
 //! - `id`, `names`, `model`, `fsutil`, `error`: small building blocks
@@ -39,6 +40,7 @@
 //! ```
 
 pub mod backup;
+pub mod blockers;
 pub mod error;
 pub mod example;
 pub mod fix;

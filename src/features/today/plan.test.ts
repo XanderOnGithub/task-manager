@@ -6,7 +6,7 @@ import { dueNowCount, planFor } from './plan'
 const TODAY = new Date(2026, 9, 20, 15, 30)
 
 function item(over: Partial<Item> & Pick<Item, 'id' | 'kind' | 'title'>): Item {
-  return { parent: null, status: null, order: null, path: over.title, isFolder: false, created: null, due: null, color: null, icon: null, repeat: null, ...over } as Item
+  return { parent: null, status: null, order: null, path: over.title, isFolder: false, created: null, due: null, color: null, icon: null, repeat: null, blockedBy: [], ...over } as Item
 }
 
 const home = item({ id: 'HOME', kind: 'area', title: 'Home' })

@@ -13,6 +13,7 @@ use std::fs;
 use chrono::NaiveDate;
 use std::path::Path;
 
+use crate::blockers;
 use crate::error::{Error, Result};
 use crate::frontmatter::{self, Frontmatter};
 use crate::fsutil::{self, title_taken, write_atomic};
@@ -192,9 +193,18 @@ pub fn move_item(lib: &Library, id: &str, new_parent: Option<&str>, before: Opti
     Ok(())
 }
 
-/// Changes one field: `status`, `due`, `color`, `icon` or `repeat`. `None` clears it.
+/// Changes one field: `status`, `due`, `color`, `icon`, `repeat` or `blocked_by`
+/// (a list of task ids, joined with commas). `None` clears it.
 pub fn set_field(lib: &Library, id: &str, field: &str, value: Option<&str>) -> Result<()> {
     let item = find(lib, id)?;
+    if field == "blocked_by" {
+        if item.kind != Kind::Task {
+            return Err(Error::NotAllowed("Only a task can wait on other tasks".into()));
+        }
+        let ids = value.map(blockers::parse).unwrap_or_default();
+        let stored = blockers::validate(lib, id, &ids)?;
+        return update_frontmatter(&lib.abs(&item.meta_path()), |fm| fm.set(field, stored.as_deref()));
+    }
     let invalid = || Error::InvalidValue {
         field: field.to_owned(),
         value: value.unwrap_or("").to_owned(),

@@ -163,6 +163,9 @@ export function useActions(reload: () => Promise<void>, items: Item[] = []) {
       /** How often a task comes back: "daily", "weekly", "every 2 weeks"; null stops it repeating. */
       setRepeat: (item: Item, repeat: string | null) => run(() => api.setField(item.id, 'repeat', repeat)),
 
+      /** Tasks this one waits on (ids). The data layer refuses circles and non-tasks. */
+      setBlockers: (item: Item, ids: string[]) => run(() => api.setField(item.id, 'blocked_by', ids.length ? ids.join(', ') : null)),
+
       setDue: (item: Item, due: string | null) => run(() => api.setField(item.id, 'due', due)),
 
       setColor: (item: Item, color: string) => run(() => api.setField(item.id, 'color', color)),

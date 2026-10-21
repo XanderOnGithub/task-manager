@@ -30,12 +30,12 @@ for (let i = 0; i < 50; i++) {
 }
 
 const items = [
-  { id: 'AREAHOME01', kind: 'area', title: 'Home', path: 'areas/Home', isFolder: true, parent: null, status: null, order: 'a', created: '2026-10-01', due: null, color: null, icon: null },
-  { id: 'PRJBATH001', kind: 'project', title: 'Redo the bathroom', path: 'areas/Home/Redo the bathroom', isFolder: true, parent: 'AREAHOME01', status: 'active', order: 'a', created: '2026-10-01', due: null, color: null, icon: null },
+  { id: 'AREAHOME01', kind: 'area', title: 'Home', path: 'areas/Home', isFolder: true, parent: null, status: null, order: 'a', created: '2026-10-01', due: null, color: null, icon: null, blockedBy: [] },
+  { id: 'PRJBATH001', kind: 'project', title: 'Redo the bathroom', path: 'areas/Home/Redo the bathroom', isFolder: true, parent: 'AREAHOME01', status: 'active', order: 'a', created: '2026-10-01', due: null, color: null, icon: null, blockedBy: [] },
   { id: 'MSSINK0001', kind: 'milestone', title: 'Sink', path: 'areas/Home/Redo the bathroom/Sink', isFolder: true, parent: 'PRJBATH001', status: 'open', order: 'a', created: '2026-10-01', due: null, color: 'teal', icon: null },
-  { id: 'TSKTILE001', kind: 'task', title: 'Pick tile', path: 'areas/Home/Redo the bathroom/Sink/Pick tile.md', isFolder: false, parent: 'MSSINK0001', status: 'doing', order: 'a', created: '2026-10-01', due: '2026-10-30', repeat: 'weekly', color: null, icon: null },
-  { id: 'TSKGROUT01', kind: 'task', title: 'Buy grout', path: 'areas/Home/Redo the bathroom/Sink/Buy grout.md', isFolder: false, parent: 'MSSINK0001', status: 'todo', order: 'b', created: '2026-10-01', due: null, color: null, icon: null },
-  { id: 'PAGEPLAN01', kind: 'page', title: 'Plan', path: 'areas/Home/Redo the bathroom/Pages/Plan.md', isFolder: false, parent: 'PRJBATH001', status: null, order: 'a', created: '2026-10-01', due: null, color: null, icon: '🌿' },
+  { id: 'TSKTILE001', kind: 'task', title: 'Pick tile', path: 'areas/Home/Redo the bathroom/Sink/Pick tile.md', isFolder: false, parent: 'MSSINK0001', status: 'doing', order: 'a', created: '2026-10-01', due: '2026-10-30', repeat: 'weekly', blockedBy: [], color: null, icon: null, blockedBy: [] },
+  { id: 'TSKGROUT01', kind: 'task', title: 'Buy grout', path: 'areas/Home/Redo the bathroom/Sink/Buy grout.md', isFolder: false, parent: 'MSSINK0001', status: 'todo', order: 'b', created: '2026-10-01', due: null, color: null, icon: null, blockedBy: ['TSKTILE001'] },
+  { id: 'PAGEPLAN01', kind: 'page', title: 'Plan', path: 'areas/Home/Redo the bathroom/Pages/Plan.md', isFolder: false, parent: 'PRJBATH001', status: null, order: 'a', created: '2026-10-01', due: null, color: null, icon: '🌿', blockedBy: [] },
 ]
 const snapshot = { dataFolder: '/Users/me/Moss', items, issues: [{ type: 'notPortable', path: 'areas/Home/Why not?', reason: 'x', message: 'Name problem', fixable: false, name: 'Why not?', itemId: null }, { type: 'conflictCopy', path: 'areas/Home/Redo the bathroom/Sink/Pick tile (from other computer).md', id: 'TSKTILE001', message: 'The other computer\'s version.', fixable: false, name: 'Pick tile (from other computer)', itemId: 'TSKTILE001' }], unsorted: [{ line: 0, raw: '- 2026-10-15 22:42 buy caulk', added: '2026-10-15 22:42', text: 'buy caulk' }] }
 

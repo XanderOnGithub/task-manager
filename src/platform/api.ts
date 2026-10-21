@@ -44,6 +44,8 @@ export interface Item {
   icon: string | null
   /** Tasks only: how often it comes back, in words: "weekly", "every 2 weeks". */
   repeat: string | null
+  /** Tasks only: ids of the tasks this one waits on. May hold ids of deleted tasks. */
+  blockedBy: string[]
 }
 
 /** What kind of problem, and where. */
@@ -117,7 +119,7 @@ export const renameItem = (id: string, title: string) => invoke<void>('rename_it
 /** Moves into `parent` (pass the current parent to reorder), before `before` or at the end. */
 export const moveItem = (id: string, parent: string | null, before: string | null = null) =>
   invoke<void>('move_item', { id, parent, before })
-export const setField = (id: string, field: 'status' | 'due' | 'color' | 'icon' | 'repeat', value: string | null) =>
+export const setField = (id: string, field: 'status' | 'due' | 'color' | 'icon' | 'repeat' | 'blocked_by', value: string | null) =>
   invoke<void>('set_field', { id, field, value })
 /**
  * Changes a task's status. Finishing a repeating task puts it back to Todo with

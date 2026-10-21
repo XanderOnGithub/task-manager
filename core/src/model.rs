@@ -117,6 +117,9 @@ pub struct Item {
     pub icon: Option<String>,
     /// Tasks only: how often it comes back (`repeat: weekly`, see `repeat.rs`).
     pub repeat: Option<String>,
+    /// Tasks only: ids of tasks this one waits on (`blocked_by: ID1, ID2`, see `blockers.rs`).
+    /// Ids of deleted tasks may linger; the app ignores them.
+    pub blocked_by: Vec<String>,
 }
 
 impl Item {

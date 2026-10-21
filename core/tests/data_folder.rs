@@ -1186,3 +1186,31 @@ fn filing_an_entry_with_a_date_sets_the_due_date_and_keeps_what_was_typed() {
     .unwrap();
     assert_eq!(load(&root).get(&id).unwrap().due, None);
 }
+
+#[test]
+fn a_task_can_wait_on_other_tasks_but_not_in_a_circle() {
+    let (_dir, root) = sample();
+    let lib = load(&root);
+    assert!(lib.get("TSKTILE001").unwrap().blocked_by.is_empty());
+
+    // Two blockers are stored as ids in one line and read back.
+    ops::set_field(&lib, "TSKTILE001", "blocked_by", Some("TSKPLUMB01, TSKWATER01")).unwrap();
+    let lib = load(&root);
+    assert_eq!(
+        lib.get("TSKTILE001").unwrap().blocked_by,
+        vec!["TSKPLUMB01", "TSKWATER01"]
+    );
+
+    // A task can't wait on itself, on something that isn't a task, on an unknown id,
+    // or on a task that already waits on it.
+    assert!(ops::set_field(&lib, "TSKTILE001", "blocked_by", Some("TSKTILE001")).is_err());
+    let home = by_title(&lib, "Home").id.clone();
+    assert!(ops::set_field(&lib, "TSKTILE001", "blocked_by", Some(&home)).is_err());
+    assert!(ops::set_field(&lib, "TSKTILE001", "blocked_by", Some("NOSUCHID01")).is_err());
+    assert!(ops::set_field(&lib, "TSKPLUMB01", "blocked_by", Some("TSKTILE001")).is_err());
+    assert!(ops::set_field(&lib, &home, "blocked_by", Some("TSKTILE001")).is_err());
+
+    // Clearing removes the line.
+    ops::set_field(&lib, "TSKTILE001", "blocked_by", None).unwrap();
+    assert!(load(&root).get("TSKTILE001").unwrap().blocked_by.is_empty());
+}

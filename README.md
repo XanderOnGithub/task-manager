@@ -48,6 +48,8 @@ Built with [Tauri](https://tauri.app) (Rust) and React.
 
 **Dates and repeats.** Type "call Bob friday" in Quick capture and the task gets that due date. A task can repeat ("weekly", "every 2 weeks"); finishing it sets the next date. Today lists what is due across every area.
 
+**Dependencies.** A task can wait on other tasks. It shows "Waiting on …" with a lock until they are done.
+
 **Bulk sort.** Tick several Unsorted items and file them to one place at once.
 
 **Backups.** Moss zips your data folder about once a day. Settings → Backups restores any of them, or a zip you pick.

@@ -2,10 +2,11 @@
 // Layout follows the design canvas linked in CLAUDE.md.
 
 import { useSyncOnFocus } from './features/sync/useSync'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import { spring } from './shared/motion/springs'
 import { onSyncConflicts, type Item, type TaskStatus } from './platform/api'
+import { setBlockedItems } from './app/blockedStore'
 import { useToast } from './shared/toast/toast'
 import { childrenOf, trailOf } from './domain/items'
 import { NEXT_STATUS } from './domain/lanes'
@@ -78,6 +79,9 @@ export default function App() {
   useSyncOnFocus()
   const actions = useActions(reload, snapshot?.items ?? [])
   const toast = useToast()
+  // Rows ask this store what their task waits on (app/blockedStore.ts).
+  const libraryItems = snapshot?.items
+  useLayoutEffect(() => setBlockedItems(libraryItems ?? []), [libraryItems])
 
   // A sync that kept both versions of a file says so, and where to look.
   useEffect(() => {

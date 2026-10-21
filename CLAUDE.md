@@ -142,7 +142,7 @@ data/
 - Type comes from location, title is the filename (block `/` and `:`), parent is the containing folder.
 - A project's children are all milestones or all tasks, never mixed. Its `Pages` folder doesn't count; it isn't an item, so no project or milestone may be called "Pages".
 - Older folders (`tasks/` + `notes/`) move to this layout when opened (`core/src/migrate.rs`); old notes go to a "Reference" area.
-- Frontmatter: `id` (10-char random id, never changes), `status`, `order` (fractional index key), `created`, optional `due`, optional `repeat` (tasks only: `daily|weekly|monthly|yearly` or `every N days|weeks|months|years`; finishing the task re-opens it with the next due date, `core/src/repeat.rs`), `color` (milestones only, stored by name: `dusty-blue`, `mauve`, `rose`, `teal`, `lavender`, `sand`), `icon` (pages only: one emoji, e.g. `icon: 🌿`).
+- Frontmatter: `id` (10-char random id, never changes), `status`, `order` (fractional index key), `created`, optional `due`, optional `blocked_by` (tasks only: ids of tasks that should be done first, joined with ", "; a reminder, not a lock, `core/src/blockers.rs`), optional `repeat` (tasks only: `daily|weekly|monthly|yearly` or `every N days|weeks|months|years`; finishing the task re-opens it with the next due date, `core/src/repeat.rs`), `color` (milestones only, stored by name: `dusty-blue`, `mauve`, `rose`, `teal`, `lavender`, `sand`), `icon` (pages only: one emoji, e.g. `icon: 🌿`).
 - Statuses: task `todo|doing|done`, plus the optional lanes `later|waiting` (always valid on disk; Settings → Board lanes shows them, `domain/lanes.ts`), milestone `open|done`, project `active|paused|done|dropped`.
 - Done items stay in place. Startup reads frontmatter only into an in-memory index; a file watcher keeps it current.
 
@@ -190,6 +190,11 @@ Full description: `docs/SYNC.md`. In short: Settings → Sync (`SyncSettings.tsx
 - Bulk sort: tick entries in Unsorted (Shift for a range), Create as, pick a destination; one toast, one Undo (`actions.fileEntries`).
 - Undo history: `shared/toast/history.ts`. ⌘Z undoes the newest change even after its toast is gone; "Recent changes" in ⌘K lists them. Session only, 50 entries.
 - Backups: `core/src/backup/` (zip of the data folder without `.git`; `create`, `list`, `prune`, `restore` one file each) and `src-tauri/src/backup/` (location in the app data dir, daily thread, commands). Settings → Backups: back up now, restore (a "before restore" backup is made first), restore from a file, automatic on/off. Keeps 14 automatic and 5 before-restore; manual ones stay.
+
+## Dependencies
+
+- A task can wait on other tasks (`blocked_by`, set under "Waiting on" in the details panel; only tasks of the same project are offered). Circles, itself and non-tasks are refused in core. It is a reminder: the row, card and Today show "Waiting on X" with a lock while a blocker is open, and nothing stops you finishing the task.
+- Rows are memoized, so they don't take `items`: `BlockedMark` asks `app/blockedStore.ts` (set from App) and redraws only when its own answer changes.
 
 ## Backlog (after v1)
 

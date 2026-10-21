@@ -10,6 +10,7 @@ import { useRenameRequest } from '../../app/requests'
 import type { Actions } from '../../app/useActions'
 import { DateField, EditableTitle, InlineAdd, Menu, Segmented } from '../../shared/controls'
 import { BodyEditor } from '../editor/BodyEditor'
+import { BlockersField } from './BlockersField'
 import { RepeatField } from './RepeatField'
 import { useRovingRadios } from '../../shared/a11y/roving'
 import { itemMenu } from '../../shared/itemMenu'
@@ -102,6 +103,12 @@ export function DetailsPanel({ items, item, parent, onSelect, actions }: Props) 
           {!isMilestone && (
             <Field label="Repeat">
               <RepeatField value={item.repeat} onChange={(repeat) => void actions.setRepeat(item, repeat)} />
+            </Field>
+          )}
+
+          {!isMilestone && (
+            <Field label="Waiting on">
+              <BlockersField items={items} task={item} onChange={(ids) => void actions.setBlockers(item, ids)} onOpen={onSelect} />
             </Field>
           )}
 
