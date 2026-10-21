@@ -1,20 +1,18 @@
-// Settings → Sounds: everything on/off, volume, each sound on its own, and the Fun corner.
+// Settings → Sounds: everything on/off, volume, and each sound on its own.
 
 import { useState } from 'react'
-import { ChevronDown, Play } from 'lucide-react'
+import { Play } from 'lucide-react'
 import {
   play,
-  playRelease,
   setSoundSettings,
   SOUND_INFO,
   soundSettings,
-  TYPING_STYLE_INFO,
   type SoundName,
   type SoundSettings,
 } from '../../sound/sounds'
-import { Menu, Switch } from '../../shared/controls'
+import { Switch } from '../../shared/controls'
 
-/** Settings → Sounds: everything on/off, volume, each sound on its own, and the Fun corner. */
+/** Settings → Sounds: everything on/off, volume, and each sound on its own. */
 export function SoundsTab() {
   const [value, setValue] = useState<SoundSettings>(soundSettings)
   const update = (next: SoundSettings) => {
@@ -25,17 +23,6 @@ export function SoundsTab() {
     update({ ...value, muted: on ? value.muted.filter((n) => n !== name) : [...value.muted, name] })
     if (on) play(name, { force: true })
   }
-  // A little typed phrase, for hearing the keyboard sounds without typing.
-  const demoTyping = () => {
-    const keys: SoundName[] = ['keyShift', 'key', 'key', 'key', 'keySpace', 'key', 'key', 'keyDelete', 'keyDelete', 'key', 'keyShift', 'keyEnter']
-    keys.forEach((k, i) => {
-      const at = i * 95 + Math.random() * 30
-      window.setTimeout(() => play(k, { force: true }), at)
-      // Styles with a release sound play it as the key comes back up.
-      window.setTimeout(() => playRelease(k, { force: true }), at + 60)
-    })
-  }
-
   return (
     <div className="flex max-h-[62vh] flex-col gap-5 overflow-y-auto p-5">
       <div className="flex flex-col gap-2">
@@ -86,44 +73,12 @@ export function SoundsTab() {
         ))}
       </div>
 
-      <div className={`flex flex-col gap-1 transition-opacity duration-150 ${value.on ? '' : 'pointer-events-none opacity-40'}`}>
-        <div className="pb-1 text-label tracking-label text-fg-3 uppercase">Fun</div>
-        <SoundRow
-          label="Typing"
-          when="A soft keyboard click as you type in any text field. Off by default."
-          on={value.typing}
-          onTest={demoTyping}
-          onToggle={(typing) => {
-            update({ ...value, typing })
-            if (typing) demoTyping()
-          }}
-        />
-        {/* Which keyboard sound. Picking one plays a sample of it. */}
-        <div className={`flex min-h-10 items-center gap-3 py-1 pr-0.5 pl-11 transition-opacity duration-150 ${value.typing ? '' : 'opacity-40'}`}>
-          <span className="flex-1 text-meta font-normal text-fg-3">Typing sound</span>
-          <Menu
-            label="Typing sound"
-            items={TYPING_STYLE_INFO.map(({ id, label }) => ({
-              label,
-              onSelect: () => {
-                update({ ...value, typingStyle: id })
-                demoTyping()
-              },
-            }))}
-            trigger={
-              <span className="flex h-7 items-center gap-1.5 rounded-control bg-raised pr-1.5 pl-2.5 text-meta text-fg transition-colors duration-100 hover:bg-hover">
-                {TYPING_STYLE_INFO.find((style) => style.id === value.typingStyle)?.label ?? 'Soft'}
-                <ChevronDown size={14} strokeWidth={1.75} className="text-fg-3" aria-hidden="true" />
-              </span>
-            }
-          />
-        </div>
-      </div>
+      <p className="text-meta font-normal text-fg-3">Typing sounds, fuller sounds and particles are under Fun.</p>
     </div>
   )
 }
 
-function SoundRow({
+export function SoundRow({
   label,
   when,
   on,

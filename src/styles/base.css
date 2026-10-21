@@ -73,9 +73,16 @@
   }
 
   /* Lets you drag the window by any element with this attribute
-     (e.g. the empty top of the sidebar, next to the traffic lights). */
+     (the strip along the top, the sidebar's top row, panel headers). Tauri only
+     starts a drag when the click lands on the element itself, so buttons and
+     text inside keep working. */
   [data-tauri-drag-region] {
     -webkit-app-region: drag;
+  }
+  /* Where the webview honors the CSS (Windows), children of a drag region
+     would drag too and swallow clicks. */
+  [data-tauri-drag-region] :is(button, a, input, select, textarea, [role='button'], [role='menuitem']) {
+    -webkit-app-region: no-drag;
   }
 }
 

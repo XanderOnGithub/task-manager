@@ -28,12 +28,14 @@ use std::path::{Path, PathBuf};
 use chrono::NaiveDate;
 use serde::Serialize;
 
+use crate::blockers;
 use crate::frontmatter::{self, Frontmatter};
 use crate::id;
 use crate::issues::Issue;
 use crate::model::{is_icon, Item, Kind, MILESTONE_COLORS};
 use crate::names;
 use crate::order;
+use crate::repeat::Repeat;
 
 /// Folder names inside the data folder.
 pub const AREAS_DIR: &str = "areas";
@@ -290,6 +292,15 @@ impl Library {
             }
         };
 
+        // Git sync's "(from other computer)" copies are listed as Issues until
+        // you've looked at them and deleted them.
+        if names::is_conflict_copy(title) {
+            self.issues.push(Issue::ConflictCopy {
+                path: rel.to_owned(),
+                id: id.clone(),
+            });
+        }
+
         // Each field is checked; a bad value becomes an issue and is ignored.
         let mut check = |field: &str, ok: &dyn Fn(&str) -> bool| -> Option<String> {
             let value = fm.get(field)?;
@@ -319,6 +330,21 @@ impl Library {
         } else {
             None
         };
+        let repeat = if kind == Kind::Task {
+            check("repeat", &|v| Repeat::parse(v).is_some())
+        } else {
+            None
+        };
+        let blocked_by = if kind == Kind::Task {
+            fm.get("blocked_by")
+                .map(blockers::parse)
+                .unwrap_or_default()
+                .into_iter()
+                .filter(|b| *b != id)
+                .collect()
+        } else {
+            Vec::new()
+        };
         let icon = if kind == Kind::Page {
             check("icon", &is_icon)
         } else {
@@ -339,6 +365,8 @@ impl Library {
             due,
             color,
             icon,
+            repeat,
+            blocked_by,
         });
         id
     }

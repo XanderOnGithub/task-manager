@@ -30,14 +30,14 @@ for (let i = 0; i < 50; i++) {
 }
 
 const items = [
-  { id: 'AREAHOME01', kind: 'area', title: 'Home', path: 'areas/Home', isFolder: true, parent: null, status: null, order: 'a', created: '2026-10-01', due: null, color: null, icon: null },
-  { id: 'PRJBATH001', kind: 'project', title: 'Redo the bathroom', path: 'areas/Home/Redo the bathroom', isFolder: true, parent: 'AREAHOME01', status: 'active', order: 'a', created: '2026-10-01', due: null, color: null, icon: null },
+  { id: 'AREAHOME01', kind: 'area', title: 'Home', path: 'areas/Home', isFolder: true, parent: null, status: null, order: 'a', created: '2026-10-01', due: null, color: null, icon: null, blockedBy: [] },
+  { id: 'PRJBATH001', kind: 'project', title: 'Redo the bathroom', path: 'areas/Home/Redo the bathroom', isFolder: true, parent: 'AREAHOME01', status: 'active', order: 'a', created: '2026-10-01', due: null, color: null, icon: null, blockedBy: [] },
   { id: 'MSSINK0001', kind: 'milestone', title: 'Sink', path: 'areas/Home/Redo the bathroom/Sink', isFolder: true, parent: 'PRJBATH001', status: 'open', order: 'a', created: '2026-10-01', due: null, color: 'teal', icon: null },
-  { id: 'TSKTILE001', kind: 'task', title: 'Pick tile', path: 'areas/Home/Redo the bathroom/Sink/Pick tile.md', isFolder: false, parent: 'MSSINK0001', status: 'doing', order: 'a', created: '2026-10-01', due: '2026-10-30', color: null, icon: null },
-  { id: 'TSKGROUT01', kind: 'task', title: 'Buy grout', path: 'areas/Home/Redo the bathroom/Sink/Buy grout.md', isFolder: false, parent: 'MSSINK0001', status: 'todo', order: 'b', created: '2026-10-01', due: null, color: null, icon: null },
-  { id: 'PAGEPLAN01', kind: 'page', title: 'Plan', path: 'areas/Home/Redo the bathroom/Pages/Plan.md', isFolder: false, parent: 'PRJBATH001', status: null, order: 'a', created: '2026-10-01', due: null, color: null, icon: '🌿' },
+  { id: 'TSKTILE001', kind: 'task', title: 'Pick tile', path: 'areas/Home/Redo the bathroom/Sink/Pick tile.md', isFolder: false, parent: 'MSSINK0001', status: 'doing', order: 'a', created: '2026-10-01', due: '2026-10-30', repeat: 'weekly', blockedBy: [], color: null, icon: null, blockedBy: [] },
+  { id: 'TSKGROUT01', kind: 'task', title: 'Buy grout', path: 'areas/Home/Redo the bathroom/Sink/Buy grout.md', isFolder: false, parent: 'MSSINK0001', status: 'todo', order: 'b', created: '2026-10-01', due: null, color: null, icon: null, blockedBy: ['TSKTILE001'] },
+  { id: 'PAGEPLAN01', kind: 'page', title: 'Plan', path: 'areas/Home/Redo the bathroom/Pages/Plan.md', isFolder: false, parent: 'PRJBATH001', status: null, order: 'a', created: '2026-10-01', due: null, color: null, icon: '🌿', blockedBy: [] },
 ]
-const snapshot = { dataFolder: '/Users/me/Moss', items, issues: [{ type: 'notPortable', path: 'areas/Home/Why not?', reason: 'x', message: 'Name problem', fixable: false, name: 'Why not?' }], unsorted: [{ line: 0, raw: '- 2026-10-15 22:42 buy caulk', added: '2026-10-15 22:42', text: 'buy caulk' }] }
+const snapshot = { dataFolder: '/Users/me/Moss', items, issues: [{ type: 'notPortable', path: 'areas/Home/Why not?', reason: 'x', message: 'Name problem', fixable: false, name: 'Why not?', itemId: null }, { type: 'conflictCopy', path: 'areas/Home/Redo the bathroom/Sink/Pick tile (from other computer).md', id: 'TSKTILE001', message: 'The other computer\'s version.', fixable: false, name: 'Pick tile (from other computer)', itemId: 'TSKTILE001' }], unsorted: [{ line: 0, raw: '- 2026-10-15 22:42 buy caulk', added: '2026-10-15 22:42', text: 'buy caulk' }] }
 
 const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined, args: ['--no-sandbox'] })
 async function open(theme, needsFolder = false) {
@@ -47,7 +47,7 @@ async function open(theme, needsFolder = false) {
       get_data_folder: () => (needsFolder ? null : snapshot.dataFolder), load_library: () => snapshot, list_trash: () => [{ path: '.trash/20261016-223512-Old.md', original: 'areas/Home/Old.md', title: 'Old', kind: 'task', from: ['Home'], deleted: '2026-10-16 22:35' }],
       read_body: () => 'Some text\n', get_high_refresh: () => ({ supported: false, enabled: false }), suggested_data_folder: () => ({ path: '/Users/me/Documents/Moss', display: '~/Documents/Moss' }),
       sync_state: () => ({ gitAvailable: true, loginAvailable: true, username: 'me', repo: 'me/moss-data', paused: false, syncing: false, lastSynced: Date.now() - 120000, error: null, pending: 2 }),
-      search_text: () => [], github_repos: () => [{ fullName: 'me/moss-data', private: true, defaultBranch: 'main', cloneUrl: 'x', empty: false }],
+      search_text: () => [], backups_get: () => ({ automatic: true, items: [{ kind: 'automatic', path: '/b/1.zip', fileName: '1.zip', when: '2026-10-19 09:00', madeAt: 1, bytes: 20480 }, { kind: 'manual', path: '/b/2.zip', fileName: '2.zip', when: '2026-10-18 21:10', madeAt: 0, bytes: 3145728 }] }), github_repos: () => [{ fullName: 'me/moss-data', private: true, defaultBranch: 'main', cloneUrl: 'x', empty: false }],
     }
     window.__TAURI_INTERNALS__ = { invoke: async (c, a) => (handlers[c] ? handlers[c](a) : null), transformCallback: () => 1, convertFileSrc: (x) => x, metadata: { currentWindow: { label: 'main' }, currentWebview: { label: 'main', windowLabel: 'main' } } }
     window.__TAURI_EVENT_PLUGIN_INTERNALS__ = { unregisterListener() {} }
@@ -71,7 +71,10 @@ for (const theme of ['light', 'dark']) {
   await page.waitForSelector('nav[aria-label="Sidebar"]')
   await audit(page, `${theme}: Tasks list`)
   await page.getByRole('radio', { name: 'Board' }).click(); await audit(page, `${theme}: Board`)
+  await page.getByRole('button', { name: /^Today/ }).click(); await audit(page, `${theme}: Today`)
   await page.getByRole('button', { name: 'Unsorted' }).click(); await audit(page, `${theme}: Unsorted`)
+  await page.getByRole('checkbox', { name: 'Choose buy caulk' }).click(); await page.waitForTimeout(300); await audit(page, `${theme}: Unsorted bulk`)
+  await page.getByRole('checkbox', { name: 'Choose buy caulk' }).click()
   await page.getByText('buy caulk').click(); await page.waitForTimeout(300); await audit(page, `${theme}: Unsorted open`)
   await page.getByRole('button', { name: 'Pages', exact: true }).click(); await audit(page, `${theme}: Pages`)
   await page.getByText('Plan').first().click(); await page.waitForTimeout(500); await audit(page, `${theme}: Page`)
@@ -79,7 +82,9 @@ for (const theme of ['light', 'dark']) {
   await page.getByRole('button', { name: /^Trash/ }).click(); await audit(page, `${theme}: Trash`)
   await page.getByRole('button', { name: 'Settings' }).click(); await audit(page, `${theme}: Settings general`)
   await page.getByRole('radio', { name: 'Sync' }).click(); await audit(page, `${theme}: Settings sync`)
+  await page.getByRole('radio', { name: 'Backups' }).click(); await audit(page, `${theme}: Settings backups`)
   await page.getByRole('radio', { name: 'Sounds' }).click(); await audit(page, `${theme}: Settings sounds`)
+  await page.getByRole('radio', { name: 'Fun' }).click(); await audit(page, `${theme}: Settings fun`)
   await page.keyboard.press('Escape')
   await page.keyboard.press('Control+k'); await page.keyboard.type('a'); await audit(page, `${theme}: Search`)
   await page.close()

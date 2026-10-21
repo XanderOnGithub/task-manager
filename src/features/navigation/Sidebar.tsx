@@ -8,9 +8,10 @@
 import { useState, type ReactNode } from 'react'
 import { motion } from 'motion/react'
 import { spring } from '../../shared/motion/springs'
-import { AlertCircle, CircleAlert, ArrowDownToLine, Cloud, FileText, Layers, ListChecks, PanelLeft, Pause, Plus, RefreshCw, Settings, Trash2, type LucideIcon } from 'lucide-react'
+import { AlertCircle, CalendarCheck, CircleAlert, ArrowDownToLine, Cloud, FileText, Layers, ListChecks, PanelLeft, Pause, Plus, RefreshCw, Settings, Trash2, type LucideIcon } from 'lucide-react'
 import { installUpdate, useUpdates } from '../../platform/updates'
-import { ago, useSync } from '../sync/useSync'
+import { ago } from '../../domain/dates'
+import { useSync } from '../sync/useSync'
 import type { Item } from '../../platform/api'
 import { icon } from '../../domain/items'
 import { isMac, keys } from '../../platform/os'
@@ -20,11 +21,13 @@ import { MossWordmark } from '../../shared/Brand'
 import { SectionLabel } from '../../shared/ui'
 
 /** The overviews at the top of the sidebar. */
-export type Overview = 'unsorted' | 'tasks' | 'pages' | 'trash' | 'issues'
+export type Overview = 'unsorted' | 'today' | 'tasks' | 'pages' | 'trash' | 'issues'
 
 interface Props {
   items: Item[]
   unsortedCount: number
+  /** Tasks overdue or due today; the Today row shows the number. */
+  dueCount: number
   /** Things in the trash; the Trash row shows above Settings while there are any. */
   trashCount: number
   /** Problems found in the data folder; the Issues row shows while there are any. */
@@ -57,7 +60,7 @@ export function Sidebar(props: Props) {
       {/* Top row: the traffic lights (on a Mac), the app's name, and a drag
           handle for the window. The name doesn't take clicks, so dragging
           there moves the window. */}
-      <div data-tauri-drag-region className="flex h-5 items-center">
+      <div data-tauri-drag-region className="-mt-2.5 flex h-[30px] items-center pt-2.5">
         <span
           className={`pointer-events-none flex items-center gap-1.5 select-none ${isMac ? 'pl-20' : 'pl-1'}`}
         >
@@ -89,6 +92,14 @@ export function Sidebar(props: Props) {
           {unsortedCount > 0 && (
             <span className="ml-auto flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-badge px-1.5 text-label text-fg">
               {unsortedCount}
+            </span>
+          )}
+        </NavItem>
+        <NavItem Icon={CalendarCheck} active={overview === 'today'} onClick={() => onOverview('today')}>
+          Today
+          {props.dueCount > 0 && (
+            <span className="ml-auto flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-badge px-1.5 text-label text-fg">
+              {props.dueCount}
             </span>
           )}
         </NavItem>

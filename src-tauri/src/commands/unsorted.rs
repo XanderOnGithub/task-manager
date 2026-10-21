@@ -13,14 +13,26 @@ pub async fn add_unsorted(state: State<'_, AppState>, text: String) -> CmdResult
 }
 
 /// Turns an Unsorted entry into a task, page or project inside `parent`.
+/// `text` and `due` are for a date the app understood in the entry (see
+/// `unsorted::FileOptions`).
 #[tauri::command]
 pub async fn file_unsorted(
     state: State<'_, AppState>,
     entry: Entry,
     kind: Kind,
     parent: Option<String>,
+    text: Option<String>,
+    due: Option<String>,
 ) -> CmdResult<String> {
-    write(&state, |lib| unsorted::file(lib, &entry, kind, parent.as_deref()))
+    write(&state, |lib| {
+        unsorted::file_with(
+            lib,
+            &entry,
+            kind,
+            parent.as_deref(),
+            &unsorted::FileOptions { text, due },
+        )
+    })
 }
 
 #[tauri::command]

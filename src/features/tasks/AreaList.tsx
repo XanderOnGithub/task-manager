@@ -3,6 +3,7 @@
 // header but not listed (open the project to see them). Drag and drop lives in
 // the project and milestone pages, where there's one place to drop into.
 
+import { BlockedMark } from './BlockedMark'
 import { memo, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import { ArrowUpRight, ChevronDown, Target } from 'lucide-react'
@@ -156,6 +157,7 @@ const AreaTaskRow = memo(function AreaTaskRow({
         {milestone && (
           <MilestoneChip title={milestone.title} color={milestone.color} className="max-w-[45%] @max-[14rem]:hidden" />
         )}
+        <BlockedMark task={task} />
         <DueDate item={task} />
       </button>
     </div>

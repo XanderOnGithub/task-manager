@@ -42,6 +42,10 @@ export interface Item {
   color: MilestoneColor | null
   /** Pages only: an emoji shown next to the title. */
   icon: string | null
+  /** Tasks only: how often it comes back, in words: "weekly", "every 2 weeks". */
+  repeat: string | null
+  /** Tasks only: ids of the tasks this one waits on. May hold ids of deleted tasks. */
+  blockedBy: string[]
 }
 
 /** What kind of problem, and where. */
@@ -53,6 +57,7 @@ export type IssueKind =
   | { type: 'invalidValue'; path: string; field: string; value: string }
   | { type: 'invalidName'; path: string }
   | { type: 'notPortable'; path: string; reason: string }
+  | { type: 'conflictCopy'; path: string; id: string }
   | { type: 'mixedChildren'; path: string }
   | { type: 'strayFile'; path: string }
   | { type: 'tooDeep'; path: string }
@@ -68,6 +73,8 @@ export type Issue = IssueKind & {
   fixable: boolean
   /** What it is about: the file or folder name, without ".md". */
   name: string
+  /** An item that can be opened from the Issues view (a conflict copy), or null. */
+  itemId: string | null
 }
 
 /** One line of unsorted.md. Pass it back unchanged to file or remove it. */
@@ -105,14 +112,20 @@ export const suggestedDataFolder = () => invoke<{ path: string; display: string 
 export const startDataFolder = (path: string, example: boolean) => invoke<boolean>('start_data_folder', { path, example })
 export const loadLibrary = () => invoke<Snapshot>('load_library')
 
-export const createItem = (kind: Kind, parent: string | null, title: string) =>
-  invoke<string>('create_item', { kind, parent, title })
+/** `due` (YYYY-MM-DD) is for a task whose title had a date in it. */
+export const createItem = (kind: Kind, parent: string | null, title: string, due: string | null = null) =>
+  invoke<string>('create_item', { kind, parent, title, due })
 export const renameItem = (id: string, title: string) => invoke<void>('rename_item', { id, title })
 /** Moves into `parent` (pass the current parent to reorder), before `before` or at the end. */
 export const moveItem = (id: string, parent: string | null, before: string | null = null) =>
   invoke<void>('move_item', { id, parent, before })
-export const setField = (id: string, field: 'status' | 'due' | 'color' | 'icon', value: string | null) =>
+export const setField = (id: string, field: 'status' | 'due' | 'color' | 'icon' | 'repeat' | 'blocked_by', value: string | null) =>
   invoke<void>('set_field', { id, field, value })
+/**
+ * Changes a task's status. Finishing a repeating task puts it back to Todo with
+ * its next due date, which is returned (null for anything else).
+ */
+export const setStatus = (id: string, status: string) => invoke<string | null>('set_status', { id, status })
 export const readBody = (id: string) => invoke<string>('read_body', { id })
 
 /** A search match inside an item's text (titles are matched in the UI). */
@@ -147,8 +160,16 @@ export const itemPath = (id: string) => invoke<string>('item_path', { id })
 export const revealPath = (path: string) => invoke<void>('reveal_path', { path })
 
 export const addUnsorted = (text: string) => invoke<UnsortedEntry>('add_unsorted', { text })
-export const fileUnsorted = (entry: UnsortedEntry, kind: Kind, parent: string | null) =>
-  invoke<string>('file_unsorted', { entry, kind, parent })
+/**
+ * Turns an entry into a task, page or project. `text` (the entry without its
+ * date words) and `due` are for a date the app understood in it.
+ */
+export const fileUnsorted = (
+  entry: UnsortedEntry,
+  kind: Kind,
+  parent: string | null,
+  extras: { text?: string; due?: string } = {},
+) => invoke<string>('file_unsorted', { entry, kind, parent, text: extras.text ?? null, due: extras.due ?? null })
 export const removeUnsorted = (entry: UnsortedEntry) => invoke<void>('remove_unsorted', { entry })
 export const restoreUnsorted = (entry: UnsortedEntry) => invoke<void>('restore_unsorted', { entry })
 
@@ -225,3 +246,40 @@ export const syncDisconnect = () => invoke<void>('sync_disconnect')
 
 /** Runs `callback` whenever the sync status changes. */
 export const onSyncChanged = (callback: () => void): Promise<UnlistenFn> => listen('sync-changed', () => callback())
+
+/** Sync kept both versions of some files (the number of them). */
+export const onSyncConflicts = (callback: (count: number) => void): Promise<UnlistenFn> =>
+  listen<number>('sync-conflicts', (event) => callback(event.payload))
+
+// ---------------------------------------------------------------------------
+// Backups (src-tauri/src/backup/)
+// ---------------------------------------------------------------------------
+
+export type BackupKind = 'automatic' | 'manual' | 'beforeRestore'
+
+export interface Backup {
+  kind: BackupKind
+  /** Pass back to `restoreBackup`. Don't show it. */
+  path: string
+  fileName: string
+  /** "YYYY-MM-DD HH:MM" */
+  when: string
+  /** Milliseconds since 1970. */
+  madeAt: number
+  bytes: number
+}
+
+export interface Backups {
+  /** Backs up about once a day. */
+  automatic: boolean
+  /** Newest first. */
+  items: Backup[]
+}
+
+export const getBackups = () => invoke<Backups>('backups_get')
+export const setAutomaticBackups = (automatic: boolean) => invoke<void>('backups_set_automatic', { automatic })
+/** Makes a backup you asked for; it is kept until you delete it. */
+export const backUpNow = () => invoke<Backup>('backup_now')
+/** Replaces the data folder's files with a backup (or any zip you picked). Returns the backup made of what was there. */
+export const restoreBackup = (path: string) => invoke<Backup>('backup_restore', { path })
+export const revealBackups = () => invoke<void>('backups_reveal')

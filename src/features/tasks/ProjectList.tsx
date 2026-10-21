@@ -6,6 +6,7 @@
 // - Drag a milestone by its header to reorder milestones. While you do, every
 //   milestone folds shut so they're easy to move around, then reopens.
 
+import { BlockedMark } from './BlockedMark'
 import { memo, useCallback, useMemo, type CSSProperties } from 'react'
 import { DndContext, DragOverlay } from '@dnd-kit/core'
 import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
@@ -330,6 +331,7 @@ const TaskRowContent = memo(function TaskRowContent({
       </button>
       <button onClick={() => onSelect(task.id)} className="flex h-full min-w-0 flex-1 items-center gap-2.5 text-left">
         <TaskTitle title={task.title} done={task.status === 'done'} />
+        <BlockedMark task={task} />
         <DueDate item={task} />
       </button>
     </>

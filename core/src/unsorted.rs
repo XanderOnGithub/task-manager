@@ -152,13 +152,39 @@ pub fn restore(lib: &Library, entry: &Entry) -> Result<()> {
 /// The text becomes the title. If it had to change (too long, or it contained
 /// `:` or `/`), the original text is kept as the body so nothing is lost.
 pub fn file(lib: &Library, entry: &Entry, kind: Kind, parent: Option<&str>) -> Result<String> {
-    let (title, changed) = title_from_text(&entry.text);
-    let body = if changed {
+    file_with(lib, entry, kind, parent, &FileOptions::default())
+}
+
+/// Extras for filing an entry. The app fills these in when it understood a
+/// date in the text ("call Bob friday").
+#[derive(Debug, Default)]
+pub struct FileOptions {
+    /// The text to make the title from, instead of the entry's own (the same
+    /// text without the date words). The entry's full text is kept as the body.
+    pub text: Option<String>,
+    /// A due date, `YYYY-MM-DD`. Only for tasks.
+    pub due: Option<String>,
+}
+
+/// Like `file`, with `FileOptions`.
+pub fn file_with(
+    lib: &Library,
+    entry: &Entry,
+    kind: Kind,
+    parent: Option<&str>,
+    options: &FileOptions,
+) -> Result<String> {
+    let source = options.text.as_deref().unwrap_or(&entry.text);
+    let (title, changed) = title_from_text(source);
+    // Whenever the title isn't exactly what was typed, what was typed is kept.
+    let body = if changed || source != entry.text {
         format!("{}\n", entry.text)
     } else {
         String::new()
     };
-    let id = ops::create(lib, kind, parent, &title, &body)?;
+    // A date only means something for a task.
+    let due = options.due.as_deref().filter(|_| kind == Kind::Task);
+    let id = ops::create_with_due(lib, kind, parent, &title, &body, due)?;
     remove(lib, entry)?;
     Ok(id)
 }

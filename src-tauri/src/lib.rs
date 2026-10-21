@@ -9,6 +9,7 @@
 //!
 //! - `commands/`      every command the UI can call, one file per job
 //! - `sync/`          Git sync: sign in, repositories, when to sync
+//! - `backup/`        zip backups of the data folder: daily, on request, restore
 //! - `state`          what's kept in memory, and the `read` / `write` helpers
 //! - `settings`       the small settings file
 //! - `folder`         opening a data folder and watching it
@@ -17,6 +18,7 @@
 //! This file only puts them together: plugins, startup, and the list of
 //! commands.
 
+mod backup;
 mod commands;
 mod folder;
 mod high_refresh;
@@ -70,6 +72,7 @@ pub fn run() {
                 folder::open(&handle, &mut data, root);
             }
             sync::start(&handle);
+            backup::start(&handle);
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -82,6 +85,7 @@ pub fn run() {
             commands::items::rename_item,
             commands::items::move_item,
             commands::items::set_field,
+            commands::items::set_status,
             commands::body::read_body,
             commands::body::search_text,
             commands::body::write_body,
@@ -99,6 +103,11 @@ pub fn run() {
             commands::unsorted::restore_unsorted,
             commands::display::get_high_refresh,
             commands::display::set_high_refresh,
+            backup::list::backups_get,
+            backup::list::backups_set_automatic,
+            backup::now::backup_now,
+            backup::restore::backup_restore,
+            backup::reveal::backups_reveal,
             sync::info::sync_state,
             sync::login::github_login_start,
             sync::login::github_login_poll,

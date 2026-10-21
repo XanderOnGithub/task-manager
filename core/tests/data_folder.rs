@@ -1010,3 +1010,207 @@ fn names_windows_cant_store_are_refused_for_new_items_and_flagged_for_old_ones()
     assert!(lib.get("WHYNOT0001").is_some(), "still loads");
     assert!(lib.issues.iter().any(|i| matches!(i, Issue::NotPortable { .. })));
 }
+
+// ---------------------------------------------------------------------------
+// Repeating tasks
+// ---------------------------------------------------------------------------
+
+fn date(text: &str) -> chrono::NaiveDate {
+    chrono::NaiveDate::parse_from_str(text, "%Y-%m-%d").unwrap()
+}
+
+#[test]
+fn a_repeating_task_comes_back_instead_of_staying_done() {
+    let (_dir, root) = sample();
+    let lib = load(&root);
+    ops::set_field(&lib, "TSKTILE001", "repeat", Some("Every 1 week")).unwrap();
+    ops::set_field(&lib, "TSKTILE001", "due", Some("2026-10-20")).unwrap();
+    let lib = load(&root);
+    let tile = lib.get("TSKTILE001").unwrap();
+    assert_eq!(
+        tile.repeat.as_deref(),
+        Some("weekly"),
+        "stored in its canonical words"
+    );
+
+    // Finishing it on the day it's due: Todo again, due a week later.
+    let next = ops::set_status(&lib, "TSKTILE001", "done", date("2026-10-20")).unwrap();
+    assert_eq!(next.as_deref(), Some("2026-10-27"));
+    let lib = load(&root);
+    let tile = lib.get("TSKTILE001").unwrap();
+    assert_eq!(
+        (tile.status.as_deref(), tile.due.as_deref()),
+        (Some("todo"), Some("2026-10-27"))
+    );
+    assert!(fs::read_to_string(root.join(tile.meta_path()))
+        .unwrap()
+        .contains("repeat: weekly"));
+
+    // Finished late: back on the schedule, after today.
+    let next = ops::set_status(&lib, "TSKTILE001", "done", date("2026-11-10")).unwrap();
+    assert_eq!(next.as_deref(), Some("2026-11-17"));
+
+    // Other statuses are plain changes.
+    let lib = load(&root);
+    assert_eq!(
+        ops::set_status(&lib, "TSKTILE001", "doing", date("2026-11-10")).unwrap(),
+        None
+    );
+    assert_eq!(
+        load(&root).get("TSKTILE001").unwrap().status.as_deref(),
+        Some("doing")
+    );
+}
+
+#[test]
+fn finishing_a_task_that_does_not_repeat_works_as_before() {
+    let (_dir, root) = sample();
+    let lib = load(&root);
+    assert_eq!(
+        ops::set_status(&lib, "TSKTILE001", "done", date("2026-10-20")).unwrap(),
+        None
+    );
+    assert_eq!(
+        load(&root).get("TSKTILE001").unwrap().status.as_deref(),
+        Some("done")
+    );
+}
+
+#[test]
+fn repeat_is_checked_and_belongs_to_tasks() {
+    let (_dir, root) = sample();
+    let lib = load(&root);
+    assert!(matches!(
+        ops::set_field(&lib, "TSKTILE001", "repeat", Some("sometimes")),
+        Err(Error::InvalidValue { .. })
+    ));
+    let home = by_title(&lib, "Home").id.clone();
+    assert!(
+        ops::set_field(&lib, &home, "repeat", Some("weekly")).is_err(),
+        "an area can't repeat"
+    );
+    ops::set_field(&lib, "TSKTILE001", "repeat", Some("daily")).unwrap();
+    ops::set_field(&lib, "TSKTILE001", "repeat", None).unwrap();
+    assert_eq!(load(&root).get("TSKTILE001").unwrap().repeat, None);
+
+    // A value written by hand that isn't a repeat is an Issue, and ignored.
+    let path = root.join(load(&root).get("TSKTILE001").unwrap().meta_path());
+    let text = fs::read_to_string(&path)
+        .unwrap()
+        .replacen("---\n", "---\nrepeat: whenever\n", 1);
+    fs::write(&path, text).unwrap();
+    let lib = load(&root);
+    assert_eq!(lib.get("TSKTILE001").unwrap().repeat, None);
+    assert!(lib
+        .issues
+        .iter()
+        .any(|i| matches!(i, Issue::InvalidValue { field, .. } if field == "repeat")));
+}
+
+#[test]
+fn a_copy_saved_by_git_sync_is_listed_as_an_issue_you_can_open() {
+    let (_dir, root) = sample();
+    let lib = load(&root);
+    let tile = lib.get("TSKTILE001").unwrap().clone();
+    let copy_path = root.join(
+        tile.path
+            .replace("Pick tile.md", "Pick tile (from other computer).md"),
+    );
+    fs::write(
+        &copy_path,
+        "---\nstatus: doing\n---\nWritten on the other computer\n",
+    )
+    .unwrap();
+
+    let lib = load(&root);
+    let issue = lib
+        .issues
+        .iter()
+        .find(|i| matches!(i, Issue::ConflictCopy { .. }))
+        .expect("the copy is an issue");
+    let id = issue.item_id().expect("and can be opened").to_owned();
+    assert_eq!(lib.get(&id).unwrap().title, "Pick tile (from other computer)");
+    assert!(!issue.is_fixable());
+    // It is an ordinary task too, so it can be read, merged by hand and deleted.
+    assert_eq!(
+        ops::read_body(&lib, &id).unwrap().trim(),
+        "Written on the other computer"
+    );
+}
+
+#[test]
+fn filing_an_entry_with_a_date_sets_the_due_date_and_keeps_what_was_typed() {
+    let (_dir, root) = sample();
+    let lib = load(&root);
+    let path = root.join("unsorted.md");
+    let mut text = fs::read_to_string(&path).unwrap();
+    text.push_str("- 2026-10-19 10:00 call Bob friday\n");
+    fs::write(&path, text).unwrap();
+    let entry = unsorted::read(&lib)
+        .unwrap()
+        .into_iter()
+        .find(|e| e.text == "call Bob friday")
+        .unwrap();
+    let bath = by_title(&lib, "Redo the bathroom").id.clone();
+
+    let options = unsorted::FileOptions {
+        text: Some("call Bob".into()),
+        due: Some("2026-10-23".into()),
+    };
+    let id = unsorted::file_with(&lib, &entry, Kind::Task, Some(&bath), &options).unwrap();
+
+    let lib = load(&root);
+    let task = lib.get(&id).unwrap();
+    assert_eq!(task.title, "call Bob");
+    assert_eq!(task.due.as_deref(), Some("2026-10-23"));
+    // The words as typed are kept in the body, so nothing is lost.
+    assert_eq!(ops::read_body(&lib, &id).unwrap().trim(), "call Bob friday");
+    assert!(unsorted::read(&lib)
+        .unwrap()
+        .iter()
+        .all(|e| e.text != "call Bob friday"));
+
+    // A date only means something for a task.
+    let entry = unsorted::add(&lib, "plan the trip friday", "2026-10-19 10:05").unwrap();
+    let lib = load(&root);
+    let id = unsorted::file_with(
+        &lib,
+        &entry,
+        Kind::Page,
+        Some(&bath),
+        &unsorted::FileOptions {
+            text: Some("plan the trip".into()),
+            due: Some("2026-10-23".into()),
+        },
+    )
+    .unwrap();
+    assert_eq!(load(&root).get(&id).unwrap().due, None);
+}
+
+#[test]
+fn a_task_can_wait_on_other_tasks_but_not_in_a_circle() {
+    let (_dir, root) = sample();
+    let lib = load(&root);
+    assert!(lib.get("TSKTILE001").unwrap().blocked_by.is_empty());
+
+    // Two blockers are stored as ids in one line and read back.
+    ops::set_field(&lib, "TSKTILE001", "blocked_by", Some("TSKPLUMB01, TSKWATER01")).unwrap();
+    let lib = load(&root);
+    assert_eq!(
+        lib.get("TSKTILE001").unwrap().blocked_by,
+        vec!["TSKPLUMB01", "TSKWATER01"]
+    );
+
+    // A task can't wait on itself, on something that isn't a task, on an unknown id,
+    // or on a task that already waits on it.
+    assert!(ops::set_field(&lib, "TSKTILE001", "blocked_by", Some("TSKTILE001")).is_err());
+    let home = by_title(&lib, "Home").id.clone();
+    assert!(ops::set_field(&lib, "TSKTILE001", "blocked_by", Some(&home)).is_err());
+    assert!(ops::set_field(&lib, "TSKTILE001", "blocked_by", Some("NOSUCHID01")).is_err());
+    assert!(ops::set_field(&lib, "TSKPLUMB01", "blocked_by", Some("TSKTILE001")).is_err());
+    assert!(ops::set_field(&lib, &home, "blocked_by", Some("TSKTILE001")).is_err());
+
+    // Clearing removes the line.
+    ops::set_field(&lib, "TSKTILE001", "blocked_by", None).unwrap();
+    assert!(load(&root).get("TSKTILE001").unwrap().blocked_by.is_empty());
+}

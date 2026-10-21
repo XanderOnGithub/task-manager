@@ -8,7 +8,7 @@ export function KeyboardHelp() {
     [keys('N'), 'Quick capture'],
     [keys('K'), 'Search and commands'],
     [keys('\\'), 'Hide or show the sidebar'],
-    [keys('Z'), 'Undo the last change'],
+    [keys('Z'), 'Undo the last change (also after its message is gone)'],
     ['↑ ↓', 'Move between rows'],
     ['← →', 'Move between board columns'],
     ['Enter', 'Open the row'],

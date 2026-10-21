@@ -30,6 +30,8 @@ One module per job. `lib.rs` has the map. The two big ones are folders, one file
 - `github.rs` — signing in (device flow), listing and creating repositories.
 - `library.rs` loads the folder into memory (frontmatter only, so 10,000 tasks load in about 70 ms). Problems become `Issue`s, never crashes.
 - `ops.rs` — create, rename, move, set a field, write a body, trash, restore. Every write is atomic (`fsutil::write_atomic`: a temporary file, then a rename).
+- `backup/` — zip backups of the data folder, one file per action: `create`, `list`, `prune`, `restore`.
+- `repeat.rs` — the repeat grammar and the next due date.
 - `trash.rs`, `unsorted.rs`, `search.rs`, `migrate.rs`, `names.rs` (title rules, including what Windows can't store), `order.rs` (fractional ordering keys), `watch.rs`.
 
 Rules that every contributor to `core` follows:
@@ -46,6 +48,7 @@ state.rs        AppState, the two locks, and the read / write helpers every comm
 settings.rs     settings.json
 folder.rs       opening a data folder: tidy it, watch it
 commands/       every command the UI can call, one file per job
+backup/         backups: where they live, the daily thread, commands (one file per action)
 sync/           Git sync glue: one file per action (see SYNC.md)
 ```
 

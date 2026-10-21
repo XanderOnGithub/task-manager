@@ -63,6 +63,24 @@ export const SOUNDS = {
   ],
   /** Opening search (⌘K): a quiet lift. */
   open: [[0.16, 0.05, 260, 0.004, 0.004, 0.05, 0, 1.2, 0.6, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, -1600]],
+  // The fuller sounds for Settings → Fun → Impact sounds. Heavier than the plain
+  // ones on purpose: you should feel them.
+  /** Done: a deep thump, then a bright rising knock on top. */
+  impactDone: [
+    [0.95, 0.03, 140, 0, 0.012, 0.2, 0, 1.2, -0.5, 0, 70, 0.05, 0, 0, 0, 0, 0, 1, 0.02, 0, -1000],
+    [0.4, 0, 520, 0.004, 0.02, 0.24, 0, 1.2, 0, 0, 190, 0.075, 0, 0, 0, 0, 0, 1, 0.03, 0, -2600],
+    [0.12, 0.1, 2400, 0, 0, 0.014, 4, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, -3800],
+  ],
+  /** Doing: a springy push upward, like getting going. */
+  impactDoing: [
+    [0.8, 0.04, 120, 0, 0.012, 0.15, 0, 1.2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0.01, 0, -1100],
+    [0.1, 0.1, 2000, 0, 0, 0.012, 4, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, -3200],
+  ],
+  /** Waiting: a heavy, dull drop that sinks. */
+  impactWaiting: [
+    [1, 0.05, 90, 0, 0.02, 0.3, 0, 1.2, -2.2, 0, 0, 0, 0, 0.15, 0, 0, 0, 1, 0.04, 0, -700],
+    [0.25, 0.05, 200, 0, 0.01, 0.12, 0, 1.2, -3, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, -900],
+  ],
 } satisfies Record<string, number[][]>
 
 type TypingSound = 'key' | 'keyShift' | 'keySpace' | 'keyEnter' | 'keyDelete'
@@ -120,7 +138,7 @@ export const TYPING_STYLE_INFO: { id: TypingStyle; label: string }[] = [
 ]
 
 /** What each sound is for, in the words Settings shows (Sounds tab). */
-export const SOUND_INFO: { name: Exclude<SoundName, TypingSound>; label: string; when: string }[] = [
+export const SOUND_INFO: { name: Exclude<SoundName, TypingSound | 'impactDone' | 'impactDoing' | 'impactWaiting'>; label: string; when: string }[] = [
   { name: 'pickUp', label: 'Pick up', when: 'Starting to drag something' },
   { name: 'slot', label: 'Slot', when: 'A dragged item reaching a new spot' },
   { name: 'drop', label: 'Drop', when: 'Letting go, or filing from Unsorted' },
@@ -132,6 +150,13 @@ export const SOUND_INFO: { name: Exclude<SoundName, TypingSound>; label: string;
   { name: 'delete', label: 'Delete', when: 'Deleting something' },
   { name: 'undo', label: 'Undo', when: 'Undoing it' },
   { name: 'open', label: 'Search', when: 'Opening search (⌘K, or Ctrl+K)' },
+]
+
+/** The fuller sounds in Settings → Fun, shown separately from the plain ones. */
+export const IMPACT_SOUND_INFO: { name: 'impactDone' | 'impactDoing' | 'impactWaiting'; label: string; when: string }[] = [
+  { name: 'impactDone', label: 'Done', when: 'A task becomes Done' },
+  { name: 'impactDoing', label: 'Doing', when: 'A task moves to Doing' },
+  { name: 'impactWaiting', label: 'Waiting', when: 'A task is put on hold' },
 ]
 
 export interface SoundSettings {

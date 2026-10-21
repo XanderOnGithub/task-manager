@@ -25,6 +25,7 @@ use super::command::{run, split_nul};
 use crate::error::{Error, Result};
 use crate::frontmatter;
 use crate::fsutil::{check_inside, write_atomic};
+use crate::names::conflict_copy_title;
 
 /// Resolves every file Git left unmerged, keeping both sides. Returns the
 /// copies made and the `_index.md` files that got the other side's text.
@@ -102,12 +103,7 @@ fn save_copy(dir: &Path, file: &str, text: &str) -> Result<(String, PathBuf)> {
     let path = Path::new(file);
     let stem = path.file_stem().and_then(|s| s.to_str()).unwrap_or("Untitled");
     for n in 1..1000 {
-        let label = if n == 1 {
-            "(from other computer)".to_owned()
-        } else {
-            format!("(from other computer {n})")
-        };
-        let rel = path.with_file_name(format!("{stem} {label}.md"));
+        let rel = path.with_file_name(format!("{}.md", conflict_copy_title(stem, n)));
         let abs = dir.join(&rel);
         match OpenOptions::new().write(true).create_new(true).open(&abs) {
             Ok(mut f) => {

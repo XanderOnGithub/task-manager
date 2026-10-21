@@ -12,6 +12,9 @@ use super::schedule::{pending_changes, quiet_for, FOCUS_PULL_AFTER, QUIET_BEFORE
 use super::token;
 use crate::state::{AppState, CmdResult, DATA_CHANGED};
 
+/// Sent to the UI after a sync kept both versions of some files (the payload is how many).
+const SYNC_CONFLICTS: &str = "sync-conflicts";
+
 /// "Sync now".
 #[tauri::command]
 pub async fn sync_now(app: AppHandle) -> CmdResult<()> {
@@ -93,6 +96,11 @@ pub(super) fn finished(app: &AppHandle, outcome: &git::Outcome) {
             data.library = None;
         }
         let _ = app.emit(DATA_CHANGED, &outcome.changed);
+    }
+    if !outcome.conflicts.is_empty() {
+        // Both versions were kept. Say so, so the copies are found (they are also
+        // listed under Issues).
+        let _ = app.emit(SYNC_CONFLICTS, outcome.conflicts.len());
     }
     changed(app);
 }
