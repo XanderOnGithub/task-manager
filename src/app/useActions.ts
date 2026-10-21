@@ -4,6 +4,7 @@
 // sense), and reloads the library. Errors from Rust are already written for
 // people ("A project goes inside an area"), so they're shown as-is.
 
+import { playStatusSound, statusBurst } from '../shared/impact/impact'
 import { useMemo, useRef } from 'react'
 import * as api from '../platform/api'
 import type { Item, Kind, UnsortedEntry } from '../platform/api'
@@ -143,7 +144,10 @@ export function useActions(reload: () => Promise<void>, items: Item[] = []) {
         }),
 
       setStatus: (item: Item, status: string) => {
-        if (status !== item.status) play(status === 'done' ? 'complete' : 'status')
+        if (status !== item.status) {
+          playStatusSound(status)
+          statusBurst(item.id, status)
+        }
         return run(async () => {
           // Finishing a repeating task puts it back to Todo with its next date.
           const next = await api.setStatus(item.id, status)

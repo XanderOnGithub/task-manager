@@ -84,6 +84,7 @@ for (const theme of ['light', 'dark']) {
   await page.getByRole('radio', { name: 'Sync' }).click(); await audit(page, `${theme}: Settings sync`)
   await page.getByRole('radio', { name: 'Backups' }).click(); await audit(page, `${theme}: Settings backups`)
   await page.getByRole('radio', { name: 'Sounds' }).click(); await audit(page, `${theme}: Settings sounds`)
+  await page.getByRole('radio', { name: 'Fun' }).click(); await audit(page, `${theme}: Settings fun`)
   await page.keyboard.press('Escape')
   await page.keyboard.press('Control+k'); await page.keyboard.type('a'); await audit(page, `${theme}: Search`)
   await page.close()
