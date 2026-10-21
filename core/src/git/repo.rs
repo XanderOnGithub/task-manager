@@ -1,6 +1,5 @@
 //! Small questions about the repository.
 
-use std::fs;
 use std::path::Path;
 
 use super::command::{run, succeeds};
@@ -67,7 +66,7 @@ pub(super) fn ensure_identity(dir: &Path) -> Result<()> {
 /// Writes `text` to `path` unless the file is already there.
 pub(super) fn write_if_missing(path: &Path, text: &str) -> Result<()> {
     if !path.exists() {
-        fs::write(path, text)?;
+        crate::fsutil::write_atomic(path, text)?;
     }
     Ok(())
 }
