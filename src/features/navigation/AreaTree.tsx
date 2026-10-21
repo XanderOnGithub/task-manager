@@ -24,7 +24,7 @@ import {
 } from '@dnd-kit/core'
 import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { motion } from 'motion/react'
+import * as m from 'motion/react-m'
 import { ChevronDown, FilePlus, Folder, Plus, Target } from 'lucide-react'
 import { type Item } from '../../platform/api'
 import { childrenOf, taskCounts } from '../../domain/items'
@@ -260,9 +260,9 @@ function SortableArea({
           aria-expanded={open}
           className="relative flex h-full items-center pr-1 pl-2 text-fg-3 hover:text-fg-2"
         >
-          <motion.span initial={false} animate={{ rotate: open ? 0 : -90 }} transition={spring.snappy} className="flex">
+          <m.span initial={false} animate={{ rotate: open ? 0 : -90 }} transition={spring.snappy} className="flex">
             <ChevronDown size={14} strokeWidth={2} aria-hidden="true" />
-          </motion.span>
+          </m.span>
         </button>
         <button
           ref={sortable.setActivatorNodeRef}

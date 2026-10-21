@@ -1,7 +1,8 @@
 // Reusable animated pieces built on the springs in lib/motion.ts.
 
 import type { ReactNode } from 'react'
-import { AnimatePresence, motion } from 'motion/react'
+import { AnimatePresence } from 'motion/react'
+import * as m from 'motion/react-m'
 import { spring, STAGGER } from './springs'
 
 /**
@@ -13,7 +14,7 @@ export function Collapse({ open, children, className = '' }: { open: boolean; ch
   return (
     <AnimatePresence initial={false}>
       {open && (
-        <motion.div
+        <m.div
           key="content"
           // Clip only while opening or closing, so dragged rows inside can
           // move freely once it's open.
@@ -28,7 +29,7 @@ export function Collapse({ open, children, className = '' }: { open: boolean; ch
           className={className}
         >
           {children}
-        </motion.div>
+        </m.div>
       )}
     </AnimatePresence>
   )
@@ -43,7 +44,7 @@ export function Collapse({ open, children, className = '' }: { open: boolean; ch
  */
 export function ListRow({ children, className = '' }: { children: ReactNode; className?: string }) {
   return (
-    <motion.div
+    <m.div
       // Clip only while entering or leaving, so drag transforms aren't cut off.
       initial={{ height: 0, opacity: 0, overflow: 'hidden' }}
       animate={{ height: 'auto', opacity: 1, transitionEnd: { overflow: 'visible' } }}
@@ -52,6 +53,6 @@ export function ListRow({ children, className = '' }: { children: ReactNode; cla
       className={className}
     >
       {children}
-    </motion.div>
+    </m.div>
   )
 }
