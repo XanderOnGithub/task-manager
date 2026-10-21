@@ -11,7 +11,8 @@ import { memo, useCallback, useMemo, type CSSProperties } from 'react'
 import { DndContext, DragOverlay } from '@dnd-kit/core'
 import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { AnimatePresence, motion } from 'motion/react'
+import { AnimatePresence } from 'motion/react'
+import * as m from 'motion/react-m'
 import { ArrowUpRight, ChevronDown } from 'lucide-react'
 import { type Item } from '../../platform/api'
 import { childrenOf, statusLabel } from '../../domain/items'
@@ -217,9 +218,9 @@ function SortableMilestone({
           aria-expanded={!collapsed}
           className="flex rounded-md p-1 text-fg-3 hover:text-fg-2"
         >
-          <motion.span initial={false} animate={{ rotate: collapsed ? -90 : 0 }} transition={spring.snappy} className="flex">
+          <m.span initial={false} animate={{ rotate: collapsed ? -90 : 0 }} transition={spring.snappy} className="flex">
             <ChevronDown size={14} strokeWidth={2} aria-hidden="true" />
-          </motion.span>
+          </m.span>
         </button>
         <button
           onClick={() => onSelect(milestone.id)}

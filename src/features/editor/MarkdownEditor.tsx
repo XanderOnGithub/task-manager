@@ -91,6 +91,32 @@ function countText(doc: EditorView['state']['doc'], from: number, to: number) {
   return { words: text.match(/\S+/g)?.length ?? 0, characters: [...text.replace(/\n/g, '')].length }
 }
 
+/** Runs `run` once the screen has been drawn and the usual fade-in is over. Returns a way to cancel. */
+function afterTransition(run: () => void): () => void {
+  let timer = 0
+  const frame = requestAnimationFrame(() => {
+    timer = window.setTimeout(run, 200)
+  })
+  return () => {
+    cancelAnimationFrame(frame)
+    window.clearTimeout(timer)
+  }
+}
+
+/** What an empty editor looks like (editor.css draws the placeholder), before the editor exists. */
+function placeholderStandIn(placeholder: string, label: string): HTMLElement {
+  const stand = document.createElement('div')
+  stand.className = 'ProseMirror'
+  stand.setAttribute('data-placeholder', placeholder)
+  // Reachable by Tab like the editor is; the real one takes over on focus.
+  stand.tabIndex = 0
+  stand.setAttribute('role', 'textbox')
+  stand.setAttribute('aria-label', label)
+  stand.setAttribute('aria-multiline', 'true')
+  stand.appendChild(document.createElement('p')).appendChild(document.createElement('br'))
+  return stand
+}
+
 export function MarkdownEditor({
   value,
   onSave,
@@ -120,6 +146,8 @@ export function MarkdownEditor({
 }) {
   const root = useRef<HTMLDivElement>(null)
   const editor = useRef<Editor | null>(null)
+  /** Builds the editor now, while only the "Add a description" stand-in is showing. */
+  const pendingStart = useRef<(() => void) | null>(null)
   // Saving is handled by the queue: it knows what is on disk, what is still
   // waiting, and retries when a write fails.
   const save = useRef(onSave)
@@ -441,11 +469,39 @@ export function MarkdownEditor({
       .use(cursor)
       .use(trailing)
       .use(menuPlugin(bridge))
-    void made.create().then((e) => {
-      if (destroyed) void e.destroy()
-      else editor.current = e
-    })
+    // Building the editor takes a noticeable moment, and doing it as the
+    // screen fades in made opening the List view stutter. So:
+    // - an empty text shows a stand-in ("Add a description") and the editor is
+    //   only built when you click or tab into it;
+    // - other text is drawn first and the editor is built after the fade.
+    let started = false
+    const start = (focus: boolean) => {
+      if (started || destroyed) return
+      started = true
+      pendingStart.current = null
+      standIn?.remove()
+      void made.create().then((e) => {
+        if (destroyed) return void e.destroy()
+        editor.current = e
+        if (focus) e.action((ctx) => ctx.get(editorViewCtx).focus())
+      })
+    }
+    const standIn = queue.saved.trim() === '' ? placeholderStandIn(placeholder, label) : null
+    let cancelStart = () => {}
+    if (standIn) {
+      el.appendChild(standIn)
+      pendingStart.current = () => start(false)
+      standIn.addEventListener('focus', () => start(true))
+      standIn.addEventListener('pointerdown', (e) => {
+        e.preventDefault()
+        start(true)
+      })
+    } else {
+      cancelStart = afterTransition(() => start(false))
+    }
     return () => {
+      cancelStart()
+      standIn?.remove()
       destroyed = true
       void queue.flush()
       queue.dispose()
@@ -463,6 +519,8 @@ export function MarkdownEditor({
     const next = normalize(value)
     if (queue.dirty || next === queue.saved) return
     queue.adopt(next)
+    // Text arrived from outside while only the stand-in was showing: build the editor now.
+    pendingStart.current?.()
     editor.current?.action(replaceAll(toEditor(next)))
   }, [value, queue])
 
