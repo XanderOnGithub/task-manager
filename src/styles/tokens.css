@@ -127,6 +127,13 @@
   --shadow-card: none;
 }
 
+/* Touch screens get taller list rows (a fingertip needs about 44px). */
+@media (pointer: coarse) {
+  :root {
+    --spacing-row: 44px;
+  }
+}
+
 /* Values used from code rather than as classes. */
 :root {
   color-scheme: dark;

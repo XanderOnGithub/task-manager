@@ -26,7 +26,7 @@ export function TrashView({ entries, actions }: { entries: TrashEntry[]; actions
           </button>
         )}
       </PanelHeader>
-      <div className="flex flex-1 flex-col gap-[22px] overflow-y-auto px-7 py-6">
+      <div className="flex flex-1 flex-col gap-[22px] overflow-y-auto px-7 py-6 max-md:px-4">
         <div className="flex flex-col gap-2">
           <h1 className="text-title">Trash</h1>
           <span className="text-meta font-normal text-fg-3">Deleted things stay here for 30 days, then they're gone for good.</span>

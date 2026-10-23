@@ -30,7 +30,7 @@ export function QuickCapture({ onCapture, onClose }: { onCapture: (text: string)
           aria-label="Add to Unsorted"
           className="min-w-0 flex-1 bg-transparent text-[15px] text-fg outline-none placeholder:text-placeholder"
         />
-        <kbd className="font-mono text-label font-normal">↵</kbd>
+        <kbd className="font-mono text-label font-normal pointer-coarse:hidden">↵</kbd>
       </label>
     </Modal>
   )

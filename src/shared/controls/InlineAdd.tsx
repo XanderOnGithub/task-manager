@@ -57,7 +57,7 @@ export function InlineAdd({
         aria-label={label}
         className="min-w-0 flex-1 bg-transparent text-fg outline-none placeholder:text-placeholder group-hover:placeholder:text-fg-3"
       />
-      {value && <kbd className="font-mono text-label font-normal">↵</kbd>}
+      {value && <kbd className="font-mono text-label font-normal pointer-coarse:hidden">↵</kbd>}
     </label>
   )
 }

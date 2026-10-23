@@ -87,7 +87,7 @@ export function AreaList({ items, area, selectedId, onSelect, onCycleStatus, onO
                 onClick={() => onOpen(project.id)}
                 aria-label={`Open ${project.title}`}
                 title="Open project"
-                className="flex rounded-md p-1 text-fg-3 opacity-0 transition-opacity duration-100 group-hover:opacity-100 hover:bg-hover hover:text-fg-2 focus-visible:opacity-100"
+                className="flex rounded-md p-1 text-fg-3 opacity-0 transition-opacity duration-100 group-hover:opacity-100 pointer-coarse:opacity-100 hover:bg-hover hover:text-fg-2 focus-visible:opacity-100"
               >
                 <ArrowUpRight size={14} strokeWidth={2} aria-hidden="true" />
               </button>

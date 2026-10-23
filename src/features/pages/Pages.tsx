@@ -163,7 +163,7 @@ export function PagesOverview({
       <PanelHeader>
         <span className="flex-1 truncate text-fg">Pages</span>
       </PanelHeader>
-      <div className="flex flex-1 flex-col gap-[22px] overflow-y-auto px-7 py-6">
+      <div className="flex flex-1 flex-col gap-[22px] overflow-y-auto px-7 py-6 max-md:px-4">
         <div className="flex flex-col gap-2">
           <h1 className="text-title">Pages</h1>
           <span className="text-meta font-normal text-fg-3">
@@ -216,7 +216,7 @@ export function OwnerHeading({ owner, onOpen }: { owner: Item; onOpen: (id: stri
       <ArrowUpRight
         size={14}
         strokeWidth={2}
-        className="text-fg-3 opacity-0 transition-opacity duration-100 group-hover:opacity-100"
+        className="text-fg-3 opacity-0 transition-opacity duration-100 group-hover:opacity-100 pointer-coarse:opacity-100"
         aria-hidden="true"
       />
     </button>

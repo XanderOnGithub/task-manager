@@ -22,9 +22,11 @@ interface Props {
   parent: Item | undefined
   onSelect: (id: string | null) => void
   actions: Actions
+  /** Fills its container instead of being a fixed-width column (the sheet on a narrow window). */
+  fluid?: boolean
 }
 
-export function DetailsPanel({ items, item, parent, onSelect, actions }: Props) {
+export function DetailsPanel({ items, item, parent, onSelect, actions, fluid = false }: Props) {
   const [renaming, setRenaming] = useState(0)
   useRenameRequest(item.id, () => setRenaming((n) => n + 1))
   const isMilestone = item.kind === 'milestone'
@@ -35,7 +37,7 @@ export function DetailsPanel({ items, item, parent, onSelect, actions }: Props) 
   const statuses: Status[] = isMilestone ? ['open', 'done'] : lanes.map((lane) => lane.status)
 
   return (
-    <Panel label={isMilestone ? 'Milestone details' : 'Task details'} className="h-full w-details shrink-0">
+    <Panel label={isMilestone ? 'Milestone details' : 'Task details'} className={`h-full ${fluid ? 'w-full rounded-none border-0 bg-transparent' : 'w-details shrink-0'}`}>
       <PanelHeader>
         {isMilestone ? (
           <SectionLabel>Milestone</SectionLabel>

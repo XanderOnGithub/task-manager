@@ -95,7 +95,7 @@ export function UnsortedView({
       <PanelHeader>
         <span className="flex-1">Unsorted</span>
       </PanelHeader>
-      <div className="flex flex-1 justify-center overflow-y-auto px-7 py-8">
+      <div className="flex flex-1 justify-center overflow-y-auto px-7 py-8 max-md:px-4 max-md:py-5">
         <div className="flex w-full max-w-[680px] flex-col gap-5">
           <div className="flex items-center gap-2.5">
             <h1 className="text-title">Unsorted</h1>
@@ -115,7 +115,7 @@ export function UnsortedView({
               aria-label="Sort the chosen items"
               className="flex flex-col gap-3 rounded-[10px] border border-border-strong bg-field p-3"
             >
-              <div className="flex items-center gap-2.5">
+              <div className="flex flex-wrap items-center gap-x-2.5 gap-y-2">
                 <span className="text-compact text-fg" aria-live="polite">
                   {chosen.length} chosen
                 </span>
@@ -213,7 +213,7 @@ export function UnsortedView({
                           readOnly
                           onClick={(e) => toggle(index, e.shiftKey)}
                           aria-label={`Choose ${entry.text}`}
-                          className="ml-3 size-3.5 shrink-0 accent-accent"
+                          className="ml-3 size-3.5 shrink-0 accent-accent pointer-coarse:size-5"
                         />
                         <button
                           onClick={() => open(isOpen ? undefined : entry)}
@@ -232,7 +232,7 @@ export function UnsortedView({
 
                       <Collapse open={isOpen}>
                         <div className="flex flex-col gap-3 pr-3 pb-3 pl-7">
-                          <div className="flex items-center gap-2.5">
+                          <div className="flex flex-wrap items-center gap-x-2.5 gap-y-2">
                             <span className="text-compact text-fg-3">Create as</span>
                             <Segmented<FileAs>
                               label="Create as"
@@ -338,7 +338,7 @@ function DestinationPicker({
     <div className="flex flex-col gap-1.5">
       <div className="flex items-center gap-2">
         <span className="flex-1 text-compact text-fg-3">{TITLES[fileAs]}</span>
-        <label className="flex h-[26px] w-[180px] items-center gap-1.5 rounded-control border border-border px-2 text-placeholder focus-within:border-border-strong">
+        <label className="flex h-[26px] w-[180px] max-md:w-32 items-center gap-1.5 rounded-control border border-border px-2 text-placeholder focus-within:border-border-strong">
           <Search size={12} strokeWidth={2} aria-hidden="true" />
           <input
             autoFocus

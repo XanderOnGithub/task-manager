@@ -44,7 +44,8 @@ export function BlockersField({
       ))}
       {choices.length > 0 && (
         <Menu
-          label="Add a task to wait on"
+          // The name starts with the words on the button, so voice control can say them.
+          label={current.length ? 'Add another task to wait on' : 'Choose a task to wait on'}
           align="left"
           trigger={
             <span className="-mx-1.5 flex h-7 items-center gap-1 rounded-control px-1.5 text-placeholder transition-colors duration-100 hover:bg-hover">

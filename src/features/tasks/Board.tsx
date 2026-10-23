@@ -92,7 +92,7 @@ export function Board({ items, scope, selectedId, onSelect, onCycleStatus, actio
           between a readable minimum (the board scrolls sideways below it)
           and a maximum (on a wide screen they stop growing and sit left). */}
       <LayoutGroup>
-        <div className="flex min-h-0 flex-1 overflow-x-auto">
+        <div className="flex min-h-0 flex-1 snap-x snap-mandatory overflow-x-auto max-md:scroll-px-4 md:snap-none">
           <div className="flex min-h-0 flex-1 gap-3 p-4">
             {lanes.map((column) => (
               <Column key={column.status} status={column.status} label={column.label} dot={column.dot} count={tasks.filter(({ task }) => statusOf(task) === column.status).length}>
@@ -151,7 +151,7 @@ function Column({
   return (
     <div
       ref={droppable.setNodeRef}
-      className={`flex min-h-0 max-w-[22rem] min-w-[12.5rem] flex-1 basis-0 flex-col gap-2 rounded-[10px] py-2.5 transition-colors duration-150 ${
+      className={`flex min-h-0 max-w-[22rem] min-w-[12.5rem] flex-1 basis-0 snap-start flex-col max-md:min-w-[80%] gap-2 rounded-[10px] py-2.5 transition-colors duration-150 ${
         droppable.isOver ? 'bg-hover' : 'bg-column'
       }`}
     >

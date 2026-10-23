@@ -236,7 +236,7 @@ function SortableMilestone({
           onClick={onOpen}
           aria-label={`Open ${milestone.title}`}
           title="Open milestone"
-          className="flex rounded-md p-1 text-fg-3 opacity-0 transition-opacity duration-100 group-hover/ms:opacity-100 hover:bg-hover hover:text-fg-2 focus-visible:opacity-100"
+          className="flex rounded-md p-1 text-fg-3 opacity-0 transition-opacity duration-100 group-hover/ms:opacity-100 pointer-coarse:opacity-100 hover:bg-hover hover:text-fg-2 focus-visible:opacity-100"
         >
           <ArrowUpRight size={14} strokeWidth={2} aria-hidden="true" />
         </button>

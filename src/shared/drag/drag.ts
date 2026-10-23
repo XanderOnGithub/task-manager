@@ -15,7 +15,8 @@ import {
   closestCenter,
   defaultDropAnimationSideEffects,
   KeyboardSensor,
-  PointerSensor,
+  MouseSensor,
+  TouchSensor,
   pointerWithin,
   useSensor,
   useSensors,
@@ -28,12 +29,14 @@ import { sortableKeyboardCoordinates } from '@dnd-kit/sortable'
 import { play } from '../../sound/sounds'
 
 /**
- * Mouse drags start after moving 4px, so plain clicks still click. Keyboard:
- * focus a row, press Space to pick it up, arrows to move, Space to drop.
+ * Mouse drags start after moving 4px, so plain clicks still click. Touch: hold
+ * a row for a moment to pick it up; a quick swipe still scrolls the list.
+ * Keyboard: focus a row, press Space to pick it up, arrows to move, Space to drop.
  */
 export function useDragSensors() {
   return useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
+    useSensor(MouseSensor, { activationConstraint: { distance: 4 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 8 } }),
     // Space picks up and drops; Enter is left for opening (lib/rowKeys.ts).
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,

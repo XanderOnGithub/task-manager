@@ -8,7 +8,7 @@
 import { useState, type ReactNode } from 'react'
 import { motion } from 'motion/react'
 import { spring } from '../../shared/motion/springs'
-import { AlertCircle, CalendarCheck, CircleAlert, ArrowDownToLine, Cloud, FileText, Layers, ListChecks, PanelLeft, Pause, Plus, RefreshCw, Settings, Trash2, type LucideIcon } from 'lucide-react'
+import { AlertCircle, CalendarCheck, CircleAlert, ArrowDownToLine, Cloud, FileText, Layers, ListChecks, PanelLeft, Pause, Plus, RefreshCw, Settings, Trash2, X, type LucideIcon } from 'lucide-react'
 import { installUpdate, useUpdates } from '../../platform/updates'
 import { ago } from '../../domain/dates'
 import { useSync } from '../sync/useSync'
@@ -46,6 +46,8 @@ interface Props {
   onQuickCapture: () => void
   onSettings: () => void
   onToggleSidebar: () => void
+  /** Shown as a drawer on a narrow window: no window drag area, a Close button, bigger rows. */
+  compact?: boolean
   /** Creates an area, project or page and opens it. */
   onAdd: (kind: 'area' | 'project' | 'page', parent: string | null, title: string) => Promise<boolean>
   actions: Actions
@@ -56,34 +58,34 @@ export function Sidebar(props: Props) {
   const [adding, setAdding] = useState<Adding>(null)
 
   return (
-    <nav aria-label="Sidebar" className="flex w-sidebar shrink-0 flex-col gap-3.5 pt-2.5 pr-2.5 pb-2.5 pl-3">
+    <nav aria-label="Sidebar" className={`flex shrink-0 flex-col gap-3.5 pt-2.5 pr-2.5 pb-2.5 pl-3 ${props.compact ? 'min-h-full w-full' : 'w-sidebar'}`}>
       {/* Top row: the traffic lights (on a Mac), the app's name, and a drag
           handle for the window. The name doesn't take clicks, so dragging
           there moves the window. */}
-      <div data-tauri-drag-region className="-mt-2.5 flex h-[30px] items-center pt-2.5">
+      <div data-tauri-drag-region className="-mt-2.5 flex h-[30px] items-center pt-2.5 max-md:h-11">
         <span
-          className={`pointer-events-none flex items-center gap-1.5 select-none ${isMac ? 'pl-20' : 'pl-1'}`}
+          className={`pointer-events-none flex items-center gap-1.5 select-none ${isMac && !props.compact ? 'pl-20' : 'pl-1'}`}
         >
           <MossWordmark className=" h-[15px] w-auto" />
         </span>
         <span data-tauri-drag-region className="flex-1 self-stretch" />
         <button
           onClick={props.onToggleSidebar}
-          aria-label="Hide sidebar"
-          title={`Hide sidebar (${keys('\\')})`}
+          aria-label={props.compact ? 'Close menu' : 'Hide sidebar'}
+          title={props.compact ? 'Close' : `Hide sidebar (${keys('\\')})`}
           className="flex rounded-md p-1 text-fg-3 transition-colors duration-100 hover:bg-hover hover:text-fg-2"
         >
-          <PanelLeft {...icon} />
+          {props.compact ? <X {...icon} /> : <PanelLeft {...icon} />}
         </button>
       </div>
 
       <button
         onClick={props.onQuickCapture}
-        className="flex h-8 items-center gap-2 rounded-row border border-border bg-field px-2.5 text-left text-fg-2 transition-colors duration-100 hover:text-fg"
+        className="flex h-8 items-center gap-2 rounded-row border border-border bg-field px-2.5 text-left text-fg-2 transition-colors duration-100 hover:text-fg max-md:h-11"
       >
         <Plus size={15} strokeWidth={1.75} aria-hidden="true" />
         <span className="flex-1">Quick capture</span>
-        <kbd className="font-mono text-label font-normal text-fg-3">{keys('N')}</kbd>
+        <kbd className="font-mono text-label font-normal text-fg-3 pointer-coarse:hidden">{keys('N')}</kbd>
       </button>
 
       <div className="flex flex-col gap-0.5">
@@ -176,7 +178,7 @@ function SyncRow({ onClick }: { onClick: () => void }) {
     <button
       onClick={onClick}
       title={failed ? info.error ?? undefined : `Syncing with ${info.repo}`}
-      className={`flex h-[30px] w-full items-center gap-2.5 rounded-control px-2.5 text-left text-meta font-normal transition-colors duration-100 hover:bg-hover ${
+      className={`flex h-[30px] w-full items-center gap-2.5 rounded-control px-2.5 max-md:h-11 text-left text-meta font-normal transition-colors duration-100 hover:bg-hover ${
         failed ? 'text-danger' : 'text-fg-3 hover:text-fg-2'
       }`}
     >
@@ -195,7 +197,7 @@ function UpdateRow() {
     <button
       onClick={() => void installUpdate()}
       disabled={installing}
-      className="flex h-[30px] w-full items-center gap-2.5 rounded-control px-2.5 text-left font-medium text-accent transition-colors duration-100 hover:bg-hover disabled:hover:bg-transparent"
+      className="flex h-[30px] w-full items-center gap-2.5 rounded-control px-2.5 max-md:h-11 text-left font-medium text-accent transition-colors duration-100 hover:bg-hover disabled:hover:bg-transparent"
     >
       <ArrowDownToLine {...icon} />
       <span className="flex-1">{installing ? 'Updating' : `Update to ${update.version}`}</span>
@@ -235,7 +237,7 @@ function NavItem({
     <button
       onClick={onClick}
       aria-current={active ? 'page' : undefined}
-      className={`relative flex h-[30px] w-full items-center gap-2.5 rounded-control px-2.5 text-left transition-colors duration-100 ${
+      className={`relative flex h-[30px] w-full items-center gap-2.5 rounded-control px-2.5 max-md:h-11 max-md:h-11 text-left transition-colors duration-100 ${
         active ? 'font-medium text-fg' : 'text-fg-2 hover:bg-hover hover:text-fg'
       }`}
     >

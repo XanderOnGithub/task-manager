@@ -23,7 +23,7 @@ export function Settings({
   const [tab, setTab] = useState<'general' | 'sync' | 'backup' | 'sounds' | 'fun'>('general')
   return (
     <Modal label="Settings" onClose={onClose} width="w-[520px]">
-      <div className="flex items-center gap-3 px-5 pt-5">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 px-5 pt-5">
         <h2 className="flex-1 text-heading">Settings</h2>
         <Segmented<'general' | 'sync' | 'backup' | 'sounds' | 'fun'>
           label="Settings section"

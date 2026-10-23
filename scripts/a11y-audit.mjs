@@ -19,8 +19,8 @@ const axeSource = readFileSync(require.resolve('axe-core/axe.min.js'), 'utf8')
 const stop = await startPreview()
 const browser = await launchBrowser()
 
-async function open(theme, needsFolder = false) {
-  const page = await openApp(browser, theme, needsFolder)
+async function open(theme, needsFolder = false, phone = false) {
+  const page = await openApp(browser, theme, needsFolder, phone ? { viewport: { width: 412, height: 915 }, hasTouch: true } : {})
   await page.addScriptTag({ content: axeSource })
   return page
 }
@@ -46,6 +46,8 @@ for (const theme of ['light', 'dark']) {
   const page = await open(theme)
   await page.waitForSelector('nav[aria-label="Sidebar"]')
   await audit(page, `${theme}: Tasks list`)
+  await page.getByText('Pick tile').first().click(); await page.waitForTimeout(500); await audit(page, `${theme}: Task details`)
+  await page.keyboard.press('Escape')
   await page.getByRole('radio', { name: 'Board' }).click(); await audit(page, `${theme}: Board`)
   await page.getByRole('button', { name: /^Today/ }).click(); await audit(page, `${theme}: Today`)
   await page.getByRole('button', { name: 'Unsorted' }).click(); await audit(page, `${theme}: Unsorted`)
@@ -63,6 +65,23 @@ for (const theme of ['light', 'dark']) {
   await page.getByRole('radio', { name: 'Fun' }).click(); await audit(page, `${theme}: Settings fun`)
   await page.keyboard.press('Escape')
   await page.keyboard.press('Control+k'); await page.keyboard.type('a'); await audit(page, `${theme}: Search`)
+  await page.close()
+}
+// The phone layout: the sidebar is a drawer, the details a sheet, and the main places a bar at the bottom.
+for (const theme of ['light', 'dark']) {
+  const page = await open(theme, false, true)
+  await page.waitForSelector('nav[aria-label="Main"]')
+  await audit(page, `${theme} phone: Tasks list`)
+  await page.getByRole('button', { name: 'Open menu' }).click(); await audit(page, `${theme} phone: Drawer`)
+  await page.keyboard.press('Escape')
+  await page.getByText('Pick tile').first().click(); await page.waitForTimeout(500); await audit(page, `${theme} phone: Details sheet`)
+  await page.keyboard.press('Escape')
+  await page.getByRole('radio', { name: 'Board' }).click(); await audit(page, `${theme} phone: Board`)
+  await page.getByRole('button', { name: /^Unsorted/ }).click(); await audit(page, `${theme} phone: Unsorted`)
+  await page.getByRole('button', { name: 'Quick capture' }).click(); await audit(page, `${theme} phone: Quick capture`)
+  await page.keyboard.press('Escape')
+  await page.getByRole('button', { name: 'Open menu' }).click()
+  await page.getByRole('button', { name: 'Settings' }).click(); await audit(page, `${theme} phone: Settings`)
   await page.close()
 }
 const page = await open('light', true)

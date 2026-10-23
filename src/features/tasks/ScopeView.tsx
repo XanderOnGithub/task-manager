@@ -140,7 +140,7 @@ function OneScopeView(props: Props & { scope: Item }) {
       </PanelHeader>
 
       {layout === 'list' ? (
-        <div className="flex flex-1 flex-col gap-[22px] overflow-y-auto px-7 py-6">
+        <div className="flex flex-1 flex-col gap-[22px] overflow-y-auto px-7 py-6 max-md:px-4">
           <div className="flex flex-col gap-2">
             <EditableTitle
               key={`${scope.id}:${renaming}`}
@@ -241,7 +241,7 @@ function EverythingView({ items, layout, onLayout, selectedId, onSelect, onCycle
       </PanelHeader>
 
       {layout === 'list' ? (
-        <div className="flex flex-1 flex-col gap-[22px] overflow-y-auto px-7 py-6">
+        <div className="flex flex-1 flex-col gap-[22px] overflow-y-auto px-7 py-6 max-md:px-4">
           <div className="flex flex-col gap-2">
             <h1 className="text-title">Tasks</h1>
             <div className="flex items-center gap-3.5 text-meta font-normal text-fg-3">

@@ -35,6 +35,13 @@ for (const [size, options] of Object.entries(SIZES)) {
   }
   await page.waitForSelector('main')
   await shot('tasks-list')
+  // On a phone the sidebar is a drawer behind the menu button in each header.
+  const phone = size === 'phone'
+  if (phone) {
+    await click(page.getByRole('button', { name: 'Open menu' }))
+    await shot('drawer')
+    await page.keyboard.press('Escape')
+  }
   await click(page.getByRole('radio', { name: 'Board' }))
   await shot('board')
   await click(page.getByRole('radio', { name: 'List' }))
@@ -47,6 +54,7 @@ for (const [size, options] of Object.entries(SIZES)) {
   await shot('today')
   await click(page.getByRole('button', { name: 'Pages', exact: true }))
   await shot('pages')
+  if (phone) await click(page.getByRole('button', { name: 'Open menu' }))
   await click(page.getByRole('button', { name: 'Settings' }))
   await shot('settings')
   await page.keyboard.press('Escape')

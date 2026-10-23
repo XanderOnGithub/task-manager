@@ -79,7 +79,10 @@ export function GeneralTab({
         />
       </div>
 
-      <KeyboardHelp />
+      {/* Keys mean nothing on a touch screen. */}
+      <div className="pointer-coarse:hidden">
+        <KeyboardHelp />
+      </div>
     </>
   )
 }
