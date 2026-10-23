@@ -1,4 +1,11 @@
-//! Talking to GitHub: sign in, list your repositories, create one.
+//! Talking to GitHub: sign in and list the repositories you let Moss use.
+//!
+//! Moss is a *GitHub App*, not a classic OAuth app. The difference matters for
+//! privacy: a classic token with the `repo` scope can read and write every
+//! repository you own. A GitHub App's token can only reach the repositories
+//! you picked when you installed the app on your account, and only with the
+//! permissions the app declares (Contents: read and write; Metadata: read).
+//! Nothing here asks for more.
 //!
 //! Signing in uses GitHub's "device flow", made for apps with no web server:
 //! 1. `start_login` asks GitHub for a short code and a web address.
@@ -15,9 +22,6 @@ use std::time::Duration;
 use crate::error::{Error, Result};
 
 const API: &str = "https://api.github.com";
-
-/// What Moss asks to do: read and write repositories you can see.
-const SCOPE: &str = "repo";
 
 /// What `start_login` returns: show `user_code` and open `verification_uri`.
 ///
@@ -67,9 +71,10 @@ pub struct Repo {
 
 /// Step 1 of signing in.
 pub fn start_login(client_id: &str) -> Result<DeviceCode> {
+    // No `scope`: a GitHub App's permissions come from the app itself.
     let body = post_form(
         "https://github.com/login/device/code",
-        &[("client_id", client_id), ("scope", SCOPE)],
+        &[("client_id", client_id)],
     )?;
     serde_json::from_value(body.clone())
         .map_err(|_| Error::Git(github_error(&body, "Couldn't start signing in.")))
@@ -106,54 +111,52 @@ pub fn username(token: &str) -> Result<String> {
         .ok_or_else(|| Error::Git(github_error(&body, "Couldn't read the GitHub account.")))
 }
 
-/// The repositories you can push to, most recently pushed first.
+/// The repositories you let Moss use, most recently pushed first.
+///
+/// "Let Moss use" means the ones the app is installed on. An empty list means
+/// the app isn't installed yet, or no repository was picked: the UI then sends
+/// the person to GitHub to choose (see `install_url` in src-tauri).
 pub fn list_repos(token: &str) -> Result<Vec<Repo>> {
-    let mut repos = Vec::new();
-    // Up to 300 repositories (3 pages of 100). More than that, use the search.
-    for page in 1..=3 {
-        let body = get(
-            token,
-            &format!("{API}/user/repos?per_page=100&sort=pushed&affiliation=owner,collaborator,organization_member&page={page}"),
-        )?;
-        let Some(list) = body.as_array() else {
-            return Err(Error::Git(github_error(
-                &body,
-                "Couldn't list your repositories.",
-            )));
-        };
-        repos.extend(
-            list.iter()
-                .filter(|r| r["permissions"]["push"].as_bool().unwrap_or(true))
-                .filter_map(repo_from),
-        );
-        if list.len() < 100 {
-            break;
+    let installations = get(token, &format!("{API}/user/installations?per_page=100"))?;
+    let Some(installations) = installations["installations"].as_array() else {
+        return Err(Error::Git(github_error(
+            &installations,
+            "Couldn't list your repositories.",
+        )));
+    };
+    let mut found = Vec::new();
+    // One installation per account or organization that installed the app.
+    for id in installations.iter().filter_map(|i| i["id"].as_u64()) {
+        // Up to 300 repositories per installation (3 pages of 100).
+        for page in 1..=3 {
+            let body = get(
+                token,
+                &format!("{API}/user/installations/{id}/repositories?per_page=100&page={page}"),
+            )?;
+            let Some(list) = body["repositories"].as_array() else {
+                return Err(Error::Git(github_error(
+                    &body,
+                    "Couldn't list your repositories.",
+                )));
+            };
+            found.extend(list.iter().cloned());
+            if list.len() < 100 {
+                break;
+            }
         }
     }
-    Ok(repos)
+    Ok(repos_from(found))
 }
 
-/// Creates a repository under your account (private unless told otherwise).
-pub fn create_repo(token: &str, name: &str, private: bool) -> Result<Repo> {
-    let body = send(
-        agent()
-            .post(&format!("{API}/user/repos"))
-            .header("Authorization", &format!("Bearer {token}"))
-            .header("Accept", "application/vnd.github+json")
-            .header("User-Agent", "Moss"),
-        Some(serde_json::json!({
-            "name": name,
-            "private": private,
-            "description": "Moss: tasks and pages",
-        })),
-    )?;
-    repo_from(&body).ok_or_else(|| {
-        // GitHub's "name already exists" arrives as errors[0].message.
-        let reason = body["errors"][0]["message"]
-            .as_str()
-            .map(|m| format!("Couldn't create the repository: {m}."));
-        Error::Git(reason.unwrap_or_else(|| github_error(&body, "Couldn't create the repository.")))
-    })
+/// Keeps the repositories you can push to and puts the most recently pushed
+/// first. (This endpoint, unlike `/user/repos`, can't sort for us.)
+fn repos_from(mut list: Vec<Value>) -> Vec<Repo> {
+    // `pushed_at` is an ISO 8601 date, so comparing the text compares the dates.
+    list.sort_by(|a, b| b["pushed_at"].as_str().cmp(&a["pushed_at"].as_str()));
+    list.iter()
+        .filter(|r| r["permissions"]["push"].as_bool().unwrap_or(true))
+        .filter_map(repo_from)
+        .collect()
 }
 
 fn repo_from(value: &Value) -> Option<Repo> {
@@ -182,8 +185,6 @@ fn github_error(body: &Value, fallback: &str) -> String {
 }
 
 // --- the HTTP plumbing ------------------------------------------------------
-
-type Request = ureq::RequestBuilder<ureq::typestate::WithBody>;
 
 fn agent() -> ureq::Agent {
     // GitHub explains its errors in the body (and 4xx is a normal answer
@@ -216,15 +217,6 @@ fn get(token: &str, url: &str) -> Result<Value> {
     response.body_mut().read_json().map_err(network_error)
 }
 
-fn send(request: Request, json: Option<Value>) -> Result<Value> {
-    let mut response = match json {
-        Some(json) => request.send_json(json),
-        None => request.send_empty(),
-    }
-    .map_err(network_error)?;
-    response.body_mut().read_json().map_err(network_error)
-}
-
 fn network_error(e: ureq::Error) -> Error {
     Error::Git(format!("Couldn't reach GitHub ({e}). Check the connection."))
 }
@@ -242,6 +234,24 @@ mod tests {
         let repo = repo_from(&json).unwrap();
         assert_eq!(repo.full_name, "me/moss-data");
         assert!(repo.empty && repo.private);
+    }
+
+    #[test]
+    fn only_repositories_you_can_push_to_are_listed_newest_first() {
+        let repo = |name: &str, pushed: &str, push: bool| {
+            serde_json::json!({
+                "full_name": name, "private": true, "default_branch": "main",
+                "clone_url": format!("https://github.com/{name}.git"), "size": 10,
+                "pushed_at": pushed, "permissions": { "push": push }
+            })
+        };
+        let list = vec![
+            repo("me/old", "2026-01-01T00:00:00Z", true),
+            repo("me/read-only", "2026-09-01T00:00:00Z", false),
+            repo("me/new", "2026-10-01T00:00:00Z", true),
+        ];
+        let names: Vec<_> = repos_from(list).into_iter().map(|r| r.full_name).collect();
+        assert_eq!(names, ["me/new", "me/old"]);
     }
 
     #[test]

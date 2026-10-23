@@ -113,7 +113,7 @@ pub fn run() {
             sync::login::github_login_poll,
             sync::logout::github_logout,
             sync::repos::github_repos,
-            sync::repos::github_create_repo,
+            sync::repos::github_install_url,
             sync::connect::sync_connect,
             sync::run::sync_now,
             sync::run::sync_nudge,

@@ -164,9 +164,10 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-          # Public id of Moss's GitHub OAuth app (device flow on), for Settings → Sync.
-          # A repository variable, not a secret. Without it, sign-in is off.
+          # Public id and slug of Moss's GitHub App (device flow on), for Settings → Sync.
+          # Repository variables, not secrets. Without the id, sign-in is off.
           MOSS_GITHUB_CLIENT_ID: ${{ vars.MOSS_GITHUB_CLIENT_ID }}
+          MOSS_GITHUB_APP_SLUG: ${{ vars.MOSS_GITHUB_APP_SLUG }}
         with:
           releaseId: ${{ needs.prepare.outputs.release_id }}
           args: ${{ matrix.args }} ${{ env.UPDATER_ARGS }}

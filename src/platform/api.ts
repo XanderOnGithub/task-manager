@@ -195,7 +195,7 @@ export const setHighRefresh = (enabled: boolean) => invoke<void>('set_high_refre
 
 export interface SyncInfo {
   gitAvailable: boolean
-  /** False in builds made without a GitHub OAuth app. */
+  /** False in builds made without a GitHub App. */
   loginAvailable: boolean
   /** The signed-in GitHub username. */
   username: string | null
@@ -236,8 +236,8 @@ export const githubLoginPoll = (deviceCode: string) =>
   invoke<'waiting' | 'slow_down' | 'done'>('github_login_poll', { deviceCode })
 export const githubLogout = () => invoke<void>('github_logout')
 export const githubRepos = () => invoke<GithubRepo[]>('github_repos')
-export const githubCreateRepo = (name: string, isPrivate: boolean) =>
-  invoke<GithubRepo>('github_create_repo', { name, private: isPrivate })
+/** The GitHub page where you choose which repositories Moss can use. */
+export const githubInstallUrl = () => invoke<string>('github_install_url')
 export const syncConnect = (repo: GithubRepo) => invoke<void>('sync_connect', { repo })
 export const syncNow = () => invoke<void>('sync_now')
 export const syncNudge = () => invoke<void>('sync_nudge')

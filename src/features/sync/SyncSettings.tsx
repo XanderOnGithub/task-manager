@@ -1,11 +1,12 @@
-// Settings → Sync: sign in with GitHub, choose or create a repository, and see
-// how syncing is going. The work is in src-tauri/src/sync.rs.
+// Settings → Sync: sign in with GitHub, choose a repository, and see how
+// syncing is going. The work is in src-tauri/src/sync/. Moss is a GitHub App, so
+// it only reaches the repositories chosen on GitHub's install page.
 
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { openUrl } from '@tauri-apps/plugin-opener'
-import { Cloud, Lock, RefreshCw } from 'lucide-react'
+import { Cloud, ExternalLink, Lock, RefreshCw } from 'lucide-react'
 import {
-  githubCreateRepo,
+  githubInstallUrl,
   githubLoginPoll,
   githubLoginStart,
   githubLogout,
@@ -21,7 +22,6 @@ import {
 import { ago } from '../../domain/dates'
 import { useSync } from './useSync'
 import { useToast } from '../../shared/toast/toast'
-import { Segmented, Switch } from '../../shared/controls'
 
 const buttonClass =
   'flex h-7 items-center gap-1.5 rounded-control bg-raised px-3 transition-colors duration-100 hover:bg-hover disabled:opacity-50'
@@ -139,6 +139,9 @@ export function SignIn({ available }: { available: boolean }) {
         Keep your files in a GitHub repository to use them on another computer. Moss commits a minute after you stop changing
         things, and pulls what other computers pushed.
       </p>
+      <p className="text-meta font-normal text-fg-3">
+        Moss can read and write files in the repositories you choose. Nothing else.
+      </p>
       <div>
         <button className={primaryClass} disabled={!available} onClick={() => void start()}>
           <Cloud size={14} strokeWidth={1.75} aria-hidden="true" />
@@ -151,78 +154,43 @@ export function SignIn({ available }: { available: boolean }) {
   )
 }
 
-// --- Step 2: choose or create a repository -------------------------------
+// --- Step 2: choose a repository ----------------------------------------
 
 function ChooseRepo({ run }: { run: Run }) {
-  const [mode, setMode] = useState<'create' | 'existing'>('create')
   return (
     <div className="flex flex-col gap-3">
       <div className="text-meta text-fg-2">Choose where to keep your files</div>
-      <Segmented<'create' | 'existing'>
-        label="Repository"
-        size="sm"
-        value={mode}
-        onChange={setMode}
-        options={[
-          { value: 'create', label: 'Create a repository' },
-          { value: 'existing', label: 'Use an existing one' },
-        ]}
-      />
-      {mode === 'create' ? (
-        <CreateRepo run={run} />
-      ) : (
-        <ExistingRepo onUse={(repo) => run(syncConnect(repo), 'Syncing with GitHub')} />
-      )}
+      <ExistingRepo onUse={(repo) => run(syncConnect(repo), 'Syncing with GitHub')} />
     </div>
   )
 }
 
-function CreateRepo({ run }: { run: Run }) {
-  const [name, setName] = useState('moss-data')
-  const [isPrivate, setPrivate] = useState(true)
-  const [busy, setBusy] = useState(false)
-  const create = async () => {
-    setBusy(true)
-    await run(githubCreateRepo(name, isPrivate).then(syncConnect), 'Syncing with GitHub')
-    setBusy(false)
-  }
-  return (
-    <div className="flex flex-col gap-3">
-      <input
-        value={name}
-        onChange={(e) => setName(e.target.value.replace(/\s+/g, '-'))}
-        aria-label="Repository name"
-        spellCheck={false}
-        className="h-8 rounded-control border border-border bg-field px-2.5 font-mono text-meta outline-none focus:border-accent"
-      />
-      <div className="flex items-center gap-3">
-        <div className="flex flex-1 flex-col gap-0.5">
-          <span className="text-meta text-fg-2">Private</span>
-          <span className="text-meta font-normal text-fg-3">Only you can see it.</span>
-        </div>
-        <Switch label="Private repository" checked={isPrivate} onChange={setPrivate} />
-      </div>
-      <div>
-        <button className={primaryClass} disabled={busy || !name.trim()} onClick={() => void create()}>
-          {busy ? 'Creating' : 'Create and sync'}
-        </button>
-      </div>
-    </div>
-  )
-}
-
-/** Your repositories, to pick one. `onUse` does the connecting (Settings and first launch differ). */
+/**
+ * The repositories Moss can use, to pick one. `onUse` does the connecting
+ * (Settings and first launch differ). Which repositories show up is decided on
+ * GitHub, not here, so the list links there and checks again when the person
+ * comes back to the window.
+ */
 export function ExistingRepo({ onUse }: { onUse: (repo: GithubRepo) => Promise<unknown> }) {
   const [repos, setRepos] = useState<GithubRepo[] | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [filter, setFilter] = useState('')
   const [busy, setBusy] = useState<string | null>(null)
 
-  useEffect(() => {
+  const load = useCallback(() => {
     githubRepos()
-      .then(setRepos)
+      .then((list) => {
+        setRepos(list)
+        setError(null)
+      })
       .catch((e) => setError(String(e)))
   }, [])
+
+  useEffect(() => {
+    load()
+    window.addEventListener('focus', load)
+    return () => window.removeEventListener('focus', load)
+  }, [load])
 
   const shown = useMemo(
     () => (repos ?? []).filter((r) => r.fullName.toLowerCase().includes(filter.trim().toLowerCase())),
@@ -233,9 +201,36 @@ export function ExistingRepo({ onUse }: { onUse: (repo: GithubRepo) => Promise<u
     await onUse(repo)
     setBusy(null)
   }
+  const chooseOnGithub = () => void githubInstallUrl().then(openUrl)
 
   if (error) return <p className="text-meta font-normal text-danger">{error}</p>
   if (!repos) return <p className="text-meta font-normal text-fg-3">Loading your repositories</p>
+
+  const chooseButton = (
+    <button className={repos.length === 0 ? primaryClass : buttonClass} onClick={chooseOnGithub}>
+      <ExternalLink size={14} strokeWidth={1.75} aria-hidden="true" />
+      Choose repositories on GitHub
+    </button>
+  )
+
+  if (repos.length === 0) {
+    return (
+      <div className="flex flex-col gap-3">
+        <p className="text-meta font-normal text-fg-3">
+          Moss can read and write files in the repositories you choose. Nothing else. None are chosen yet.
+        </p>
+        <div className="flex items-center gap-2">
+          {chooseButton}
+          <button className={buttonClass} onClick={load}>
+            <RefreshCw size={14} strokeWidth={1.75} aria-hidden="true" />
+            Check again
+          </button>
+        </div>
+        <NewRepoHint />
+      </div>
+    )
+  }
+
   return (
     <div className="flex flex-col gap-2">
       <input
@@ -260,8 +255,29 @@ export function ExistingRepo({ onUse }: { onUse: (repo: GithubRepo) => Promise<u
         ))}
         {shown.length === 0 && <li className="px-2.5 py-2 text-meta font-normal text-fg-3">No repositories found</li>}
       </ul>
-      <p className="text-meta font-normal text-fg-3">Files already in the repository are combined with the ones in your data folder.</p>
+      <p className="text-meta font-normal text-fg-3">
+        Moss can read and write files in the repositories you choose. Nothing else. Files already in the repository are
+        combined with the ones in your data folder.
+      </p>
+      <div className="flex items-center gap-2">{chooseButton}</div>
+      <NewRepoHint />
     </div>
+  )
+}
+
+/** GitHub doesn't let an app create repositories, so the person makes one there and then adds it to Moss. */
+function NewRepoHint() {
+  return (
+    <p className="text-meta font-normal text-fg-3">
+      Need a new repository?{' '}
+      <button
+        className="text-accent underline-offset-2 hover:underline"
+        onClick={() => void openUrl('https://github.com/new?name=moss-data&visibility=private')}
+      >
+        Create one on GitHub
+      </button>
+      , then choose it above.
+    </p>
   )
 }
 
