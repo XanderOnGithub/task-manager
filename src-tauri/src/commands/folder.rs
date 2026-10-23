@@ -29,6 +29,16 @@ pub struct SuggestedFolder {
 #[tauri::command]
 pub fn suggested_data_folder(app: AppHandle) -> CmdResult<SuggestedFolder> {
     let paths = app.path();
+    // A phone keeps it in the app's private storage (no storage permission to ask
+    // for). It is where the sync puts the files; "Moss" is just a name here.
+    #[cfg(target_os = "android")]
+    {
+        let path = paths.app_data_dir().map_err(|e| e.to_string())?.join("Moss");
+        return Ok(SuggestedFolder {
+            path: path.display().to_string(),
+            display: "On this phone".to_string(),
+        });
+    }
     // Some Linux desktops don't name a Documents folder; use ~/Documents there.
     let docs = paths
         .document_dir()

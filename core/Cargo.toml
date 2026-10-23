@@ -18,6 +18,10 @@ notify = "8"
 # app calls it from background threads.
 ureq = { version = "3", features = ["json"] }
 serde_json = "1"
+# Sync without the `git` program (Android has none): files are compared by the
+# same SHA-1 names Git gives them, and sent to GitHub as base64.
+sha1 = "0.10"
+base64 = "0.22"
 # Backups are plain .zip files you can open with anything.
 zip = { version = "2", default-features = false, features = ["deflate"] }
 

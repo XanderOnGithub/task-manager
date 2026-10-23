@@ -99,7 +99,7 @@ fn resolve_all(
 /// Writes `text` as a new file next to `file`, named "<name> (from other
 /// computer).md" (then " 2", " 3", ... if taken). Never replaces a file.
 /// Returns the path relative to the data folder, and the full path.
-fn save_copy(dir: &Path, file: &str, text: &str) -> Result<(String, PathBuf)> {
+pub(crate) fn save_copy(dir: &Path, file: &str, text: &str) -> Result<(String, PathBuf)> {
     let path = Path::new(file);
     let stem = path.file_stem().and_then(|s| s.to_str()).unwrap_or("Untitled");
     for n in 1..1000 {
@@ -118,7 +118,7 @@ fn save_copy(dir: &Path, file: &str, text: &str) -> Result<(String, PathBuf)> {
 }
 
 /// The same file without its `id:` line (only the frontmatter's, never text in the body).
-fn without_id(text: &str) -> String {
+pub(crate) fn without_id(text: &str) -> String {
     match frontmatter::split(text) {
         Ok((mut fm, body)) => {
             fm.set("id", None);
@@ -130,7 +130,7 @@ fn without_id(text: &str) -> String {
 
 /// Adds the other computer's body text to the end of our `_index.md`, under a
 /// divider, unless it has nothing new. Returns whether it did.
-fn append_their_text(path: &Path, theirs: &str) -> Result<bool> {
+pub(crate) fn append_their_text(path: &Path, theirs: &str) -> Result<bool> {
     let ours = fs::read_to_string(path)?;
     let their_body = frontmatter::split(theirs).map_or(theirs, |(_, body)| body).trim();
     let our_body = frontmatter::split(&ours)

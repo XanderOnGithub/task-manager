@@ -217,6 +217,50 @@ fn get(token: &str, url: &str) -> Result<Value> {
     response.body_mut().read_json().map_err(network_error)
 }
 
+/// One call to GitHub's API with any method. Returns the status code and the
+/// JSON answer (`Null` for an empty one), so the caller can tell "not found" or
+/// "not a fast-forward" from a real failure. Used by the sync that has no `git`.
+pub(crate) fn call(token: &str, method: &str, url: &str, json: Option<Value>) -> Result<(u16, Value)> {
+    let agent = agent();
+    let auth = format!("Bearer {token}");
+    let mut response = match (method, json) {
+        ("GET", _) => agent
+            .get(url)
+            .header("Authorization", &auth)
+            .header("Accept", "application/vnd.github+json")
+            .header("User-Agent", "Moss")
+            .call(),
+        (method, json) => {
+            let builder = match method {
+                "POST" => agent.post(url),
+                "PATCH" => agent.patch(url),
+                _ => agent.put(url),
+            }
+            .header("Authorization", &auth)
+            .header("Accept", "application/vnd.github+json")
+            .header("User-Agent", "Moss");
+            match json {
+                Some(json) => builder.send_json(json),
+                None => builder.send_empty(),
+            }
+        }
+    }
+    .map_err(network_error)?;
+    let status = response.status().as_u16();
+    let text = response.body_mut().read_to_string().map_err(network_error)?;
+    let body = if text.trim().is_empty() {
+        Value::Null
+    } else {
+        serde_json::from_str(&text).unwrap_or(Value::Null)
+    };
+    Ok((status, body))
+}
+
+/// GitHub's own message for a failed call, or `fallback`.
+pub(crate) fn failure(body: &Value, fallback: &str) -> Error {
+    Error::Git(github_error(body, fallback))
+}
+
 fn network_error(e: ureq::Error) -> Error {
     Error::Git(format!("Couldn't reach GitHub ({e}). Check the connection."))
 }

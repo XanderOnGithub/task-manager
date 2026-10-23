@@ -7,6 +7,7 @@ use tauri::{AppHandle, Emitter, Manager};
 use task_core::git;
 
 use super::config::for_open_folder;
+use super::engine;
 use super::runtime::{blocking, changed, now_ms, update};
 use super::schedule::{pending_changes, quiet_for, FOCUS_PULL_AFTER, QUIET_BEFORE_COMMIT};
 use super::token;
@@ -54,14 +55,14 @@ pub(super) async fn run_sync(app: &AppHandle) -> CmdResult<()> {
     }
     changed(app);
 
-    let (work, branch) = (app.clone(), config.branch);
+    let (work, branch, repo) = (app.clone(), config.branch, config.repo);
     let result = blocking(move || {
         let state = work.state::<AppState>();
         // Connecting, signing out or quitting has the folder right now: skip this round.
         let Some(_only_one) = state.sync.try_lock_exclusive() else {
             return Ok(None);
         };
-        git::sync(&root, &branch, Some(&token), false, || state.lock_folder()).map(Some)
+        engine::sync(&root, &repo, &branch, &token, || state.lock_folder()).map(Some)
     })
     .await;
     update(app, |inner| inner.syncing = false);

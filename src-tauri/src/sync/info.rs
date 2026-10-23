@@ -5,9 +5,9 @@ use std::time::{Duration, Instant};
 use serde::Serialize;
 use tauri::{AppHandle, Manager};
 
-use task_core::{git, github};
+use task_core::github;
 
-use super::{config, login::CLIENT_ID, token};
+use super::{config, engine, login::CLIENT_ID, token};
 use crate::state::{AppState, CmdResult};
 
 /// How long to wait before asking GitHub for the username again after a failure.
@@ -71,7 +71,7 @@ fn info(app: &AppHandle) -> Info {
 
     let inner = state.sync.inner();
     Info {
-        git_available: git::available(),
+        git_available: engine::available(),
         login_available: !CLIENT_ID.is_empty(),
         username,
         repo: config.as_ref().map(|c| c.repo.clone()),

@@ -4,8 +4,9 @@
 //! is kept, when to sync, and what the UI is told. One file per action:
 //!
 //! - `config`      what's saved in settings.json about sync
+//! - `engine`      the `git` program on computers, GitHub's web API on Android
 //! - `runtime`     what's in memory while the app runs, and the status events
-//! - `token`       the GitHub token in the system keychain
+//! - `token`       the GitHub token (the system keychain; a private file on Android)
 //! - `info`        the status Settings shows (`sync_state`)
 //! - `login`       sign in with GitHub (`github_login_start`, `github_login_poll`)
 //! - `logout`      sign out (`github_logout`)
@@ -32,6 +33,7 @@
 mod config;
 pub(crate) mod connect;
 pub(crate) mod disconnect;
+mod engine;
 pub(crate) mod info;
 pub(crate) mod login;
 pub(crate) mod logout;

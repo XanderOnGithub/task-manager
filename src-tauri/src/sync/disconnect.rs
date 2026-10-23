@@ -2,9 +2,8 @@
 
 use tauri::{AppHandle, Manager};
 
-use task_core::git;
-
 use super::config;
+use super::engine;
 use super::runtime::{changed, Inner};
 use crate::state::{AppState, CmdResult};
 
@@ -27,7 +26,7 @@ pub(super) fn stop_syncing(app: &AppHandle) -> CmdResult<()> {
     let _only_one = state.sync.lock_exclusive();
     if let Some((_, root)) = config::for_open_folder(app) {
         let _folder = state.lock_folder();
-        git::disconnect(&root).map_err(|e| e.to_string())?;
+        engine::disconnect(&root).map_err(|e| e.to_string())?;
     }
     config::save(app, None)?;
     let mut inner = state.sync.inner();

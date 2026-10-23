@@ -1,0 +1,110 @@
+# Builds the Android app (an APK you can install on a phone). Runs when something
+# changes on a branch named android/** or claude/**, on release branches, and
+# when you press "Run workflow". The APK is attached to the run (Actions tab).
+#
+# It is signed with a key kept in the repository secret ANDROID_KEYSTORE_BASE64
+# (see docs/mobile.md). Without that secret a key is made once and kept in the
+# Actions cache, which works for trying the app but can be lost: a phone only
+# updates an app signed with the same key, so a new key means uninstalling first.
+name: Android
+
+on:
+  push:
+    branches: ['android/**', 'claude/**', 'release/**']
+  workflow_dispatch:
+
+jobs:
+  apk:
+    name: Android APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      NDK_VERSION: '27.2.12479018'
+      BUILD_TOOLS: '35.0.0'
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: android-actions/setup-android@v3
+      - name: Android NDK and build tools
+        run: |
+          sdkmanager "platforms;android-35" "build-tools;${BUILD_TOOLS}" "ndk;${NDK_VERSION}"
+          echo "NDK_HOME=${ANDROID_HOME}/ndk/${NDK_VERSION}" >> "$GITHUB_ENV"
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: '. -> target'
+          key: android
+
+      # `src-tauri/gen/` is generated, so it is made fresh here. The two edits
+      # below are the only changes the app needs to it.
+      - name: Create the Android project
+        run: pnpm tauri android init --ci
+      - name: Resize the page when the keyboard opens
+        run: |
+          manifest=src-tauri/gen/android/app/src/main/AndroidManifest.xml
+          grep -q windowSoftInputMode "$manifest" || sed -i 's|<activity|<activity android:windowSoftInputMode="adjustResize"|' "$manifest"
+          grep -n "windowSoftInputMode" "$manifest"
+
+      - name: Build
+        env:
+          MOSS_GITHUB_CLIENT_ID: ${{ vars.MOSS_GITHUB_CLIENT_ID }}
+          MOSS_GITHUB_APP_SLUG: ${{ vars.MOSS_GITHUB_APP_SLUG }}
+        run: pnpm tauri android build --apk --target aarch64
+
+      # The release APK comes out unsigned; a phone only installs a signed one.
+      - name: Signing key
+        id: key
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+        run: |
+          if [ -n "$KEYSTORE_BASE64" ]; then
+            echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/moss.keystore"
+            echo "password=$KEYSTORE_PASSWORD" >> "$GITHUB_OUTPUT"
+            echo "from=secret" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Restore a made-up key
+        if: steps.key.outputs.from != 'secret'
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/moss.keystore
+          key: android-made-up-key-v1
+      - name: Make a key if there is none
+        if: steps.key.outputs.from != 'secret'
+        run: |
+          if [ ! -f "$RUNNER_TEMP/moss.keystore" ]; then
+            keytool -genkeypair -keystore "$RUNNER_TEMP/moss.keystore" -storepass moss-alpha -keypass moss-alpha \
+              -alias moss -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Moss alpha"
+          fi
+          echo "MADE_UP=1" >> "$GITHUB_ENV"
+      - name: Sign
+        env:
+          PASSWORD: ${{ steps.key.outputs.password || 'moss-alpha' }}
+        run: |
+          unsigned=$(find src-tauri/gen/android -name '*release-unsigned.apk' | head -1)
+          echo "Unsigned APK: $unsigned"
+          tools="${ANDROID_HOME}/build-tools/${BUILD_TOOLS}"
+          "$tools/zipalign" -p -f 4 "$unsigned" "$RUNNER_TEMP/aligned.apk"
+          "$tools/apksigner" sign --ks "$RUNNER_TEMP/moss.keystore" --ks-pass "pass:$PASSWORD" --ks-key-alias moss \
+            --out Moss-android.apk "$RUNNER_TEMP/aligned.apk"
+          "$tools/apksigner" verify --print-certs Moss-android.apk | head -3
+          ls -l Moss-android.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Moss-android
+          path: Moss-android.apk
+          if-no-files-found: error

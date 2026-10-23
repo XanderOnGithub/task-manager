@@ -32,15 +32,20 @@ use state::AppState;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tauri::Builder::default()
+    let builder = tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
-        .plugin(tauri_plugin_dialog::init())
-        // In-app updates: checks the latest GitHub release (see "updater" in
-        // tauri.conf.json), and restarts into the new version.
+        .plugin(tauri_plugin_dialog::init());
+    // Computers only. In-app updates check the latest GitHub release (see
+    // "updater" in tauri.conf.json) and restart into the new version; the 120fps
+    // plugin stays available for manual control through Settings. A phone is
+    // updated by installing a new APK.
+    #[cfg(desktop)]
+    let builder = builder
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
-        // Keep the plugin available for manual control through Settings.
-        .plugin(tauri_plugin_macos_fps::init())
+        .plugin(tauri_plugin_macos_fps::init());
+
+    builder
         .setup(|app| {
             let settings_file = app.path().app_config_dir()?.join("settings.json");
             settings::bring_over_old(&settings_file);

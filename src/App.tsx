@@ -7,6 +7,8 @@ import { AnimatePresence, motion } from 'motion/react'
 import { spring } from './shared/motion/springs'
 import { onSyncConflicts, type Item, type TaskStatus } from './platform/api'
 import { useCompact } from './platform/layout'
+import { useBackButton } from './platform/back'
+import { openDialogs } from './shared/a11y/modalLayer'
 import { CompactNavContext } from './shared/compactNav'
 import { Drawer } from './shared/Drawer'
 import { Sheet } from './shared/Sheet'
@@ -128,6 +130,23 @@ export default function App() {
       setDialog(dialog === 'search' ? null : 'search')
     },
     onSidebar: () => (compact ? setDrawerOpen((open) => !open) : toggleSidebar()),
+  })
+  // The Android back button: close what is on top, then go back to Tasks.
+  useBackButton(() => {
+    if (openDialogs() > 0) {
+      // Dialogs (the drawer, the sheet, Settings, search) close on Escape.
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }))
+      return true
+    }
+    if (selectedId) {
+      setSelectedId(null)
+      return true
+    }
+    if (!('overview' in view && view.overview === 'tasks')) {
+      setView({ overview: 'tasks' })
+      return true
+    }
+    return false
   })
   // Back on a wide window the drawer is not needed.
   useEffect(() => {
