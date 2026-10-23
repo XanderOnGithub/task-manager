@@ -22,6 +22,19 @@ describe('InlineAdd', () => {
   })
 })
 
+describe('InlineAdd on a phone', () => {
+  it("asks the keyboard for a Done key and adds on submit, so a phone's Next can't jump to the next field", async () => {
+    const onAdd = vi.fn().mockResolvedValue(true)
+    render(<InlineAdd label="Add a task" onAdd={onAdd} />)
+    const field = screen.getByLabelText('Add a task') as HTMLInputElement
+    expect(field.getAttribute('enterkeyhint')).toBe('done')
+    await userEvent.type(field, 'Paint the walls')
+    // What a phone keyboard's Done/Go does: submit the form the field is in.
+    field.form!.requestSubmit()
+    await vi.waitFor(() => expect(onAdd).toHaveBeenCalledWith('Paint the walls'))
+  })
+})
+
 describe('EditableTitle', () => {
   it('stays open with the new title when saving fails', async () => {
     const onSave = vi.fn().mockResolvedValueOnce(false).mockResolvedValueOnce(true)

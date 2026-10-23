@@ -335,6 +335,7 @@ function DestinationPicker({
             }}
             placeholder="Filter"
             aria-label="Filter"
+            enterKeyHint="go"
             className="min-w-0 flex-1 bg-transparent text-meta font-normal text-fg outline-none placeholder:text-placeholder"
           />
         </label>

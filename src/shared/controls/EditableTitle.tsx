@@ -55,6 +55,8 @@ export function EditableTitle({
         if (e.key === 'Escape') setDraft(null)
       }}
       aria-label="Title"
+      // A phone's keyboard shows "Done" and saves, instead of "Next" jumping on.
+      enterKeyHint="done"
       className={`-mx-1 rounded-control bg-hover px-1 outline-none ${className}`}
     />,
   )

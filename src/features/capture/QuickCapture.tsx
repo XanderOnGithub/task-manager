@@ -28,6 +28,7 @@ export function QuickCapture({ onCapture, onClose }: { onCapture: (text: string)
           onKeyDown={(e) => e.key === 'Enter' && void submit()}
           placeholder="Add to Unsorted"
           aria-label="Add to Unsorted"
+          enterKeyHint="done"
           className="min-w-0 flex-1 bg-transparent text-[15px] text-fg outline-none placeholder:text-placeholder"
         />
         <kbd className="font-mono text-label font-normal pointer-coarse:hidden">↵</kbd>

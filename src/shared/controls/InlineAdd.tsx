@@ -35,29 +35,42 @@ export function InlineAdd({
   }
 
   return (
-    <label
-      className={`group flex h-8 items-center gap-2 rounded-control border border-dashed border-transparent px-2 text-placeholder transition-colors duration-100 focus-within:border-border-dashed focus-within:text-fg-3 hover:text-fg-3 ${className}`}
+    // Its own little form, so the keyboard's Enter submits it. A phone's keyboard
+    // otherwise shows "Next" and jumps to the following field (from "Add a task"
+    // to "Add a milestone"), and nothing is added. `contents`: the form takes no
+    // room, the row lays out as before.
+    <form
+      className="contents"
+      onSubmit={(e) => {
+        e.preventDefault()
+        void submit()
+      }}
     >
-      <Plus size={15} strokeWidth={1.75} aria-hidden="true" />
-      <input
-        id={id}
-        autoFocus={autoFocus}
-        value={value}
-        onChange={(e) => setValue(e.target.value)}
-        onBlur={() => !value.trim() && onDone?.()}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter') void submit()
-          if (e.key === 'Escape') {
-            setValue('')
-            e.currentTarget.blur()
-            onDone?.()
-          }
-        }}
-        placeholder={label}
-        aria-label={label}
-        className="min-w-0 flex-1 bg-transparent text-fg outline-none placeholder:text-placeholder group-hover:placeholder:text-fg-3"
-      />
-      {value && <kbd className="font-mono text-label font-normal pointer-coarse:hidden">↵</kbd>}
-    </label>
+      <label
+        className={`group flex h-8 items-center gap-2 rounded-control border border-dashed border-transparent px-2 text-placeholder transition-colors duration-100 focus-within:border-border-dashed focus-within:text-fg-3 hover:text-fg-3 ${className}`}
+      >
+        <Plus size={15} strokeWidth={1.75} aria-hidden="true" />
+        <input
+          id={id}
+          autoFocus={autoFocus}
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          onBlur={() => !value.trim() && onDone?.()}
+          enterKeyHint="done"
+          autoComplete="off"
+          onKeyDown={(e) => {
+            if (e.key === 'Escape') {
+              setValue('')
+              e.currentTarget.blur()
+              onDone?.()
+            }
+          }}
+          placeholder={label}
+          aria-label={label}
+          className="min-w-0 flex-1 bg-transparent text-fg outline-none placeholder:text-placeholder group-hover:placeholder:text-fg-3"
+        />
+        {value && <kbd className="font-mono text-label font-normal pointer-coarse:hidden">↵</kbd>}
+      </label>
+    </form>
   )
 }
