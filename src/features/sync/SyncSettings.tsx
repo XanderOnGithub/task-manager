@@ -22,6 +22,7 @@ import {
 import { ago } from '../../domain/dates'
 import { useSync } from './useSync'
 import { useToast } from '../../shared/toast/toast'
+import { isAndroid } from '../../platform/os'
 
 const buttonClass =
   'flex h-7 items-center gap-1.5 rounded-control bg-raised px-3 transition-colors duration-100 hover:bg-hover disabled:opacity-50'
@@ -65,15 +66,33 @@ type Run = (work: Promise<unknown>, done?: string) => Promise<unknown>
 // --- Step 1: sign in ----------------------------------------------------
 
 export function SignIn({ available }: { available: boolean }) {
+  const toast = useToast()
   const [code, setCode] = useState<DeviceCode | null>(null)
   const [error, setError] = useState<string | null>(null)
+
+  /** Puts the code on the clipboard, so it can be pasted on GitHub. True if it worked. */
+  const copy = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text)
+      return true
+    } catch {
+      return false
+    }
+  }
 
   const start = async () => {
     setError(null)
     try {
       const next = await githubLoginStart()
       setCode(next)
-      void openUrl(next.verificationUri)
+      if (isAndroid) {
+        // On a phone GitHub's page covers the whole screen, so the code would be
+        // out of sight when it asks for it. Copy it, and let the person open GitHub
+        // when they are ready (the button below).
+        if (await copy(next.userCode)) toast({ message: 'Code copied. Paste it on GitHub.' })
+      } else {
+        void openUrl(next.verificationUri)
+      }
     } catch (e) {
       setError(String(e))
     }
@@ -120,8 +139,14 @@ export function SignIn({ available }: { available: boolean }) {
           {code.userCode}
         </div>
         <div className="flex items-center gap-2">
-          <button className={buttonClass} onClick={() => void openUrl(code.verificationUri)}>
-            Open GitHub
+          <button
+            className={isAndroid ? primaryClass : buttonClass}
+            onClick={() => {
+              // Copy again just before leaving the app, in case it was replaced since.
+              void copy(code.userCode).finally(() => void openUrl(code.verificationUri))
+            }}
+          >
+            {isAndroid ? 'Copy code and open GitHub' : 'Open GitHub'}
           </button>
           <button className={buttonClass} onClick={() => setCode(null)}>
             Cancel

@@ -117,7 +117,19 @@ pub fn username(token: &str) -> Result<String> {
 /// the app isn't installed yet, or no repository was picked: the UI then sends
 /// the person to GitHub to choose (see `install_url` in src-tauri).
 pub fn list_repos(token: &str) -> Result<Vec<Repo>> {
-    let installations = get(token, &format!("{API}/user/installations?per_page=100"))?;
+    let (status, installations) = call(
+        token,
+        "GET",
+        &format!("{API}/user/installations?per_page=100"),
+        None,
+    )?;
+    // Only a GitHub App's sign-in can list its installations. A token from the
+    // old OAuth app (a build still using its client id) is refused here.
+    if status == 403 || status == 404 {
+        return Err(Error::Git(
+            "This sign-in can't list repositories. Moss needs its GitHub App: set MOSS_GITHUB_CLIENT_ID to the App's client id (docs/SYNC.md), rebuild, and sign in again.".into(),
+        ));
+    }
     let Some(installations) = installations["installations"].as_array() else {
         return Err(Error::Git(github_error(
             &installations,
