@@ -34,10 +34,13 @@ jobs:
         with:
           distribution: temurin
           java-version: 17
-      - uses: android-actions/setup-android@v3
+      # The runner already has the Android SDK (ANDROID_HOME); this adds the
+      # pieces the build needs.
       - name: Android NDK and build tools
         run: |
-          sdkmanager "platforms;android-35" "build-tools;${BUILD_TOOLS}" "ndk;${NDK_VERSION}"
+          sdkmanager=$(ls "$ANDROID_HOME"/cmdline-tools/*/bin/sdkmanager | tail -1)
+          yes | "$sdkmanager" --licenses > /dev/null || true
+          "$sdkmanager" "platforms;android-35" "build-tools;${BUILD_TOOLS}" "ndk;${NDK_VERSION}"
           echo "NDK_HOME=${ANDROID_HOME}/ndk/${NDK_VERSION}" >> "$GITHUB_ENV"
 
       - uses: dtolnay/rust-toolchain@stable
