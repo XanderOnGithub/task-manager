@@ -102,31 +102,53 @@ export function SignIn({ available }: { available: boolean }) {
   useEffect(() => {
     if (!code) return
     let stopped = false
+    let asking = false
     let wait = code.interval
     const deadline = Date.now() + code.expiresIn * 1000
+    let timer: number | undefined
+    const later = () => {
+      window.clearTimeout(timer)
+      timer = window.setTimeout(() => void poll(), wait * 1000)
+    }
     const poll = async () => {
-      if (stopped) return
+      if (stopped || asking) return
       if (Date.now() > deadline) {
         setCode(null)
         setError('The code expired. Sign in again.')
         return
       }
+      asking = true
       try {
         const result = await githubLoginPoll(code.deviceCode)
         if (stopped) return
         if (result === 'done') return // Rust announces it; the tab moves on
         if (result === 'slow_down') wait += 5
-        timer = window.setTimeout(() => void poll(), wait * 1000)
+        later()
       } catch (e) {
         if (stopped) return
-        setCode(null)
-        setError(String(e))
+        // Only GitHub's own "no" ends the wait. Anything else (most often no
+        // network while Moss is in the background on a phone, as you approve
+        // the code in the browser) is tried again.
+        if (isFinal(String(e))) {
+          setCode(null)
+          setError(String(e))
+        } else {
+          later()
+        }
+      } finally {
+        asking = false
       }
     }
-    let timer = window.setTimeout(() => void poll(), wait * 1000)
+    // Coming back from the browser: ask at once instead of waiting for the timer.
+    const onVisible = () => document.visibilityState === 'visible' && void poll()
+    document.addEventListener('visibilitychange', onVisible)
+    window.addEventListener('focus', onVisible)
+    later()
     return () => {
       stopped = true
       window.clearTimeout(timer)
+      document.removeEventListener('visibilitychange', onVisible)
+      window.removeEventListener('focus', onVisible)
     }
   }, [code])
 
@@ -177,6 +199,14 @@ export function SignIn({ available }: { available: boolean }) {
       {error && <p className="text-meta font-normal text-danger">{error}</p>}
     </div>
   )
+}
+
+/**
+ * True when GitHub has said no for good (the code expired, or the sign-in was
+ * cancelled there): the words come from core/src/github.rs `poll_login`.
+ */
+function isFinal(message: string): boolean {
+  return /expired|cancelled|isn't set up/i.test(message)
 }
 
 // --- Step 2: choose a repository ----------------------------------------

@@ -66,3 +66,39 @@ describe('SignIn', () => {
     expect(written).toEqual([])
   })
 })
+
+describe('SignIn while waiting for approval', () => {
+  it('keeps waiting through a network failure, and asks again when the app comes back', async () => {
+    flags.android = true
+    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: async () => {} } })
+    api.githubLoginPoll.mockReset()
+    api.githubLoginPoll
+      .mockRejectedValueOnce('Couldn\'t reach GitHub (failed to lookup address information: No address associated with hostname). Check the connection.')
+      .mockResolvedValue('waiting')
+    render(<SignIn available />)
+    await userEvent.click(screen.getByRole('button', { name: /sign in with github/i }))
+    await screen.findByText('WDJB-MJHT')
+
+    // Back from the browser: it asks at once. The first answer is a network failure.
+    window.dispatchEvent(new Event('focus'))
+    await waitFor(() => expect(api.githubLoginPoll).toHaveBeenCalledTimes(1))
+    // The code is still there, nothing went red, and it asks again.
+    expect(screen.getByText('WDJB-MJHT')).toBeTruthy()
+    expect(screen.queryByText(/couldn't reach/i)).toBeNull()
+    window.dispatchEvent(new Event('focus'))
+    await waitFor(() => expect(api.githubLoginPoll).toHaveBeenCalledTimes(2))
+  })
+
+  it('stops when GitHub says the code expired', async () => {
+    flags.android = true
+    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: async () => {} } })
+    api.githubLoginPoll.mockReset()
+    api.githubLoginPoll.mockRejectedValue('The code expired. Sign in again.')
+    render(<SignIn available />)
+    await userEvent.click(screen.getByRole('button', { name: /sign in with github/i }))
+    await screen.findByText('WDJB-MJHT')
+    window.dispatchEvent(new Event('focus'))
+    expect(await screen.findByText('The code expired. Sign in again.')).toBeTruthy()
+    expect(screen.queryByText('WDJB-MJHT')).toBeNull()
+  })
+})
