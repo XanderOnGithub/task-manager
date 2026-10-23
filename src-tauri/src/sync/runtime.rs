@@ -22,6 +22,9 @@ pub struct Runtime {
 pub(super) struct Inner {
     /// The GitHub username, looked up once per sign-in.
     pub username: Option<String>,
+    /// When the lookup was last tried, so being offline doesn't mean a web
+    /// request (up to 20 seconds) on every status refresh.
+    pub username_tried: Option<Instant>,
     pub syncing: bool,
     /// Milliseconds since 1970 of the last successful sync.
     pub last_synced: Option<u64>,

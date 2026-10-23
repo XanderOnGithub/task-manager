@@ -15,7 +15,7 @@
 //! - `data`: the cached library and the folder watcher. Quick to take.
 
 use std::path::PathBuf;
-use std::sync::{Mutex, MutexGuard};
+use std::sync::{Arc, Mutex, MutexGuard};
 use std::time::{Duration, Instant};
 
 use task_core::watch::Watcher;
@@ -53,8 +53,10 @@ pub struct AppState {
 pub struct Data {
     /// The data folder you picked.
     pub root: Option<PathBuf>,
-    /// Cached library. `None` means "load it next time it's needed".
-    pub library: Option<Library>,
+    /// Cached library. `None` means "load it next time it's needed". Shared
+    /// (`Arc`) so a slow reader can keep its own copy of the pointer and let go
+    /// of the `data` lock (see `snapshot`).
+    pub library: Option<Arc<Library>>,
     /// Keeps the folder watcher running. Replaced when the folder changes.
     pub watcher: Option<Watcher>,
     /// When a command last wrote files. The watcher sees those writes too, a
@@ -98,13 +100,33 @@ impl AppState {
 }
 
 /// Runs `f` with the library, loading it first if the cache is empty.
+///
+/// Holds the `data` lock while `f` runs, so only use it for quick work (and for
+/// `write`, which must not overlap other commands). Slow reads use `snapshot`.
 pub fn read<T>(state: &AppState, f: impl FnOnce(&Library) -> task_core::Result<T>) -> CmdResult<T> {
     let mut data = state.data()?;
+    let library = loaded(&mut data)?;
+    f(&library).map_err(|e| e.to_string())
+}
+
+/// The library as it is now, without holding the `data` lock afterwards.
+///
+/// For work that takes a while, like searching the text of every file: with
+/// `read`, every other command and the folder watcher would wait for it. What
+/// comes back is a snapshot; if files change meanwhile it simply describes the
+/// folder as it was a moment ago.
+pub fn snapshot(state: &AppState) -> CmdResult<Arc<Library>> {
+    let mut data = state.data()?;
+    loaded(&mut data)
+}
+
+/// The cached library, loaded first if the cache is empty.
+fn loaded(data: &mut Data) -> CmdResult<Arc<Library>> {
     if data.library.is_none() {
         let root = data.root.clone().ok_or("Choose a data folder")?;
-        data.library = Some(Library::load(&root).map_err(|e| e.to_string())?);
+        data.library = Some(Arc::new(Library::load(&root).map_err(|e| e.to_string())?));
     }
-    f(data.library.as_ref().expect("just loaded")).map_err(|e| e.to_string())
+    Ok(Arc::clone(data.library.as_ref().expect("just loaded")))
 }
 
 /// Like `read`, but for commands that change files: holds the folder lock,

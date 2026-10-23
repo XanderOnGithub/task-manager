@@ -44,6 +44,11 @@ pub const PAGES_DIR: &str = "Pages";
 pub const UNSORTED_FILE: &str = "unsorted.md";
 pub const INDEX_FILE: &str = "_index.md";
 
+/// Deepest a path inside the data folder may go (counting its parts). Pages
+/// nest without limit in theory; this stops a folder link that loops back on
+/// itself from being followed until the path is too long to open.
+const MAX_PATH_PARTS: usize = 40;
+
 /// Everything in the data folder, in memory.
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -140,7 +145,10 @@ impl Library {
     /// Loads a `Pages` folder: each file or folder in it is a page whose
     /// parent is `owner` (the area or project the folder is in).
     fn load_pages(&mut self, rel: &str, owner: &str) -> io::Result<()> {
-        for entry in sorted_entries(&self.root.join(rel))? {
+        let Some(entries) = self.entries_of(rel) else {
+            return Ok(());
+        };
+        for entry in entries {
             let child_rel = format!("{rel}/{}", entry.name);
             if entry.is_dir {
                 self.load_folder(&child_rel, Kind::Page, Some(owner.to_owned()))?;
@@ -153,6 +161,10 @@ impl Library {
 
     /// Loads a folder item and everything inside it.
     fn load_folder(&mut self, rel: &str, kind: Kind, parent: Option<String>) -> io::Result<()> {
+        if rel.split('/').count() > MAX_PATH_PARTS {
+            self.issues.push(Issue::TooDeep { path: rel.to_owned() });
+            return Ok(());
+        }
         let index_rel = format!("{rel}/{INDEX_FILE}");
         let fm = if self.root.join(&index_rel).is_file() {
             self.read_meta(&index_rel)
@@ -170,7 +182,10 @@ impl Library {
 
         let mut has_folders = false;
         let mut has_files = false;
-        for entry in sorted_entries(&self.root.join(rel))? {
+        let Some(entries) = self.entries_of(rel) else {
+            return Ok(());
+        };
+        for entry in entries {
             if entry.name == INDEX_FILE {
                 continue;
             }
@@ -200,6 +215,18 @@ impl Library {
             self.issues.push(Issue::MixedChildren { path: rel.to_owned() });
         }
         Ok(())
+    }
+
+    /// The folders and `.md` files in `rel`. A folder that can't be read becomes
+    /// an Issue and `None`, so one bad folder never stops the rest from loading.
+    fn entries_of(&mut self, rel: &str) -> Option<Vec<Entry>> {
+        match sorted_entries(&self.root.join(rel)) {
+            Ok(entries) => Some(entries),
+            Err(_) => {
+                self.issues.push(Issue::Unreadable { path: rel.to_owned() });
+                None
+            }
+        }
     }
 
     /// Loads a single `.md` file item.

@@ -5,7 +5,7 @@ use std::path::Path;
 use super::command::run;
 use super::commit::commit_all;
 use super::merge::merge_remote;
-use super::repo::{ahead_behind, ensure_identity, head, remote_branch_exists, REMOTE};
+use super::repo::{ahead_behind, ensure_settings, head, remote_branch_exists, REMOTE};
 use super::Outcome;
 use crate::error::{Error, Result};
 
@@ -24,7 +24,7 @@ pub fn sync<G>(
     lock: impl Fn() -> G,
 ) -> Result<Outcome> {
     let mut outcome = Outcome::default();
-    ensure_identity(dir)?;
+    ensure_settings(dir)?;
     {
         let _held = lock();
         commit_all(dir)?;

@@ -100,9 +100,10 @@ pub fn set_data_folder(app: AppHandle, state: State<'_, AppState>, path: String)
     if !root.is_dir() {
         return Err(format!("Folder not found: {path}"));
     }
-    let mut saved = settings::load(&state.settings_file);
-    saved.data_folder = Some(root.clone());
-    settings::save(&state.settings_file, &saved).map_err(|e| e.to_string())?;
+    settings::update(&state.settings_file, |saved| {
+        saved.data_folder = Some(root.clone())
+    })
+    .map_err(|e| e.to_string())?;
     let _folder = state.lock_folder();
     let mut data = state.data()?;
     folder::open(&app, &mut data, root);

@@ -42,6 +42,6 @@ pub async fn load_library(state: State<'_, AppState>) -> CmdResult<Snapshot> {
         issues: library.issues.iter().map(IssueView::from).collect(),
         unsorted: entries,
     };
-    data.library = Some(library);
+    data.library = Some(std::sync::Arc::new(library));
     Ok(snapshot)
 }

@@ -304,7 +304,10 @@ pub fn trash(lib: &Library, id: &str) -> Result<String> {
     };
 
     fs::rename(lib.abs(&item.path), lib.abs(&trash_rel))?;
-    trash::note_origin(&lib.root, &trash_rel, &item.path)?;
+    // The item is safe in the trash now. The note only lets the Trash view put it
+    // back later; failing to write it must not make the delete look like it failed
+    // (the toast's Undo uses the paths returned below, not the note).
+    let _ = trash::note_origin(&lib.root, &trash_rel, &item.path);
     remove_if_empty_pages_folder(lib, &item.path);
     Ok(trash_rel)
 }
@@ -323,6 +326,12 @@ pub fn restore(lib: &Library, trash_rel: &str, original_rel: &str) -> Result<()>
     fsutil::check_inside(original_rel)?;
     if !trash_rel.starts_with(".trash/") || original_rel.starts_with(".trash/") {
         return Err(Error::NotAllowed("That isn't in the trash".into()));
+    }
+    // Everything Moss deletes lived under `areas/`. The place to put it back is
+    // read from a note in the trash, which a sync can bring from another
+    // computer, so don't trust it to name anywhere else (`.git/hooks`, say).
+    if !original_rel.starts_with(&format!("{AREAS_DIR}/")) {
+        return Err(Error::NotAllowed("That can't be restored there".into()));
     }
     if !lib.abs(trash_rel).exists() {
         return Err(Error::NotFound(trash_rel.to_owned()));
@@ -381,6 +390,8 @@ pub fn empty_old_trash(root: &Path, today: chrono::NaiveDate, keep_days: i64) ->
     for entry in entries {
         let entry = entry?;
         let name = entry.file_name().to_string_lossy().into_owned();
+        // An item's `.from` note goes with it; it isn't counted as a second item.
+        let is_note = name.ends_with(".from");
         // The first 8 characters are the date: YYYYMMDD.
         let Some(deleted_on) = name
             .get(..8)
@@ -395,7 +406,9 @@ pub fn empty_old_trash(root: &Path, today: chrono::NaiveDate, keep_days: i64) ->
             } else {
                 fs::remove_file(&path)?;
             }
-            removed += 1;
+            if !is_note {
+                removed += 1;
+            }
         }
     }
     Ok(removed)

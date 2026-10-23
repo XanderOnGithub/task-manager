@@ -61,6 +61,7 @@ export type IssueKind =
   | { type: 'mixedChildren'; path: string }
   | { type: 'strayFile'; path: string }
   | { type: 'tooDeep'; path: string }
+  | { type: 'unreadable'; path: string }
 
 /**
  * Something odd found in the data folder. Fixable ones are fixed automatically

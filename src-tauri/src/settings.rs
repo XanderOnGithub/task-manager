@@ -2,6 +2,7 @@
 
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::sync::Mutex;
 
 use serde::{Deserialize, Serialize};
 
@@ -19,12 +20,39 @@ pub struct Settings {
     pub auto_backup: Option<bool>,
 }
 
-/// Reads the settings. A missing or unreadable file means the defaults.
+/// Reads the settings. A missing file means the defaults.
+///
+/// A file that is there but can't be understood also gives the defaults, but
+/// first it is copied to `settings.json.invalid`: the next save would overwrite
+/// it, and it holds the data folder choice and the sync setup.
 pub fn load(path: &Path) -> Settings {
-    fs::read_to_string(path)
-        .ok()
-        .and_then(|text| serde_json::from_str(&text).ok())
-        .unwrap_or_default()
+    let Ok(text) = fs::read_to_string(path) else {
+        return Settings::default();
+    };
+    serde_json::from_str(&text).unwrap_or_else(|e| {
+        eprintln!("Couldn't read the settings ({e}); starting from the defaults");
+        let kept = path.with_extension("json.invalid");
+        if !kept.exists() {
+            let _ = fs::write(kept, &text);
+        }
+        Settings::default()
+    })
+}
+
+/// Only one settings change at a time. Several parts of the app change their
+/// own setting (the data folder, sync, backups, 120fps), each by reading the
+/// file, changing one field and writing it back; two at once could otherwise
+/// write back each other's old value.
+static CHANGING: Mutex<()> = Mutex::new(());
+
+/// Reads the settings, lets `change` edit them, and saves them. Use this
+/// instead of `load` + `save` whenever you change a setting.
+pub fn update(path: &Path, change: impl FnOnce(&mut Settings)) -> std::io::Result<()> {
+    // Nothing is left half-done if another thread panicked, so carry on.
+    let _only_one = CHANGING.lock().unwrap_or_else(|e| e.into_inner());
+    let mut settings = load(path);
+    change(&mut settings);
+    save(path, &settings)
 }
 
 /// Writes the settings. Atomic, so a crash while saving can't leave a
@@ -61,5 +89,54 @@ pub fn bring_over_old(new_file: &Path) {
         if let Err(e) = fs::copy(&old_file, new_file) {
             eprintln!("Couldn't bring over old settings: {e}");
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_settings_file_that_cant_be_read_is_kept_not_lost() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("settings.json");
+        fs::write(&path, r#"{"dataFolder": 12}"#).unwrap();
+
+        assert!(load(&path).data_folder.is_none());
+        assert_eq!(
+            fs::read_to_string(dir.path().join("settings.json.invalid")).unwrap(),
+            r#"{"dataFolder": 12}"#
+        );
+    }
+
+    #[test]
+    fn changes_from_different_places_do_not_undo_each_other() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("settings.json");
+        let workers: Vec<_> = (0..2)
+            .map(|which| {
+                let path = path.clone();
+                std::thread::spawn(move || {
+                    for _ in 0..50 {
+                        update(&path, |s| {
+                            if which == 0 {
+                                s.high_refresh = !s.high_refresh;
+                            } else {
+                                s.auto_backup = Some(s.auto_backup != Some(true));
+                            }
+                        })
+                        .unwrap();
+                    }
+                })
+            })
+            .collect();
+        for worker in workers {
+            worker.join().unwrap();
+        }
+        // Each field was flipped 50 times, an even number: back where it began.
+        // A lost update would leave one of them flipped the wrong way.
+        let end = load(&path);
+        assert!(!end.high_refresh);
+        assert_eq!(end.auto_backup, Some(false));
     }
 }
