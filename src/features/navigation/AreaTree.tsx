@@ -61,7 +61,7 @@ interface Props {
   adding: Adding
   setAdding: (adding: Adding) => void
   /** Creates an area, project or page and opens it. */
-  onAdd: (kind: 'area' | 'project' | 'page', parent: string | null, title: string) => Promise<unknown>
+  onAdd: (kind: 'area' | 'project' | 'page', parent: string | null, title: string) => Promise<boolean>
   actions: Actions
 }
 
@@ -160,8 +160,9 @@ export function AreaTree(props: Props) {
           label="Area name"
           className="h-7"
           onAdd={async (title) => {
-            await props.onAdd('area', null, title)
-            props.setAdding(null)
+            const added = await props.onAdd('area', null, title)
+            if (added) props.setAdding(null)
+            return added
           }}
           onDone={() => props.setAdding(null)}
         />
@@ -440,7 +441,7 @@ function AddRow({
 }: {
   label: string
   indent: number
-  onAdd: (title: string) => Promise<unknown>
+  onAdd: (title: string) => Promise<boolean>
   onDone: () => void
 }) {
   return (
@@ -450,8 +451,9 @@ function AddRow({
         label={label}
         className="h-7"
         onAdd={async (title) => {
-          await onAdd(title)
-          onDone()
+          const added = await onAdd(title)
+          if (added) onDone()
+          return added
         }}
         onDone={onDone}
       />

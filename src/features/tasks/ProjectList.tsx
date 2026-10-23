@@ -124,7 +124,7 @@ export function ProjectList({ items, container, collapsed, onToggle, selectedId,
               <InlineAdd
                 id={`add-task-${container.id}`}
                 label="Add a task"
-                onAdd={(title) => actions.create('task', container.id, title)}
+                onAdd={async (title) => (await actions.create('task', container.id, title)) !== undefined}
               />
             </div>
           )}
@@ -136,7 +136,7 @@ export function ProjectList({ items, container, collapsed, onToggle, selectedId,
           <InlineAdd
             id={`add-milestone-${container.id}`}
             label="Add a milestone"
-            onAdd={(title) => actions.create('milestone', container.id, title)}
+            onAdd={async (title) => (await actions.create('milestone', container.id, title)) !== undefined}
             className={milestones.length === 0 ? '' : 'mt-[22px]'}
           />
         )}
@@ -261,7 +261,7 @@ function SortableMilestone({
         <InlineAdd
           id={`add-task-${milestone.id}`}
           label="Add a task"
-          onAdd={(title) => actions.create('task', milestone.id, title)}
+          onAdd={async (title) => (await actions.create('task', milestone.id, title)) !== undefined}
           className="ml-[22px]"
         />
       </Collapse>

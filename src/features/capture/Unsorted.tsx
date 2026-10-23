@@ -99,7 +99,7 @@ export function UnsortedView({
         <div className="flex w-full max-w-[680px] flex-col gap-5">
           <div className="flex items-center gap-2.5">
             <h1 className="text-title">Unsorted</h1>
-            <span className="flex h-7 min-w-7 items-center justify-center rounded-full bg-badge px-2 text-[14px] font-semibold text-fg-2">
+            <span className="flex h-7 min-w-7 items-center justify-center rounded-full bg-badge px-2 text-lead font-semibold text-fg-2">
               {entries.length}
             </span>
           </div>
@@ -116,17 +116,17 @@ export function UnsortedView({
               className="flex flex-col gap-3 rounded-[10px] border border-border-strong bg-field p-3"
             >
               <div className="flex items-center gap-2.5">
-                <span className="text-[12.5px] text-fg" aria-live="polite">
+                <span className="text-compact text-fg" aria-live="polite">
                   {chosen.length} chosen
                 </span>
                 <button
                   onClick={() => setPicked(new Set(entries.map((e) => e.raw)))}
-                  className="text-[12.5px] text-fg-3 underline-offset-2 hover:text-fg-2 hover:underline"
+                  className="text-compact text-fg-3 underline-offset-2 hover:text-fg-2 hover:underline"
                 >
                   Choose all {entries.length}
                 </button>
                 <span className="flex-1" />
-                <span className="text-[12.5px] text-fg-3">Create as</span>
+                <span className="text-compact text-fg-3">Create as</span>
                 <Segmented<FileAs>
                   label="Create the chosen items as"
                   value={bulkAs}
@@ -156,7 +156,7 @@ export function UnsortedView({
                 />
                 <button
                   onClick={() => {
-                    for (const entry of chosen) void actions.removeEntry(entry)
+                    void actions.removeEntries(chosen)
                     clearPicked()
                   }}
                   aria-label="Delete the chosen items"
@@ -167,7 +167,7 @@ export function UnsortedView({
                 </button>
                 <button
                   onClick={clearPicked}
-                  className="rounded-control px-2 py-1 text-[12.5px] text-fg-2 transition-colors duration-100 hover:bg-hover hover:text-fg"
+                  className="rounded-control px-2 py-1 text-compact text-fg-2 transition-colors duration-100 hover:bg-hover hover:text-fg"
                 >
                   Clear
                 </button>
@@ -222,7 +222,7 @@ export function UnsortedView({
                             isOpen ? '' : 'rounded-[10px] hover:bg-hover'
                           }`}
                         >
-                          <span className="flex-1 truncate text-[14px]">{entry.text}</span>
+                          <span className="flex-1 truncate text-lead">{entry.text}</span>
                           <DueHint text={entry.text} />
                           {entry.added && (
                             <span className="text-meta font-normal text-fg-3">{stampLabel(entry.added)}</span>
@@ -233,7 +233,7 @@ export function UnsortedView({
                       <Collapse open={isOpen}>
                         <div className="flex flex-col gap-3 pr-3 pb-3 pl-7">
                           <div className="flex items-center gap-2.5">
-                            <span className="text-[12.5px] text-fg-3">Create as</span>
+                            <span className="text-compact text-fg-3">Create as</span>
                             <Segmented<FileAs>
                               label="Create as"
                               value={fileAs}
@@ -337,7 +337,7 @@ function DestinationPicker({
   return (
     <div className="flex flex-col gap-1.5">
       <div className="flex items-center gap-2">
-        <span className="flex-1 text-[12.5px] text-fg-3">{TITLES[fileAs]}</span>
+        <span className="flex-1 text-compact text-fg-3">{TITLES[fileAs]}</span>
         <label className="flex h-[26px] w-[180px] items-center gap-1.5 rounded-control border border-border px-2 text-placeholder focus-within:border-border-strong">
           <Search size={12} strokeWidth={2} aria-hidden="true" />
           <input
@@ -379,7 +379,7 @@ function DestinationPicker({
         className="-ml-1.5 flex max-h-[232px] flex-col gap-px overflow-y-auto"
       >
         {shown.length === 0 && (
-          <p className="px-2 py-1.5 text-[12.5px] text-fg-3">
+          <p className="px-2 py-1.5 text-compact text-fg-3">
             {all.length === 0 ? emptyMessage(fileAs) : 'No matches'}
           </p>
         )}
@@ -422,7 +422,7 @@ function DestinationLabel({ destination: d }: { destination: Destination }): Rea
       ) : (
         <Icon {...iconProps} />
       )}
-      <span className="truncate text-[12.5px]">{d.name}</span>
+      <span className="truncate text-compact">{d.name}</span>
     </>
   )
 }

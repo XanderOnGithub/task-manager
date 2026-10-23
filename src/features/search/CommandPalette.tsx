@@ -298,7 +298,7 @@ function KindIcon({ item }: { item: Item }): ReactNode {
       return <StatusIcon status={item.status} size={15} />
     default:
       return item.icon ? (
-        <span className="text-[14px] leading-none" aria-hidden="true">
+        <span className="text-lead leading-none" aria-hidden="true">
           {item.icon}
         </span>
       ) : (

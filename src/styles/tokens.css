@@ -36,6 +36,11 @@
   --text-meta: 12px;                /* dates, counts */
   --text-meta--line-height: 16px;
   --text-meta--font-weight: 500;
+  /* Two in-between sizes the canvas screens use: controls and secondary text
+     (12.5), and the rows of a list that is the main thing on the screen (14).
+     Only the size: line height and weight stay with the element. */
+  --text-compact: 12.5px;
+  --text-lead: 14px;
   --text-label: 11px;               /* uppercase section labels, shortcuts */
   --text-label--line-height: 14px;
   --text-label--font-weight: 500;

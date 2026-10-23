@@ -34,7 +34,7 @@ export interface PageRowTools {
   adding: Adding
   setAdding: (adding: Adding) => void
   /** Creates a page (or area / project) and opens it. */
-  onAdd: (kind: 'area' | 'project' | 'page', parent: string | null, title: string) => Promise<unknown>
+  onAdd: (kind: 'area' | 'project' | 'page', parent: string | null, title: string) => Promise<boolean>
 }
 
 /**
@@ -98,8 +98,9 @@ export function PageRows({
                       label="Subpage name"
                       className="h-7"
                       onAdd={async (title) => {
-                        await tools.onAdd('page', page.id, title)
-                        tools.setAdding(null)
+                        const added = await tools.onAdd('page', page.id, title)
+                        if (added) tools.setAdding(null)
+                        return added
                       }}
                       onDone={() => tools.setAdding(null)}
                     />
@@ -257,7 +258,7 @@ export function SidebarHighlight() {
 /** A page's emoji if it has one, else the page icon. Same 15px slot either way. */
 export function PageIcon({ page, className = 'text-fg-2' }: { page: Item; className?: string }) {
   return page.icon ? (
-    <span className="flex w-[15px] shrink-0 justify-center text-[14px] leading-none" aria-hidden="true">
+    <span className="flex w-[15px] shrink-0 justify-center text-lead leading-none" aria-hidden="true">
       {page.icon}
     </span>
   ) : (

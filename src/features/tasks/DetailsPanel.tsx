@@ -70,7 +70,7 @@ export function DetailsPanel({ items, item, parent, onSelect, actions }: Props) 
           className="text-[18px] leading-6 font-semibold tracking-tight"
         />
 
-        <dl className="grid grid-cols-[76px_minmax(0,1fr)] items-center gap-y-2.5 text-[12.5px]">
+        <dl className="grid grid-cols-[76px_minmax(0,1fr)] items-center gap-y-2.5 text-compact">
           <Field label="Status">
             <Segmented<Status>
               label="Status"
@@ -143,10 +143,10 @@ export function DetailsPanel({ items, item, parent, onSelect, actions }: Props) 
                 className="flex h-[30px] items-center gap-2.5 rounded-control px-1.5 text-left transition-colors duration-100 hover:bg-hover"
               >
                 <StatusIcon status={task.status} size={15} />
-                <TaskTitle title={task.title} done={task.status === 'done'} className="text-[12.5px]" />
+                <TaskTitle title={task.title} done={task.status === 'done'} className="text-compact" />
               </button>
             ))}
-            <InlineAdd label="Add a task" onAdd={(title) => actions.create('task', item.id, title)} />
+            <InlineAdd label="Add a task" onAdd={async (title) => (await actions.create('task', item.id, title)) !== undefined} />
           </div>
         )}
       </div>

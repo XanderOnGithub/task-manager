@@ -13,6 +13,7 @@ import { play } from '../sound/sounds'
 import { confirm } from '../shared/confirm/confirm'
 import { weekdayLabel } from '../domain/dates'
 import { parseDue } from '../domain/naturalDate'
+import { childrenOf } from '../domain/items'
 
 export type Actions = ReturnType<typeof useActions>
 
@@ -26,12 +27,19 @@ export function useActions(reload: () => Promise<void>, items: Item[] = []) {
   latestItems.current = items
 
   return useMemo(() => {
-    /** Runs `work`, reloads, and turns failures into an error toast. Returns undefined on failure. */
-    async function run<T>(work: () => Promise<T>): Promise<T | undefined> {
+    /**
+     * Runs `work`, reloads, and turns failures into an error toast.
+     *
+     * Returns `undefined` when it failed, and never when it worked: work that
+     * has nothing to give back counts as `true`. So `!== undefined` always means
+     * "it worked", which is what lets a field keep what you typed after a failure.
+     */
+    async function run<T>(work: () => Promise<T>): Promise<(T extends void ? true : NonNullable<T>) | undefined> {
+      type Done = T extends void ? true : NonNullable<T>
       try {
         const result = await work()
         await reload()
-        return result
+        return (result ?? true) as Done
       } catch (e) {
         toast({ message: String(e), tone: 'error' })
         await reload()
@@ -41,12 +49,13 @@ export function useActions(reload: () => Promise<void>, items: Item[] = []) {
 
     return {
       // Unsorted -------------------------------------------------------------
-      capture: (text: string) =>
-        run(async () => {
+      /** True when it was added; false when it failed (the text stays where it was typed). */
+      capture: async (text: string) =>
+        (await run(async () => {
           play('capture')
           await api.addUnsorted(text)
           toast({ message: 'Added to Unsorted' })
-        }),
+        })) !== undefined,
 
       /** Files an Unsorted entry into `destination` (null = top level, for notes). */
       fileEntry: (entry: UnsortedEntry, kind: Kind, destination: { id: string | null; title: string }) =>
@@ -106,6 +115,31 @@ export function useActions(reload: () => Promise<void>, items: Item[] = []) {
           return filed.map((f) => f.id)
         }),
 
+      /** Deletes several Unsorted entries: one toast, one Undo for all of them. */
+      removeEntries: (entries: UnsortedEntry[]) =>
+        run(async () => {
+          play('delete')
+          const removed: UnsortedEntry[] = []
+          try {
+            for (const entry of entries) {
+              await api.removeUnsorted(entry)
+              removed.push(entry)
+            }
+          } finally {
+            // Whatever did go can still be put back, even if a later one failed.
+            if (removed.length > 0) {
+              toast({
+                message: removed.length === 1 ? 'Deleted from Unsorted' : `Deleted ${removed.length} items from Unsorted`,
+                // Top line first, so each lands on the line it came from.
+                undo: () =>
+                  run(async () => {
+                    for (const entry of [...removed].sort((a, b) => a.line - b.line)) await api.restoreUnsorted(entry)
+                  }),
+              })
+            }
+          }
+        }),
+
       removeEntry: (entry: UnsortedEntry) =>
         run(async () => {
           play('delete')
@@ -120,7 +154,8 @@ export function useActions(reload: () => Promise<void>, items: Item[] = []) {
         return run(() => api.createItem(kind, parent, parsed.text, parsed.due))
       },
 
-      rename: (item: Item, title: string) => run(() => api.renameItem(item.id, title)),
+      /** True when renamed; false when it failed (a name already taken, say). */
+      rename: async (item: Item, title: string) => (await run(() => api.renameItem(item.id, title))) !== undefined,
 
       /**
        * Moves `item` into `to` (an item id, or null for the top level), placed
@@ -264,9 +299,10 @@ export function useActions(reload: () => Promise<void>, items: Item[] = []) {
 /** "Its 2 milestones, 8 tasks and 2 pages", or null when there's nothing inside. */
 function describeInside(items: Item[], id: string): string | null {
   const counts = new Map<Kind, number>()
+  // Asks the index (domain/items.ts) for each folder's contents, so this costs
+  // one step per item inside, not a pass over the whole library for each one.
   const walk = (parent: string) => {
-    for (const child of items) {
-      if (child.parent !== parent) continue
+    for (const child of [...childrenOf(items, parent), ...childrenOf(items, parent, true)]) {
       counts.set(child.kind, (counts.get(child.kind) ?? 0) + 1)
       walk(child.id)
     }

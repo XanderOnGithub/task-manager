@@ -121,7 +121,7 @@ export function AreaList({ items, area, selectedId, onSelect, onCycleStatus, onO
         <InlineAdd
           id={`add-project-${area.id}`}
           label="Add a project"
-          onAdd={(title) => actions.create('project', area.id, title)}
+          onAdd={async (title) => (await actions.create('project', area.id, title)) !== undefined}
         />
       )}
       {!showAdd && projects.length === 0 && <p className="flex h-row items-center pl-1 text-fg-3">No projects yet</p>}

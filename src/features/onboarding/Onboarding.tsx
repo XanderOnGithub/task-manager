@@ -64,7 +64,7 @@ function Welcome({ onNext }: { onNext: () => void }) {
     <>
       <div className="flex flex-col gap-3">
         <MossWordmark className="h-10 w-[141px] shrink-0 self-start" />
-        <p className="text-[14px] text-fg-2">Tasks and pages, kept as plain files on this computer.</p>
+        <p className="text-lead text-fg-2">Tasks and pages, kept as plain files on this computer.</p>
       </div>
       <ul className="flex flex-col gap-3.5">
         <Idea Icon={Layers} title="Capture first">

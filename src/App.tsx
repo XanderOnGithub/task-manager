@@ -40,6 +40,7 @@ import { play, setSoundSettings, soundSettings } from './sound/sounds'
 import { saveTheme, toggleTheme } from './platform/theme'
 import { CommandPalette, type PaletteAction } from './features/search/CommandPalette'
 import { useActions } from './app/useActions'
+import { useGlobalShortcuts } from './app/useGlobalShortcuts'
 import { useLibrary } from './app/useLibrary'
 import { Sidebar, type Overview } from './features/navigation/Sidebar'
 import { ScopeView, type Layout } from './features/tasks/ScopeView'
@@ -106,39 +107,18 @@ export default function App() {
   const [revealed, setRevealed] = useState<string | undefined>()
   const [dialog, setDialog] = useState<'capture' | 'settings' | 'search' | 'history' | null>(null)
   const [sidebarOpen, setSidebarOpen] = useState(() => readPref('sidebarOpen', true))
-  const toggleSidebar = () =>
-    setSidebarOpen((open) => {
-      writePref('sidebarOpen', !open)
-      return !open
-    })
+  const toggleSidebar = useCallback(() => setSidebarOpen((open) => !open), [])
+  // Remembered between launches.
+  useEffect(() => writePref('sidebarOpen', sidebarOpen), [sidebarOpen])
 
-  // ⌘N opens Quick capture from anywhere.
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'n') {
-        e.preventDefault()
-        setDialog('capture')
-      }
-      // ⌘K opens search (or closes it).
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
-        e.preventDefault()
-        setDialog((d) => {
-          if (d !== 'search') play('open')
-          return d === 'search' ? null : 'search'
-        })
-      }
-      // ⌘\ hides or shows the sidebar.
-      if ((e.metaKey || e.ctrlKey) && e.key === '\\') {
-        e.preventDefault()
-        setSidebarOpen((open) => {
-          writePref('sidebarOpen', !open)
-          return !open
-        })
-      }
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [])
+  useGlobalShortcuts({
+    onCapture: () => setDialog('capture'),
+    onSearch: () => {
+      if (dialog !== 'search') play('open')
+      setDialog(dialog === 'search' ? null : 'search')
+    },
+    onSidebar: toggleSidebar,
+  })
 
   const items = snapshot?.items ?? []
 
@@ -453,6 +433,7 @@ export default function App() {
           onAdd={async (kind, parent, title) => {
             const id = await actions.create(kind, parent, title)
             if (id && kind !== 'area') openId(id)
+            return id !== undefined
           }}
           actions={actions}
         />

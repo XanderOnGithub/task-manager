@@ -14,7 +14,8 @@ export function InlineAdd({
   /** Lets other buttons focus this field (e.g. "+ Task" in the header). */
   id?: string
   label: string
-  onAdd: (title: string) => Promise<unknown>
+  /** Resolves true when it was added. On false the text stays, so a failed add never loses what was typed. */
+  onAdd: (title: string) => Promise<boolean>
   /** Called on Escape, or when the field loses focus while empty. */
   onDone?: () => void
   /** For a field that appears because of something you just did (a click on "Add"). */
@@ -28,9 +29,9 @@ export function InlineAdd({
     const title = value.trim()
     if (!title || busy) return
     setBusy(true)
-    await onAdd(title)
+    const added = await onAdd(title)
     setBusy(false)
-    setValue('') // stays focused, ready for the next one
+    if (added) setValue('') // stays focused, ready for the next one
   }
 
   return (

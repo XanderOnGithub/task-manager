@@ -94,7 +94,7 @@ export function PageView({
             placeholder="Start writing, or type / for blocks"
             onStats={showCount ? setStats : undefined}
             tone="normal"
-            className="min-h-[200px] text-[14px]"
+            className="min-h-[200px] text-lead"
             // "/page": a subpage of this page, linked by its file name and id
             // (a relative link, so it also works in other markdown apps).
             onCreatePage={async (title) => {
@@ -112,8 +112,10 @@ export function PageView({
               label="Subpage name"
               onAdd={async (title) => {
                 const id = await actions.create('page', page.id, title)
+                if (id === undefined) return false
                 setAddingSub(false)
-                if (id) onOpen(id)
+                onOpen(id)
+                return true
               }}
               onDone={() => setAddingSub(false)}
             />
@@ -264,7 +266,9 @@ function PageList({
         label={`Add a page to ${owner.title}`}
         onAdd={async (title) => {
           const id = await actions.create('page', owner.id, title)
-          if (id) onOpen(id)
+          if (id === undefined) return false
+          onOpen(id)
+          return true
         }}
       />
     </div>

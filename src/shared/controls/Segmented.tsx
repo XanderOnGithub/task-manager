@@ -45,7 +45,7 @@ export function Segmented<T extends string>({
             title={option.icon ? option.label : undefined}
             aria-label={iconsOnly ? option.label : undefined}
             className={`relative flex items-center gap-1.5 rounded-md transition-colors duration-100 ${
-              iconsOnly ? (size === 'sm' ? 'h-6 px-1.5' : 'h-[26px] px-2') : size === 'sm' ? 'h-6 px-2.5 text-meta' : 'h-[26px] px-3 text-[12.5px] font-medium'
+              iconsOnly ? (size === 'sm' ? 'h-6 px-1.5' : 'h-[26px] px-2') : size === 'sm' ? 'h-6 px-2.5 text-meta' : 'h-[26px] px-3 text-compact font-medium'
             } ${on ? 'text-fg' : 'text-fg-2 hover:text-fg'}`}
           >
             {on && (

@@ -47,7 +47,7 @@ interface Props {
   onSettings: () => void
   onToggleSidebar: () => void
   /** Creates an area, project or page and opens it. */
-  onAdd: (kind: 'area' | 'project' | 'page', parent: string | null, title: string) => Promise<unknown>
+  onAdd: (kind: 'area' | 'project' | 'page', parent: string | null, title: string) => Promise<boolean>
   actions: Actions
 }
 

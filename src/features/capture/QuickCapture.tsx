@@ -4,13 +4,17 @@ import { useState } from 'react'
 import { Layers } from 'lucide-react'
 import { Modal } from '../../shared/controls'
 
-export function QuickCapture({ onCapture, onClose }: { onCapture: (text: string) => Promise<unknown>; onClose: () => void }) {
+export function QuickCapture({ onCapture, onClose }: { onCapture: (text: string) => Promise<boolean>; onClose: () => void }) {
   const [text, setText] = useState('')
+  const [busy, setBusy] = useState(false)
 
+  // Closes once it is saved. If saving fails the box stays open with the text in it.
   const submit = async () => {
-    if (!text.trim()) return
-    onClose()
-    await onCapture(text.trim())
+    if (!text.trim() || busy) return
+    setBusy(true)
+    const added = await onCapture(text.trim())
+    setBusy(false)
+    if (added) onClose()
   }
 
   return (
