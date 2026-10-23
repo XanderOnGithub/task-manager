@@ -102,6 +102,52 @@ pub fn create_with_due(
     Ok(new_id)
 }
 
+/// Gives a project that holds loose tasks its first milestone, and moves those
+/// tasks into it. Returns the new milestone's id.
+///
+/// A project holds milestones or loose tasks, never both (see `check_parent`),
+/// so `create` refuses a milestone while there are loose tasks. This does both
+/// steps at once: the milestone folder is made, then each task file moves in.
+/// A project with no loose tasks just gets the milestone, like `create`.
+pub fn group_into_milestone(lib: &Library, project_id: &str, title: &str) -> Result<String> {
+    let project = find(lib, project_id)?;
+    if project.kind != Kind::Project {
+        return Err(Error::NotAllowed("A milestone goes inside a project".into()));
+    }
+    let tasks: Vec<&Item> = lib
+        .children(Some(project_id), false)
+        .into_iter()
+        .filter(|c| c.kind == Kind::Task)
+        .collect();
+    if tasks.is_empty() {
+        return create(lib, Kind::Milestone, Some(project_id), title, "");
+    }
+    check_title(title)?;
+    check_reserved(Kind::Milestone, title)?;
+    let dir = lib.abs(&project.path);
+    if title_taken(&dir, title, None)? {
+        return Err(Error::NameTaken(title.to_owned()));
+    }
+
+    let new_id = id::new_unique_id(|candidate| lib.get(candidate).is_some());
+    let mut fm = Frontmatter::default();
+    fm.set("id", Some(&new_id));
+    fm.set("status", Kind::Milestone.default_status());
+    fm.set("order", Some(&order::key_between(None, None)));
+    fm.set("created", Some(&fsutil::today()));
+    fm.set("color", Some(least_used_color(&[])));
+    let folder = dir.join(title);
+    fs::create_dir(&folder)?;
+    write_atomic(&folder.join(INDEX_FILE), &frontmatter::join(&fm, ""))?;
+
+    // Each task keeps its file name, id and order; only its folder changes.
+    for task in tasks {
+        let name = task.path.rsplit('/').next().expect("paths have a name");
+        fs::rename(lib.abs(&task.path), folder.join(name))?;
+    }
+    Ok(new_id)
+}
+
 /// Renames an item. Its id, and so any future links to it, stay the same.
 pub fn rename(lib: &Library, id: &str, new_title: &str) -> Result<()> {
     check_title(new_title)?;

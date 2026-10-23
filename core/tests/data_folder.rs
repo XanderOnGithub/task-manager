@@ -191,6 +191,46 @@ fn a_folder_link_that_loops_does_not_stop_the_load() {
 }
 
 #[test]
+fn a_project_with_loose_tasks_can_get_its_first_milestone() {
+    let (_dir, root) = sample();
+    let lib = load(&root);
+    // A project with tasks straight inside it (no milestones).
+    let area = by_title(&lib, "Home").id.clone();
+    let project = ops::create(&lib, Kind::Project, Some(&area), "Fix the fence", "").unwrap();
+    let lib = load(&root);
+    let paint = ops::create(&lib, Kind::Task, Some(&project), "Paint it", "").unwrap();
+    let posts = ops::create(&lib, Kind::Task, Some(&project), "Set the posts", "").unwrap();
+    let lib = load(&root);
+
+    // A plain create is refused: a project can't mix tasks and milestones.
+    assert!(ops::create(&lib, Kind::Milestone, Some(&project), "Week 1", "").is_err());
+
+    let milestone = ops::group_into_milestone(&lib, &project, "Week 1").unwrap();
+    let lib = load(&root);
+    assert!(lib.issues.is_empty(), "{:#?}", lib.issues);
+    let week = lib.get(&milestone).unwrap();
+    assert_eq!(week.kind, Kind::Milestone);
+    assert_eq!(week.parent.as_deref(), Some(project.as_str()));
+    // The tasks moved in and kept their ids.
+    for task in [&paint, &posts] {
+        assert_eq!(lib.get(task).unwrap().parent.as_deref(), Some(milestone.as_str()));
+    }
+    // Now the project uses milestones: more can be added the usual way.
+    assert!(ops::create(&lib, Kind::Milestone, Some(&project), "Week 2", "").is_ok());
+    // A name already used in the project is refused, and nothing moves.
+    let lib = load(&root);
+    assert!(
+        ops::group_into_milestone(&lib, &project, "Week 3").is_ok(),
+        "no loose tasks left: a plain milestone"
+    );
+    let lib = load(&root);
+    assert!(matches!(
+        ops::group_into_milestone(&lib, &project, "week 1"),
+        Err(Error::NameTaken(_))
+    ));
+}
+
+#[test]
 fn a_copied_file_gets_a_new_id() {
     let (_dir, root) = sample();
     let dir = root.join(TASKS).join("Replace the sink");

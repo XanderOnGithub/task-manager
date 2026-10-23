@@ -87,6 +87,7 @@ pub fn run() {
             commands::folder::start_data_folder,
             commands::library::load_library,
             commands::items::create_item,
+            commands::items::group_into_milestone,
             commands::items::rename_item,
             commands::items::move_item,
             commands::items::set_field,

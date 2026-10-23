@@ -19,6 +19,18 @@ pub async fn create_item(
     })
 }
 
+/// Adds a milestone to a project. If the project holds loose tasks, they move
+/// into the new milestone (a project holds milestones or tasks, never both).
+/// Returns the milestone's id.
+#[tauri::command]
+pub async fn group_into_milestone(
+    state: State<'_, AppState>,
+    project: String,
+    title: String,
+) -> CmdResult<String> {
+    write(&state, |lib| ops::group_into_milestone(lib, &project, &title))
+}
+
 #[tauri::command]
 pub async fn rename_item(state: State<'_, AppState>, id: String, title: String) -> CmdResult<()> {
     write(&state, |lib| ops::rename(lib, &id, &title))

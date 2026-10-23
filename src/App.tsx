@@ -117,7 +117,16 @@ export default function App() {
   // On a narrow window the sidebar is a drawer, opened from the menu button in a header.
   const [drawerOpen, setDrawerOpen] = useState(false)
   const closeDrawer = useCallback(() => setDrawerOpen(false), [])
-  const compactNav = useMemo(() => ({ openMenu: () => setDrawerOpen(true) }), [])
+  const compactNav = useMemo(
+    () => ({
+      openMenu: () => setDrawerOpen(true),
+      openSearch: () => {
+        play('open')
+        setDialog('search')
+      },
+    }),
+    [],
+  )
   const [sidebarOpen, setSidebarOpen] = useState(() => readPref('sidebarOpen', true))
   const toggleSidebar = useCallback(() => setSidebarOpen((open) => !open), [])
   // Remembered between launches.
@@ -321,10 +330,10 @@ export default function App() {
         ]
       case 'project': {
         const hasMilestones = children.some((c) => c.kind === 'milestone')
-        const hasTasks = children.some((c) => c.kind === 'task')
         return [
           ...(hasMilestones ? [] : [{ label: 'New task', Icon: Plus, onSelect: add('task') }]),
-          ...(hasTasks ? [] : [{ label: 'New milestone', Icon: Flag, onSelect: add('milestone') }]),
+          // With loose tasks, the first milestone takes them in (ProjectList).
+          { label: 'New milestone', Icon: Flag, onSelect: add('milestone') },
           { label: 'New page', Icon: FilePlus, onSelect: add('page') },
         ]
       }

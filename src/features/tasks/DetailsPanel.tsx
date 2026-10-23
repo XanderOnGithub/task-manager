@@ -1,7 +1,7 @@
 // The right panel: details of the selected task or milestone, all editable.
 
 import { useState, type CSSProperties, type ReactNode } from 'react'
-import { X } from 'lucide-react'
+import { ArrowUpRight, Flag, X } from 'lucide-react'
 import { type Item, type MilestoneColor, type Status } from '../../platform/api'
 import { childrenOf, MILESTONE_COLORS, statusLabel } from '../../domain/items'
 import { shortDate } from '../../domain/dates'
@@ -92,9 +92,7 @@ export function DetailsPanel({ items, item, parent, onSelect, actions, fluid = f
 
           {!isMilestone && parent?.kind === 'milestone' && (
             <Field label="Milestone">
-              <button onClick={() => onSelect(parent.id)} className="flex" title="Open milestone">
-                <MilestoneChip title={parent.title} color={parent.color} />
-              </button>
+              <MilestoneField items={items} task={item} milestone={parent} onSelect={onSelect} actions={actions} />
             </Field>
           )}
 
@@ -153,6 +151,45 @@ export function DetailsPanel({ items, item, parent, onSelect, actions, fluid = f
         )}
       </div>
     </Panel>
+  )
+}
+
+/**
+ * The task's milestone, and the others of its project to move it to. Moving
+ * goes through `actions.move`, so it has a toast with Undo like a drag does.
+ */
+function MilestoneField({
+  items,
+  task,
+  milestone,
+  onSelect,
+  actions,
+}: {
+  items: Item[]
+  task: Item
+  milestone: Item
+  onSelect: (id: string | null) => void
+  actions: Actions
+}) {
+  const others = milestone.parent ? childrenOf(items, milestone.parent).filter((m) => m.kind === 'milestone' && m.id !== milestone.id) : []
+  // Where it is now, so Undo puts it back in the same spot.
+  const siblings = childrenOf(items, milestone.id)
+  const next = siblings[siblings.findIndex((t) => t.id === task.id) + 1]
+  return (
+    <Menu
+      label={`Milestone: ${milestone.title}`}
+      align="left"
+      trigger={<MilestoneChip title={milestone.title} color={milestone.color} />}
+      items={[
+        ...others.map((m) => ({
+          label: `Move to ${m.title}`,
+          Icon: Flag,
+          onSelect: () => void actions.move(task, { id: m.id, title: m.title }, null, { parent: milestone.id, before: next?.id ?? null }),
+        })),
+        ...(others.length ? (['divider'] as const) : []),
+        { label: `Open ${milestone.title}`, Icon: ArrowUpRight, onSelect: () => onSelect(milestone.id) },
+      ]}
+    />
   )
 }
 

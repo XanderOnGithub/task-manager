@@ -117,6 +117,8 @@ export const loadLibrary = () => invoke<Snapshot>('load_library')
 export const createItem = (kind: Kind, parent: string | null, title: string, due: string | null = null) =>
   invoke<string>('create_item', { kind, parent, title, due })
 export const renameItem = (id: string, title: string) => invoke<void>('rename_item', { id, title })
+/** Adds a milestone to a project; its loose tasks (if any) move into it. Returns the milestone's id. */
+export const groupIntoMilestone = (project: string, title: string) => invoke<string>('group_into_milestone', { project, title })
 /** Moves into `parent` (pass the current parent to reorder), before `before` or at the end. */
 export const moveItem = (id: string, parent: string | null, before: string | null = null) =>
   invoke<void>('move_item', { id, parent, before })

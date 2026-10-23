@@ -130,14 +130,15 @@ export function ProjectList({ items, container, collapsed, onToggle, selectedId,
           )}
         </SortableContext>
 
-        {/* A project holds milestones or loose tasks, never both. Milestones
-            hold only tasks. */}
-        {looseTasks.length === 0 && container.kind === 'project' && (
+        {/* A project holds milestones or loose tasks, never both, and milestones
+            hold only tasks. So on a project with loose tasks, the first
+            milestone takes them in. */}
+        {container.kind === 'project' && (
           <InlineAdd
             id={`add-milestone-${container.id}`}
-            label="Add a milestone"
-            onAdd={async (title) => (await actions.create('milestone', container.id, title)) !== undefined}
-            className={milestones.length === 0 ? '' : 'mt-[22px]'}
+            label={looseTasks.length > 0 ? 'Put these tasks in a milestone' : 'Add a milestone'}
+            onAdd={async (title) => (await actions.addMilestone(container, title)) !== undefined}
+            className={milestones.length === 0 && looseTasks.length === 0 ? '' : 'mt-[22px]'}
           />
         )}
       </div>

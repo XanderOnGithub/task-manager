@@ -155,6 +155,20 @@ export function useActions(reload: () => Promise<void>, items: Item[] = []) {
       },
 
       /** True when renamed; false when it failed (a name already taken, say). */
+      /**
+       * Adds a milestone to `project`. A project holds milestones or loose tasks,
+       * never both, so if it has loose tasks they move into the new milestone.
+       * Returns the milestone's id (undefined when it failed).
+       */
+      addMilestone: (project: Item, title: string) => {
+        const loose = childrenOf(latestItems.current, project.id).filter((c) => c.kind === 'task').length
+        return run(async () => {
+          const id = await api.groupIntoMilestone(project.id, title)
+          if (loose > 0) toast({ message: `Moved ${loose === 1 ? '1 task' : `${loose} tasks`} into ${title}` })
+          return id
+        })
+      },
+
       rename: async (item: Item, title: string) => (await run(() => api.renameItem(item.id, title))) !== undefined,
 
       /**

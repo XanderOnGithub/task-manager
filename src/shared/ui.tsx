@@ -2,7 +2,7 @@
 // design canvas, so screens read as layout, not styling.
 
 import type { CSSProperties, ReactNode } from 'react'
-import { Calendar, Menu as MenuIcon, Repeat } from 'lucide-react'
+import { Calendar, Menu as MenuIcon, Repeat, Search } from 'lucide-react'
 import * as m from 'motion/react-m'
 import { spring } from './motion/springs'
 import type { Item, MilestoneColor, Status } from '../platform/api'
@@ -45,6 +45,16 @@ export function PanelHeader({ children }: { children: ReactNode }) {
         </button>
       )}
       {children}
+      {/* A phone has no ⌘K: search is the last button of every header. */}
+      {nav && (
+        <button
+          onClick={nav.openSearch}
+          aria-label="Search"
+          className="-mr-1.5 flex size-9 shrink-0 items-center justify-center rounded-control text-fg-2 transition-colors duration-100 hover:bg-hover hover:text-fg"
+        >
+          <Search size={18} strokeWidth={1.75} aria-hidden="true" />
+        </button>
+      )}
     </header>
   )
 }

@@ -10,7 +10,7 @@ import { useMemo, useRef, useState, type ReactNode, useId } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import { spring } from '../../shared/motion/springs'
 import { Collapse } from '../../shared/motion/pieces'
-import { Calendar, Folder, FileText, Search, Target, Trash2 } from 'lucide-react'
+import { Calendar, Flag, Folder, FileText, Search, Target, Trash2 } from 'lucide-react'
 import { type Item, type Kind, type MilestoneColor, type UnsortedEntry } from '../../platform/api'
 import { childrenOf } from '../../domain/items'
 import type { Actions } from '../../app/useActions'
@@ -20,7 +20,7 @@ import { play } from '../../sound/sounds'
 import { stampLabel, weekdayLabel } from '../../domain/dates'
 import { parseDue } from '../../domain/naturalDate'
 
-type FileAs = 'task' | 'page' | 'project'
+type FileAs = 'task' | 'milestone' | 'page' | 'project'
 
 interface Destination {
   id: string
@@ -127,33 +127,7 @@ export function UnsortedView({
                 </button>
                 <span className="flex-1" />
                 <span className="text-compact text-fg-3">Create as</span>
-                <Segmented<FileAs>
-                  label="Create the chosen items as"
-                  value={bulkAs}
-                  onChange={(kind) => {
-                    play('select', {
-                      pitch: { task: 0.92, page: 1, project: 1.1 }[kind],
-                    })
-                    setBulkAs(kind)
-                  }}
-                  options={[
-                    {
-                      value: 'task',
-                      label: 'Task',
-                      icon: <StatusIcon status="todo" size={13} />,
-                    },
-                    {
-                      value: 'page',
-                      label: 'Page',
-                      icon: <FileText size={13} strokeWidth={2} aria-hidden="true" />,
-                    },
-                    {
-                      value: 'project',
-                      label: 'Project',
-                      icon: <Target size={13} strokeWidth={2} aria-hidden="true" />,
-                    },
-                  ]}
-                />
+                <FileAsChoice label="Create the chosen items as" value={bulkAs} onChange={setBulkAs} />
                 <button
                   onClick={() => {
                     void actions.removeEntries(chosen)
@@ -234,34 +208,7 @@ export function UnsortedView({
                         <div className="flex flex-col gap-3 pr-3 pb-3 pl-7">
                           <div className="flex flex-wrap items-center gap-x-2.5 gap-y-2">
                             <span className="text-compact text-fg-3">Create as</span>
-                            <Segmented<FileAs>
-                              label="Create as"
-                              value={fileAs}
-                              onChange={(kind) => {
-                                // Task, Page, Project: each a step higher.
-                                play('select', {
-                                  pitch: { task: 0.92, page: 1, project: 1.1 }[kind],
-                                })
-                                setFileAs(kind)
-                              }}
-                              options={[
-                                {
-                                  value: 'task',
-                                  label: 'Task',
-                                  icon: <StatusIcon status="todo" size={13} />,
-                                },
-                                {
-                                  value: 'page',
-                                  label: 'Page',
-                                  icon: <FileText size={13} strokeWidth={2} aria-hidden="true" />,
-                                },
-                                {
-                                  value: 'project',
-                                  label: 'Project',
-                                  icon: <Target size={13} strokeWidth={2} aria-hidden="true" />,
-                                },
-                              ]}
-                            />
+                            <FileAsChoice label="Create as" value={fileAs} onChange={setFileAs} />
                             <span className="flex-1" />
                             <button
                               onClick={() => void actions.removeEntry(entry)}
@@ -295,6 +242,26 @@ export function UnsortedView({
   )
 }
 
+/** Task, Milestone, Page, Project: what an entry becomes. Each a step higher in pitch. */
+function FileAsChoice({ label, value, onChange }: { label: string; value: FileAs | null; onChange: (kind: FileAs) => void }) {
+  return (
+    <Segmented<FileAs>
+      label={label}
+      value={value}
+      onChange={(kind) => {
+        play('select', { pitch: { task: 0.92, milestone: 0.96, page: 1, project: 1.1 }[kind] })
+        onChange(kind)
+      }}
+      options={[
+        { value: 'task', label: 'Task', icon: <StatusIcon status="todo" size={13} /> },
+        { value: 'milestone', label: 'Milestone', icon: <Flag size={13} strokeWidth={2} aria-hidden="true" /> },
+        { value: 'page', label: 'Page', icon: <FileText size={13} strokeWidth={2} aria-hidden="true" /> },
+        { value: 'project', label: 'Project', icon: <Target size={13} strokeWidth={2} aria-hidden="true" /> },
+      ]}
+    />
+  )
+}
+
 /** "Due Fri, Oct 23": what filing "call Bob friday" as a task will do with the date. */
 function DueHint({ text }: { text: string }) {
   const { due } = parseDue(text)
@@ -312,6 +279,7 @@ function DueHint({ text }: { text: string }) {
 
 const TITLES: Record<FileAs, string> = {
   task: 'Choose a milestone or project',
+  milestone: 'Choose a project',
   page: 'Choose an area, project or page',
   project: 'Choose an area',
 }
@@ -441,6 +409,22 @@ function destinations(items: Item[], fileAs: FileAs): Destination[] {
       }
     })
   }
+  if (fileAs === 'milestone') {
+    // A milestone goes into a project that is still going. A project with loose
+    // tasks can't take one this way (it holds tasks or milestones, never both);
+    // its List view puts its tasks into a first milestone instead.
+    const out: Destination[] = []
+    for (const area of areas) {
+      for (const project of childrenOf(items, area.id)) {
+        if (project.status === 'done' || project.status === 'dropped') continue
+        const inside = childrenOf(items, project.id)
+        if (inside.some((c) => c.kind === 'task')) continue
+        const n = inside.length
+        out.push({ id: project.id, name: project.title, context: `${area.title} · ${n === 1 ? '1 milestone' : `${n} milestones`}`, kind: 'project' })
+      }
+    }
+    return out
+  }
   if (fileAs === 'task') {
     const out: Destination[] = []
     for (const area of areas) {
@@ -502,5 +486,5 @@ function destinations(items: Item[], fileAs: FileAs): Destination[] {
 }
 
 function emptyMessage(fileAs: FileAs): string {
-  return fileAs === 'task' ? 'Add a project first' : 'Add an area first'
+  return fileAs === 'task' || fileAs === 'milestone' ? 'Add a project first' : 'Add an area first'
 }

@@ -44,6 +44,8 @@ for (const [size, options] of Object.entries(SIZES)) {
   }
   await click(page.getByRole('radio', { name: 'Board' }))
   await shot('board')
+  await click(page.getByRole('radio', { name: 'Milestones' }))
+  await shot('milestones')
   await click(page.getByRole('radio', { name: 'List' }))
   await click(page.getByText('Pick tile').first())
   await shot('task-details')

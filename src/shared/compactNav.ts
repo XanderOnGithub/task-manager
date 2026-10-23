@@ -4,6 +4,6 @@
 
 import { createContext, useContext } from 'react'
 
-export const CompactNavContext = createContext<{ openMenu: () => void } | null>(null)
+export const CompactNavContext = createContext<{ openMenu: () => void; openSearch: () => void } | null>(null)
 
 export const useCompactNav = () => useContext(CompactNavContext)
