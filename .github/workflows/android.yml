@@ -55,6 +55,12 @@ jobs:
       # below are the only changes the app needs to it.
       - name: Create the Android project
         run: pnpm tauri android init --ci
+      # `android init` fills the project with Tauri's placeholder icons. This
+      # draws Moss's (launcher, round and adaptive ones) from the brand source.
+      - name: The Moss icon
+        run: |
+          pnpm tauri icon brand/icon-1024.png
+          ls src-tauri/gen/android/app/src/main/res/mipmap-xxxhdpi/
       - name: Internet access, and resize the page when the keyboard opens
         run: |
           manifest=src-tauri/gen/android/app/src/main/AndroidManifest.xml
