@@ -50,6 +50,18 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - run: cargo clippy -p moss -- -D warnings
 
+  android:
+    name: Android app (builds)
+    # A debug APK for 64-bit phones: proves the app still builds for Android
+    # before a release tries to. The release builds the signed one.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: ./.github/actions/android-project
+        with:
+          rust-targets: aarch64-linux-android
+      - run: pnpm tauri android build --apk --debug --target aarch64
+
   frontend:
     name: Front end (types, lint, tests, build)
     runs-on: ubuntu-latest

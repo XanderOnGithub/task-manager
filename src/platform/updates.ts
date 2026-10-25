@@ -7,6 +7,7 @@
 import { useEffect, useState } from 'react'
 import { check, type Update } from '@tauri-apps/plugin-updater'
 import { relaunch } from '@tauri-apps/plugin-process'
+import { isAndroid } from './os'
 
 export type UpdateState =
   | { status: 'idle' }
@@ -27,6 +28,8 @@ function set(next: UpdateState) {
 
 /** Asks GitHub for a newer version. Quiet about failures unless `manual`. */
 export async function checkForUpdate(manual = false) {
+  // The in-app updater is desktop only; Android gets a new APK from the release.
+  if (isAndroid) return
   if (state.status === 'checking' || state.status === 'installing') return
   set({ status: 'checking' })
   try {
