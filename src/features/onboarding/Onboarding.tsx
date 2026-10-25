@@ -68,7 +68,11 @@ function Welcome({ onNext }: { onNext: () => void }) {
       </div>
       <ul className="flex flex-col gap-3.5">
         <Idea Icon={Layers} title="Capture first">
-          Anything goes into Unsorted. <kbd className="font-mono text-meta font-normal">{keys('N')}</kbd> from anywhere.
+          Anything goes into Unsorted.
+          <span className="pointer-coarse:hidden">
+            {' '}
+            <kbd className="font-mono text-meta font-normal">{keys('N')}</kbd> from anywhere.
+          </span>
         </Idea>
         <Idea Icon={Target} title="Sort when you're ready">
           Into areas, projects, milestones and tasks.

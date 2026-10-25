@@ -102,7 +102,7 @@ const TodayRow = memo(function TodayRow({
         <TaskTitle title={task.title} done={false} />
         {where && <span className="min-w-0 truncate text-meta font-normal text-fg-3 @max-[16rem]:hidden">{where}</span>}
         <span className="ml-auto" />
-        <BlockedMark task={task} />
+        <BlockedMark task={task} iconOnly />
         <PriorityMark taskId={task.id} />
         <DueDate item={task} />
       </button>

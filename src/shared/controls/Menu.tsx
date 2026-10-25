@@ -5,6 +5,8 @@ import { createPortal } from 'react-dom'
 import { Ellipsis, type LucideIcon } from 'lucide-react'
 import { icon } from '../../domain/items'
 import { focusFirstRow, onMenuKeyDown } from './menuKeys'
+import { ActionSheet } from './ActionSheet'
+import { useCoarsePointer } from '../../platform/layout'
 
 export interface MenuItem {
   label: string
@@ -19,9 +21,12 @@ export function Menu({
   label = 'More actions',
   trigger,
   align = 'right',
+  title,
 }: {
   items: (MenuItem | 'divider')[]
   label?: string
+  /** On a touch screen the menu is a bottom sheet; this goes on top (e.g. the item's name). */
+  title?: string
   /** Custom button content. Defaults to ⋯. */
   trigger?: ReactNode
   align?: 'left' | 'right'
@@ -35,6 +40,7 @@ export function Menu({
   const button = useRef<HTMLButtonElement>(null)
   const dropdown = useRef<HTMLDivElement>(null)
   const menuId = useId()
+  const sheet = useCoarsePointer()
 
   const show = () => {
     if (!button.current) return
@@ -101,7 +107,16 @@ export function Menu({
       >
         {trigger ?? <Ellipsis {...icon} strokeWidth={2} />}
       </button>
+      {place && sheet && (
+        <ActionSheet
+          title={title ?? (label === 'More actions' ? undefined : label)}
+          label={label}
+          items={items}
+          onClose={() => setPlace(null)}
+        />
+      )}
       {place &&
+        !sheet &&
         createPortal(
           // The arrow keys act on the rows inside; the menu itself isn't a tab stop.
            

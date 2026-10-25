@@ -168,7 +168,7 @@ const AreaTaskRow = memo(function AreaTaskRow({
         {milestone && (
           <MilestoneChip title={milestone.title} color={milestone.color} className="max-w-[45%] @max-[14rem]:hidden" />
         )}
-        <BlockedMark task={task} />
+        <BlockedMark task={task} iconOnly />
         <PriorityMark taskId={task.id} />
         <DueDate item={task} />
       </button>

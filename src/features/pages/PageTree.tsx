@@ -195,6 +195,7 @@ function PageRow({
         <span className="absolute top-1 right-1 opacity-0 transition-opacity duration-100 group-hover/page:opacity-100 pointer-coarse:opacity-100 focus-within:opacity-100 has-[[aria-expanded=true]]:opacity-100">
           <Menu
             label={`More actions for ${page.title}`}
+            title={page.title}
             trigger={<MoreIcon />}
             items={[
               { label: 'Add a subpage', Icon: FilePlus, onSelect: () => tools.setAdding({ kind: 'page', parent: page.id }) },

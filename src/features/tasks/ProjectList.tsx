@@ -340,7 +340,7 @@ const TaskRowContent = memo(function TaskRowContent({
       </button>
       <button onClick={() => onSelect(task.id)} className="flex h-full min-w-0 flex-1 items-center gap-2.5 text-left">
         <TaskTitle title={task.title} done={task.status === 'done'} />
-        <BlockedMark task={task} />
+        <BlockedMark task={task} iconOnly />
         <PriorityMark taskId={task.id} />
         <DueDate item={task} />
       </button>

@@ -27,6 +27,7 @@ import {
 } from '@dnd-kit/core'
 import { sortableKeyboardCoordinates } from '@dnd-kit/sortable'
 import { play } from '../../sound/sounds'
+import { endHold, ROW_ACTIONS, startHold } from './hold'
 
 /**
  * Mouse drags start after moving 4px, so plain clicks still click. Touch: hold
@@ -121,6 +122,7 @@ export function useDragState() {
         play('slot', { pitch: over.rect.top < previous.top ? 1.08 : 0.94 })
       },
       start: (event: DragStartEvent) => {
+        startHold(event)
         play('pickUp')
         pickUpDust(event.active.rect.current.initial)
         lastOver.current = null
@@ -133,9 +135,12 @@ export function useDragState() {
       /** `landed`: false when the drag was cancelled (no drop sound), or when
        * the drop makes its own sound (a board card changing status). */
       end: (landed = true) => {
-        if (landed) play('drop')
+        const pressed = endHold()
+        if (landed && !pressed) play('drop')
         setActive(null)
         swallowNextClick()
+        // After the swallowed click, so the sheet isn't closed by it.
+        if (pressed) window.setTimeout(() => window.dispatchEvent(new CustomEvent(ROW_ACTIONS, { detail: pressed })), 0)
       },
     }),
     [active],

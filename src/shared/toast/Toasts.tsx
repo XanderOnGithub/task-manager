@@ -78,7 +78,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
           initial={{ opacity: 0, y: 12, scale: 0.96, x: '-50%' }}
           animate={{ opacity: 1, y: 0, scale: 1, x: '-50%', transition: spring.pop }}
           exit={{ opacity: 0, y: 8, scale: 0.98, x: '-50%', transition: spring.snappy }}
-          className="fixed bottom-6 left-1/2 z-50 flex h-10 max-w-[80vw] items-center gap-3 rounded-[10px] border border-border-menu bg-menu pr-2 pl-3.5 whitespace-nowrap shadow-menu"
+          className="fixed bottom-6 left-1/2 z-50 flex h-10 max-w-[80vw] max-md:bottom-[calc(4.5rem+env(safe-area-inset-bottom))] max-md:max-w-[calc(100vw-2rem)] items-center gap-3 rounded-[10px] border border-border-menu bg-menu pr-2 pl-3.5 whitespace-nowrap shadow-menu"
         >
           {toast.tone !== 'error' && (
             <svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true" className="shrink-0">

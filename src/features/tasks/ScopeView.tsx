@@ -142,7 +142,7 @@ function OneScopeView(props: Props & { scope: Item }) {
           <Plus size={14} strokeWidth={2} aria-hidden="true" />
           <span className="@max-[34rem]/header:sr-only">{words.Noun(scope.kind === 'area' ? 'project' : 'task')}</span>
         </button>
-        <Menu items={itemMenu(scope, actions, () => setRenaming((n) => n + 1))} />
+        <Menu title={scope.title} items={itemMenu(scope, actions, () => setRenaming((n) => n + 1))} />
       </PanelHeader>
 
       {shown === 'milestones' ? (

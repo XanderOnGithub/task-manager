@@ -69,6 +69,7 @@ export function PageView({
           <span className="truncate text-fg">{page.title}</span>
         </nav>
         <Menu
+          title={page.title}
           items={[
             { label: 'Add a subpage', onSelect: () => setAddingSub(true) },
             'divider',
