@@ -17,7 +17,7 @@ jobs:
   apk:
     name: Android APK
     runs-on: ubuntu-latest
-    # Writing the "Moss for Android (latest build)" pre-release at the end.
+    # Writing the "Moss for Android (test build)" pre-release at the end.
     permissions:
       contents: write
     timeout-minutes: 60
@@ -58,11 +58,12 @@ jobs:
       # below are the only changes the app needs to it.
       - name: Create the Android project
         run: pnpm tauri android init --ci
-      # `android init` fills the project with Tauri's placeholder icons. This
-      # draws Moss's (launcher, round and adaptive ones) from the brand source.
+      # `android init` fills the project with Tauri's placeholder icons. These are
+      # Moss's, made for Android's shapes: the mark sits inside the part every
+      # phone keeps (see brand/android/README.md).
       - name: The Moss icon
         run: |
-          pnpm tauri icon brand/icon-1024.png
+          pnpm tauri icon brand/android/icon.json
           ls src-tauri/gen/android/app/src/main/res/mipmap-xxxhdpi/
       - name: Internet access, and resize the page when the keyboard opens
         run: |
@@ -127,7 +128,7 @@ jobs:
           if-no-files-found: error
 
       # The same APK on a release page, so a phone can download it straight from
-      # GitHub (Releases → "Moss for Android (latest build)"). It is a pre-release:
+      # GitHub (Releases → "Moss for Android (test build, …)"). It is a pre-release:
       # it never becomes the "latest" release that the desktop app's updater reads.
       # Each build replaces it, so the link always gives the newest APK.
       - name: Publish to the latest-build pre-release
@@ -136,8 +137,9 @@ jobs:
           MESSAGE: ${{ github.event.head_commit.message }}
         run: |
           gh release delete android-latest --cleanup-tag --yes || true
+          version=$(node -p "require('./src-tauri/tauri.conf.json').version")
           {
-            echo "The newest Android build, from \`${GITHUB_REF_NAME}\` at ${GITHUB_SHA::7}."
+            echo "A test build for Android, on top of the desktop release alpha ${version}, from \`${GITHUB_REF_NAME}\` at ${GITHUB_SHA::7}."
             echo
             echo "Install: download **Moss-android.apk** on the phone, open it, and allow installs from your browser if Android asks. It installs over the previous build."
             echo
@@ -145,4 +147,4 @@ jobs:
           } > notes.md
           gh release create android-latest Moss-android.apk \
             --prerelease --latest=false --target "$GITHUB_SHA" \
-            --title "Moss for Android (latest build)" --notes-file notes.md
+            --title "Moss for Android (test build, alpha ${version})" --notes-file notes.md

@@ -4,7 +4,7 @@ The phone app is the same React app and the same Rust core in a Tauri Android sh
 
 ## Installing it on a Pixel
 
-On the phone, open **github.com/XanderOnGithub/task-manager/releases/tag/android-latest** ("Moss for Android (latest build)" on the Releases page) and tap **Moss-android.apk**. Open the download; Android asks to allow installs from your browser the first time. It installs over the previous build. Then open Moss, choose **Get files from GitHub** or start empty, and sign in under Settings → Sync.
+On the phone, open **github.com/XanderOnGithub/task-manager/releases/tag/android-latest** ("Moss for Android (test build, alpha …)" on the Releases page; the Android app is a test build on top of the current desktop release) and tap **Moss-android.apk**. Open the download; Android asks to allow installs from your browser the first time. It installs over the previous build. Then open Moss, choose **Get files from GitHub** or start empty, and sign in under Settings → Sync.
 
 Every push to a `claude/**`, `android/**` or `release/**` branch builds a new APK and replaces the one on that page. It is a pre-release, so it never becomes the "latest" release that the desktop app's updater reads. The same APK is also attached to each run in the Actions tab (Artifacts → `Moss-android`).
 
