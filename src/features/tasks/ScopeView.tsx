@@ -8,7 +8,7 @@
 // - Milestone: its tasks (ProjectList.tsx with the milestone as container).
 
 import { useState } from 'react'
-import { Calendar, List, Plus, SquareKanban } from 'lucide-react'
+import { Calendar, Flag, List, Plus, SquareKanban } from 'lucide-react'
 import { type Item, type ProjectStatus } from '../../platform/api'
 import { childrenOf, statusLabel, taskCounts, trailOf, itemById } from '../../domain/items'
 import { useVocab } from '../../domain/vocab'
@@ -22,9 +22,11 @@ import { BodyEditor } from '../editor/BodyEditor'
 import { itemMenu } from '../../shared/itemMenu'
 import { OwnerHeading, PageSection } from '../pages/Pages'
 import { ProjectList } from './ProjectList'
+import { MilestoneTable } from './MilestoneTable'
 import { Panel, PanelHeader } from '../../shared/ui'
 
-export type Layout = 'list' | 'board'
+/** List, Board, or Milestones (a table of the milestones inside, for project-level planning). */
+export type Layout = 'list' | 'board' | 'milestones'
 
 interface Props {
   items: Item[]
@@ -59,6 +61,8 @@ function OneScopeView(props: Props & { scope: Item }) {
     setRenaming((n) => n + 1)
   })
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
+  // A milestone has no milestones inside: its List view stands in.
+  const shown: Layout = scope.kind === 'milestone' && layout === 'milestones' ? 'list' : layout
 
   // "+ Task" adds to the selected milestone (or the selected task's), else the first open one.
   const selected = selectedId ? itemById(items, selectedId) : undefined
@@ -114,7 +118,7 @@ function OneScopeView(props: Props & { scope: Item }) {
           ))}
           <span className="truncate text-fg">{scope.title}</span>
         </nav>
-        <LayoutSwitch layout={layout} onLayout={onLayout} />
+        <LayoutSwitch layout={shown} onLayout={onLayout} milestones={scope.kind !== 'milestone'} />
         {scope.kind === 'project' && (
           <Menu
             label={`${words.Noun('project')} status: ${statusLabel(scope.status)}`}
@@ -141,8 +145,10 @@ function OneScopeView(props: Props & { scope: Item }) {
         <Menu items={itemMenu(scope, actions, () => setRenaming((n) => n + 1))} />
       </PanelHeader>
 
-      {layout === 'list' ? (
-        <div className="flex flex-1 flex-col gap-[22px] overflow-y-auto px-7 py-6">
+      {shown === 'milestones' ? (
+        <MilestoneTable items={items} scope={scope} title={scope.title} selectedId={selectedId} onSelect={onSelect} onOpen={onOpen} />
+      ) : shown === 'list' ? (
+        <div className="flex flex-1 flex-col gap-[22px] overflow-y-auto px-7 py-6 max-md:px-4">
           <div className="flex flex-col gap-2">
             <EditableTitle
               key={`${scope.id}:${renaming}`}
@@ -210,8 +216,9 @@ function OneScopeView(props: Props & { scope: Item }) {
   )
 }
 
-/** List / Board, the same switch on every task view. */
-function LayoutSwitch({ layout, onLayout }: { layout: Layout; onLayout: (layout: Layout) => void }) {
+/** List / Board / Milestones, the same switch on every task view. */
+function LayoutSwitch({ layout, onLayout, milestones }: { layout: Layout; onLayout: (layout: Layout) => void; milestones: boolean }) {
+  const words = useVocab()
   return (
     <Segmented<Layout>
       label="View"
@@ -221,6 +228,9 @@ function LayoutSwitch({ layout, onLayout }: { layout: Layout; onLayout: (layout:
       options={[
         { value: 'list', label: 'List', icon: <List size={13} strokeWidth={2} aria-hidden="true" /> },
         { value: 'board', label: 'Board', icon: <SquareKanban size={13} strokeWidth={2} aria-hidden="true" /> },
+        ...(milestones
+          ? [{ value: 'milestones' as const, label: words.Nouns('milestone'), icon: <Flag size={13} strokeWidth={2} aria-hidden="true" /> }]
+          : []),
       ]}
     />
   )
@@ -240,11 +250,13 @@ function EverythingView({ items, layout, onLayout, selectedId, onSelect, onCycle
     <Panel label={words.Nouns('task')} className="flex-1">
       <PanelHeader>
         <span className="flex-1 truncate text-fg">{words.Nouns('task')}</span>
-        <LayoutSwitch layout={layout} onLayout={onLayout} />
+        <LayoutSwitch layout={layout} onLayout={onLayout} milestones />
       </PanelHeader>
 
-      {layout === 'list' ? (
-        <div className="flex flex-1 flex-col gap-[22px] overflow-y-auto px-7 py-6">
+      {layout === 'milestones' ? (
+        <MilestoneTable items={items} scope={null} title={words.Nouns('task')} selectedId={selectedId} onSelect={onSelect} onOpen={onOpen} />
+      ) : layout === 'list' ? (
+        <div className="flex flex-1 flex-col gap-[22px] overflow-y-auto px-7 py-6 max-md:px-4">
           <div className="flex flex-col gap-2">
             <h1 className="text-title">{words.Nouns('task')}</h1>
             <div className="flex items-center gap-3.5 text-meta font-normal text-fg-3">

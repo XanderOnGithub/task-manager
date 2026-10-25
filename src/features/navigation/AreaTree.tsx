@@ -62,7 +62,7 @@ interface Props {
   adding: Adding
   setAdding: (adding: Adding) => void
   /** Creates an area, project or page and opens it. */
-  onAdd: (kind: 'area' | 'project' | 'page', parent: string | null, title: string) => Promise<unknown>
+  onAdd: (kind: 'area' | 'project' | 'page', parent: string | null, title: string) => Promise<boolean>
   actions: Actions
 }
 
@@ -160,10 +160,11 @@ export function AreaTree(props: Props) {
         <InlineAdd
           autoFocus
           label={`${words.Noun('area')} name`}
-          className="h-7"
+          className="h-7 pointer-coarse:h-10"
           onAdd={async (title) => {
-            await props.onAdd('area', null, title)
-            props.setAdding(null)
+            const added = await props.onAdd('area', null, title)
+            if (added) props.setAdding(null)
+            return added
           }}
           onDone={() => props.setAdding(null)}
         />
@@ -179,7 +180,7 @@ export function AreaTree(props: Props) {
         {dragged && drag.active && (
           <Lifted grab={drag.active.grab} width={drag.active.width} className="rounded-control">
             {dragged.kind === 'area' ? (
-              <div className="flex h-7 items-center gap-1 rounded-control border border-border-menu bg-menu px-2 text-fg">
+              <div className="flex h-7 pointer-coarse:h-10 items-center gap-1 rounded-control border border-border-menu bg-menu px-2 text-fg">
                 <ChevronDown size={14} strokeWidth={2} className="-rotate-90 text-fg-3" aria-hidden="true" />
                 <span className="flex min-w-0 items-center gap-1.5">
                   <Folder size={15} strokeWidth={1.75} className="text-fg-2" aria-hidden="true" />
@@ -187,7 +188,7 @@ export function AreaTree(props: Props) {
                 </span>
               </div>
             ) : (
-              <div className="flex h-7 items-center gap-2 rounded-control border border-border-menu bg-menu pr-2 pl-[34px] text-fg">
+              <div className="flex h-7 pointer-coarse:h-10 items-center gap-2 rounded-control border border-border-menu bg-menu pr-2 pl-[34px] text-fg">
                 <Target size={15} strokeWidth={1.75} className="text-fg-2" aria-hidden="true" />
                 <span className="truncate">{dragged.title}</span>
               </div>
@@ -197,7 +198,7 @@ export function AreaTree(props: Props) {
         {pageDrag.dragged && pageDrag.active && (
           <Lifted grab={pageDrag.active.grab} width={pageDrag.active.width} className="rounded-control">
             <div
-              className="flex h-7 items-center gap-2 rounded-control border border-border-menu bg-menu pr-2 text-fg"
+              className="flex h-7 pointer-coarse:h-10 items-center gap-2 rounded-control border border-border-menu bg-menu pr-2 text-fg"
               style={{ paddingLeft: pageIndent(pageDrag.dragged, byId) + TOGGLE }}
             >
               <PageIcon page={pageDrag.dragged} />
@@ -251,7 +252,7 @@ function SortableArea({
     <div ref={sortable.setNodeRef} style={style} className="flex flex-col gap-0.5">
       <div
         data-item={area.id}
-        className={`group relative flex h-7 items-center rounded-control transition-colors duration-100 ${
+        className={`group relative flex h-7 pointer-coarse:h-10 items-center rounded-control transition-colors duration-100 ${
           sortable.isDragging ? 'bg-hover [&>*]:invisible' : pageTarget ? 'bg-selected' : active ? '' : 'hover:bg-hover'
         }`}
       >
@@ -365,7 +366,7 @@ function SortableProject({
     <div ref={sortable.setNodeRef} style={style} className="flex flex-col gap-0.5">
       <div
         data-item={project.id}
-        className={`group relative flex h-7 shrink-0 items-center rounded-control transition-colors duration-100 ${
+        className={`group relative flex h-7 pointer-coarse:h-10 shrink-0 items-center rounded-control transition-colors duration-100 ${
           sortable.isDragging
             ? 'bg-hover [&>*]:invisible'
             : pageTarget
@@ -395,10 +396,10 @@ function SortableProject({
           />
           <span className="flex-1 truncate">{project.title}</span>
           {total > 0 && (
-            <span className="text-label font-normal text-fg-3 transition-opacity duration-100 group-hover:opacity-0">{`${done}/${total}`}</span>
+            <span className="text-label font-normal text-fg-3 transition-opacity duration-100 group-hover:opacity-0 pointer-coarse:hidden">{`${done}/${total}`}</span>
           )}
         </button>
-        <span className="absolute top-1 right-1 opacity-0 transition-opacity duration-100 group-hover:opacity-100 focus-within:opacity-100">
+        <span className="absolute top-1 right-1 opacity-0 transition-opacity duration-100 group-hover:opacity-100 pointer-coarse:opacity-100 focus-within:opacity-100">
           <button
             onClick={() => setAdding({ kind: 'page', parent: project.id })}
             aria-label={`Add a page to ${project.title}`}
@@ -443,7 +444,7 @@ function AddRow({
 }: {
   label: string
   indent: number
-  onAdd: (title: string) => Promise<unknown>
+  onAdd: (title: string) => Promise<boolean>
   onDone: () => void
 }) {
   return (
@@ -451,10 +452,11 @@ function AddRow({
       <InlineAdd
         autoFocus
         label={label}
-        className="h-7"
+        className="h-7 pointer-coarse:h-10"
         onAdd={async (title) => {
-          await onAdd(title)
-          onDone()
+          const added = await onAdd(title)
+          if (added) onDone()
+          return added
         }}
         onDone={onDone}
       />
@@ -465,7 +467,7 @@ function AddRow({
 /** The "+" on a row, shown on hover. */
 function AddIcon() {
   return (
-    <span className="flex rounded-md p-0.5 text-fg-3 opacity-0 transition-opacity duration-100 group-hover:opacity-100 in-focus-visible:opacity-100 in-aria-expanded:opacity-100 hover:bg-hover hover:text-fg-2">
+    <span className="flex rounded-md p-0.5 text-fg-3 opacity-0 transition-opacity duration-100 group-hover:opacity-100 pointer-coarse:opacity-100 in-focus-visible:opacity-100 in-aria-expanded:opacity-100 hover:bg-hover hover:text-fg-2">
       <Plus size={14} strokeWidth={2} aria-hidden="true" />
     </span>
   )

@@ -14,7 +14,8 @@ export function InlineAdd({
   /** Lets other buttons focus this field (e.g. "+ Task" in the header). */
   id?: string
   label: string
-  onAdd: (title: string) => Promise<unknown>
+  /** Resolves true when it was added. On false the text stays, so a failed add never loses what was typed. */
+  onAdd: (title: string) => Promise<boolean>
   /** Called on Escape, or when the field loses focus while empty. */
   onDone?: () => void
   /** For a field that appears because of something you just did (a click on "Add"). */
@@ -28,35 +29,48 @@ export function InlineAdd({
     const title = value.trim()
     if (!title || busy) return
     setBusy(true)
-    await onAdd(title)
+    const added = await onAdd(title)
     setBusy(false)
-    setValue('') // stays focused, ready for the next one
+    if (added) setValue('') // stays focused, ready for the next one
   }
 
   return (
-    <label
-      className={`group flex h-8 items-center gap-2 rounded-control border border-dashed border-transparent px-2 text-placeholder transition-colors duration-100 focus-within:border-border-dashed focus-within:text-fg-3 hover:text-fg-3 ${className}`}
+    // Its own little form, so the keyboard's Enter submits it. A phone's keyboard
+    // otherwise shows "Next" and jumps to the following field (from "Add a task"
+    // to "Add a milestone"), and nothing is added. `contents`: the form takes no
+    // room, the row lays out as before.
+    <form
+      className="contents"
+      onSubmit={(e) => {
+        e.preventDefault()
+        void submit()
+      }}
     >
-      <Plus size={15} strokeWidth={1.75} aria-hidden="true" />
-      <input
-        id={id}
-        autoFocus={autoFocus}
-        value={value}
-        onChange={(e) => setValue(e.target.value)}
-        onBlur={() => !value.trim() && onDone?.()}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter') void submit()
-          if (e.key === 'Escape') {
-            setValue('')
-            e.currentTarget.blur()
-            onDone?.()
-          }
-        }}
-        placeholder={label}
-        aria-label={label}
-        className="min-w-0 flex-1 bg-transparent text-fg outline-none placeholder:text-placeholder group-hover:placeholder:text-fg-3"
-      />
-      {value && <kbd className="font-mono text-label font-normal">↵</kbd>}
-    </label>
+      <label
+        className={`group flex h-8 items-center gap-2 rounded-control border border-dashed border-transparent px-2 text-placeholder transition-colors duration-100 focus-within:border-border-dashed focus-within:text-fg-3 hover:text-fg-3 ${className}`}
+      >
+        <Plus size={15} strokeWidth={1.75} aria-hidden="true" />
+        <input
+          id={id}
+          autoFocus={autoFocus}
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          onBlur={() => !value.trim() && onDone?.()}
+          enterKeyHint="done"
+          autoComplete="off"
+          onKeyDown={(e) => {
+            if (e.key === 'Escape') {
+              setValue('')
+              e.currentTarget.blur()
+              onDone?.()
+            }
+          }}
+          placeholder={label}
+          aria-label={label}
+          className="min-w-0 flex-1 bg-transparent text-fg outline-none placeholder:text-placeholder group-hover:placeholder:text-fg-3"
+        />
+        {value && <kbd className="font-mono text-label font-normal pointer-coarse:hidden">↵</kbd>}
+      </label>
+    </form>
   )
 }

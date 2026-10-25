@@ -14,6 +14,11 @@ use chrono::Local;
 /// crashes or the laptop dies mid-save, you get the old file or the new one,
 /// never a mix. Sync tools also see one clean change.
 pub fn write_atomic(path: &Path, contents: &str) -> io::Result<()> {
+    write_atomic_bytes(path, contents.as_bytes())
+}
+
+/// The same for any bytes (files that came from elsewhere may not be text).
+pub fn write_atomic_bytes(path: &Path, contents: &[u8]) -> io::Result<()> {
     let dir = path.parent().unwrap_or(Path::new("."));
     let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("file");
     // A name of its own, so two saves of the same file (or a save and a sync)
@@ -27,7 +32,7 @@ pub fn write_atomic(path: &Path, contents: &str) -> io::Result<()> {
 
     let result = (|| {
         let mut file = fs::File::create(&temp)?;
-        file.write_all(contents.as_bytes())?;
+        file.write_all(contents)?;
         // Without this, a power cut right after the rename can leave the new
         // name pointing at a file whose contents never reached the disk: empty.
         file.sync_all()?;

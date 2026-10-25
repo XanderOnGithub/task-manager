@@ -297,3 +297,44 @@ fn unsafe_addresses_and_branch_names_are_refused() {
     }
     assert!(!a.join(".git").exists(), "nothing was set up");
 }
+
+/// A repository can hold a link to a file elsewhere on the computer. Checked out
+/// as a real link, writing to it would write outside the data folder.
+#[cfg(unix)]
+#[test]
+fn links_in_the_repository_come_out_as_plain_files() {
+    let tmp = tempfile::tempdir().unwrap();
+    let url = remote(tmp.path());
+
+    // Someone commits a link straight into the repository (not through Moss).
+    let other = computer(tmp.path(), "other");
+    write(&other, "areas/Home/_index.md", "---\nid: aaaaaaaaaa\n---\n");
+    let git_in = |args: &[&str]| {
+        let out = Command::new("git")
+            .current_dir(&other)
+            .args(args)
+            .output()
+            .unwrap();
+        assert!(
+            out.status.success(),
+            "{args:?}: {}",
+            String::from_utf8_lossy(&out.stderr)
+        );
+    };
+    git_in(&["init", "-b", BRANCH]);
+    git_in(&["config", "user.email", "x@example.com"]);
+    git_in(&["config", "user.name", "x"]);
+    std::os::unix::fs::symlink("/etc/hostname", other.join("areas/Home/Sneaky.md")).unwrap();
+    git_in(&["add", "-A"]);
+    git_in(&["commit", "-m", "link"]);
+    git_in(&["remote", "add", "origin", &url]);
+    git_in(&["push", "origin", &format!("HEAD:refs/heads/{BRANCH}")]);
+
+    let b = computer(tmp.path(), "b");
+    git::connect(&b, &url, BRANCH, None, || ()).unwrap();
+    let meta = fs::symlink_metadata(b.join("areas/Home/Sneaky.md")).unwrap();
+    assert!(
+        meta.is_file() && !meta.file_type().is_symlink(),
+        "must not be a link"
+    );
+}

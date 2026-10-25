@@ -17,7 +17,7 @@ use std::io::ErrorKind;
 use serde::{Deserialize, Serialize};
 
 use crate::error::{Error, Result};
-use crate::fsutil::{modify_atomic, write_atomic};
+use crate::fsutil::modify_atomic;
 use crate::library::{Library, UNSORTED_FILE};
 use crate::model::Kind;
 use crate::names::title_from_text;
@@ -91,27 +91,40 @@ pub fn add(lib: &Library, text: &str, now: &str) -> Result<Entry> {
 
 /// Adds `- ` and a timestamp to lines that don't have them (lines appended by
 /// a phone, for example). Returns how many lines changed; 0 writes nothing.
+///
+/// This is the one edit that rewrites the whole file, and the file is the one a
+/// phone appends to, so it goes through `modify_atomic` like every other edit:
+/// if a line arrives while we are working, we start again from the new text and
+/// that line is kept.
 pub fn stamp_missing(lib: &Library, now: &str) -> Result<usize> {
-    let text = read_text(lib)?;
-    let mut changed = 0;
-    let lines: Vec<String> = text
-        .lines()
-        .map(|raw| {
-            if raw.trim().is_empty() {
-                return raw.to_owned();
-            }
-            let content = raw.trim().strip_prefix("- ").unwrap_or(raw.trim());
-            let (added, body) = split_stamp(content);
-            let fixed = format!("- {} {body}", added.as_deref().unwrap_or(now));
-            if fixed != raw {
-                changed += 1;
-            }
-            fixed
-        })
-        .collect();
-    if changed > 0 {
-        write_atomic(&lib.abs(UNSORTED_FILE), &(lines.join("\n") + "\n"))?;
+    let path = lib.abs(UNSORTED_FILE);
+    if !path.exists() {
+        return Ok(0); // nothing to stamp (and no empty file to create)
     }
+    let mut changed = 0;
+    modify_atomic(&path, |text| {
+        changed = 0; // counted again if the text had to be redone
+        let lines: Vec<String> = text
+            .lines()
+            .map(|raw| {
+                if raw.trim().is_empty() {
+                    return raw.to_owned();
+                }
+                let content = raw.trim().strip_prefix("- ").unwrap_or(raw.trim());
+                let (added, body) = split_stamp(content);
+                let fixed = format!("- {} {body}", added.as_deref().unwrap_or(now));
+                if fixed != raw {
+                    changed += 1;
+                }
+                fixed
+            })
+            .collect();
+        // Nothing to stamp: hand back the text as it is, byte for byte.
+        if changed == 0 {
+            return Ok::<_, Error>(text.to_owned());
+        }
+        Ok(lines.join("\n") + "\n")
+    })?;
     Ok(changed)
 }
 
@@ -227,6 +240,30 @@ mod tests {
         assert_eq!(entries[1].added, None);
         assert_eq!(entries[1].text, "plain line");
         assert_eq!(entries[2].text, "no stamp here");
+    }
+
+    #[test]
+    fn stamping_keeps_every_line_and_writes_nothing_when_done() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join(UNSORTED_FILE);
+        fs::write(
+            &path,
+            "plain line\n- 2026-10-15 22:42 stamped\nadded by a phone\n",
+        )
+        .unwrap();
+        let lib = Library::load(dir.path()).unwrap();
+
+        assert_eq!(stamp_missing(&lib, "2026-10-23 09:00").unwrap(), 2);
+        assert_eq!(
+            fs::read_to_string(&path).unwrap(),
+            "- 2026-10-23 09:00 plain line\n- 2026-10-15 22:42 stamped\n- 2026-10-23 09:00 added by a phone\n"
+        );
+        // Stamped already: the file is left alone.
+        assert_eq!(stamp_missing(&lib, "2026-10-23 09:05").unwrap(), 0);
+        // No file: nothing to do, and no empty file appears.
+        fs::remove_file(&path).unwrap();
+        assert_eq!(stamp_missing(&lib, "2026-10-23 09:05").unwrap(), 0);
+        assert!(!path.exists());
     }
 
     #[test]

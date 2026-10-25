@@ -7,6 +7,7 @@
 import { useEffect, useState } from 'react'
 import { check, type Update } from '@tauri-apps/plugin-updater'
 import { relaunch } from '@tauri-apps/plugin-process'
+import { isAndroid } from './os'
 
 export type UpdateState =
   | { status: 'idle' }
@@ -27,6 +28,8 @@ function set(next: UpdateState) {
 
 /** Asks GitHub for a newer version. Quiet about failures unless `manual`. */
 export async function checkForUpdate(manual = false) {
+  // The phone app has no updater: a new version is a new APK.
+  if (isAndroid) return
   if (state.status === 'checking' || state.status === 'installing') return
   set({ status: 'checking' })
   try {
@@ -76,7 +79,7 @@ let checkedOnLaunch = false
 /** Call once from App: the quiet check after launch. */
 export function useLaunchCheck() {
   useEffect(() => {
-    if (checkedOnLaunch || import.meta.env.DEV) return
+    if (checkedOnLaunch || import.meta.env.DEV || isAndroid) return
     checkedOnLaunch = true
     const timer = window.setTimeout(() => void checkForUpdate(), 4000)
     return () => window.clearTimeout(timer)

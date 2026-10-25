@@ -49,9 +49,17 @@ pub(super) fn ahead_behind(dir: &Path, remote_ref: &str) -> Result<(usize, usize
     Ok((parts.next().unwrap_or(0), parts.next().unwrap_or(0)))
 }
 
-/// A computer that never set up Git has no name to commit under (merges need
-/// one too). Give this one repository a name, without touching the global config.
-pub(super) fn ensure_identity(dir: &Path) -> Result<()> {
+/// Settings this repository needs, set before every sync (so folders connected
+/// by an older version get them too). Only this repository's config is touched,
+/// never the global one.
+///
+/// - **A name to commit under.** A computer that never set up Git has none, and
+///   merges need one too.
+/// - **No links.** A synced repository may contain a link to a file elsewhere on
+///   this computer. Check links out as plain files holding the link's text, so
+///   nothing Moss writes can end up outside the data folder.
+pub(super) fn ensure_settings(dir: &Path) -> Result<()> {
+    run(dir, None, &["config", "core.symlinks", "false"])?;
     if run(dir, None, &["config", "user.email"]).map_or(true, |e| e.trim().is_empty()) {
         run(dir, None, &["config", "user.name", "Moss"])?;
         run(

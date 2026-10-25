@@ -88,6 +88,9 @@ export function Board({ items, scope, selectedId, onSelect, onCycleStatus, actio
     <DndContext
       sensors={sensors}
       collisionDetection={columnCollision}
+      // Near the edge the board scrolls on its own, gently, so a card can stop
+      // over the column in between instead of shooting past it.
+      autoScroll={{ threshold: { x: 0.12, y: 0.12 }, acceleration: 4 }}
       onDragStart={drag.start}
       onDragOver={drag.over}
       onDragEnd={(e) => void onDragEnd(e)}
@@ -98,7 +101,14 @@ export function Board({ items, scope, selectedId, onSelect, onCycleStatus, actio
           between a readable minimum (the board scrolls sideways below it)
           and a maximum (on a wide screen they stop growing and sit left). */}
       <LayoutGroup>
-        <div className="flex min-h-0 flex-1 overflow-x-auto">
+        {/* On a phone the board snaps from column to column, except while a card
+            is held: snapping would catch the drag's own scrolling and jump it
+            past the middle columns. */}
+        <div
+          className={`flex min-h-0 flex-1 overflow-x-auto max-md:scroll-px-4 md:snap-none ${
+            drag.active ? 'snap-none' : 'snap-x snap-mandatory'
+          }`}
+        >
           <div className="flex min-h-0 flex-1 gap-3 p-4">
             {lanes.map((column) => (
               <Column key={column.status} status={column.status} label={column.label} dot={column.dot} count={tasks.filter(({ task }) => statusOf(task) === column.status).length}>
@@ -158,7 +168,7 @@ function Column({
   return (
     <div
       ref={droppable.setNodeRef}
-      className={`flex min-h-0 max-w-[22rem] min-w-[12.5rem] flex-1 basis-0 flex-col gap-2 rounded-[10px] py-2.5 transition-colors duration-150 ${
+      className={`flex min-h-0 max-w-[22rem] min-w-[12.5rem] flex-1 basis-0 snap-start flex-col max-md:min-w-[80%] gap-2 rounded-[10px] py-2.5 transition-colors duration-150 ${
         droppable.isOver ? 'bg-hover' : 'bg-column'
       }`}
     >

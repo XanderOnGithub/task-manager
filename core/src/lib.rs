@@ -14,6 +14,7 @@
 //! - `trash`       the Trash: what was deleted, from where; restore or delete for good
 //! - `ops`         create / rename / move / set field / body / trash (and emptying old trash)
 //! - `unsorted`    the `unsorted.md` capture list
+//! - `apisync`     sync with GitHub's web API, for devices with no `git` (Android)
 //! - `git`         Git sync: commit, merge and push the data folder (shells out to `git`)
 //! - `github`      signing in to GitHub, listing and creating repositories
 //! - `watch`       notices changes made outside the app
@@ -39,6 +40,7 @@
 //! # Ok::<(), Box<dyn std::error::Error>>(())
 //! ```
 
+pub mod apisync;
 pub mod backup;
 pub mod blockers;
 pub mod error;

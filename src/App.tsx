@@ -2,10 +2,17 @@
 // Layout follows the design canvas linked in CLAUDE.md.
 
 import { useSyncOnFocus } from './features/sync/useSync'
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import { spring } from './shared/motion/springs'
 import { onSyncConflicts, type Item, type TaskStatus } from './platform/api'
+import { useCompact } from './platform/layout'
+import { useBackButton } from './platform/back'
+import { openDialogs } from './shared/a11y/modalLayer'
+import { CompactNavContext } from './shared/compactNav'
+import { Drawer } from './shared/Drawer'
+import { Sheet } from './shared/Sheet'
+import { BottomNav } from './features/navigation/BottomNav'
 import { setBlockedItems } from './app/blockedStore'
 import { useToast } from './shared/toast/toast'
 import { childrenOf, trailOf } from './domain/items'
@@ -41,6 +48,7 @@ import { play, setSoundSettings, soundSettings } from './sound/sounds'
 import { saveTheme, toggleTheme } from './platform/theme'
 import { CommandPalette, type PaletteAction } from './features/search/CommandPalette'
 import { useActions } from './app/useActions'
+import { useGlobalShortcuts } from './app/useGlobalShortcuts'
 import { useLibrary } from './app/useLibrary'
 import { Sidebar, type Overview } from './features/navigation/Sidebar'
 import { ScopeView, type Layout } from './features/tasks/ScopeView'
@@ -108,40 +116,54 @@ export default function App() {
   const [collapsedPages, setCollapsedPages] = useState<Set<string>>(new Set())
   const [revealed, setRevealed] = useState<string | undefined>()
   const [dialog, setDialog] = useState<'capture' | 'settings' | 'search' | 'history' | null>(null)
+  const compact = useCompact()
+  // On a narrow window the sidebar is a drawer, opened from the menu button in a header.
+  const [drawerOpen, setDrawerOpen] = useState(false)
+  const closeDrawer = useCallback(() => setDrawerOpen(false), [])
+  const compactNav = useMemo(
+    () => ({
+      openMenu: () => setDrawerOpen(true),
+      openSearch: () => {
+        play('open')
+        setDialog('search')
+      },
+    }),
+    [],
+  )
   const [sidebarOpen, setSidebarOpen] = useState(() => readPref('sidebarOpen', true))
-  const toggleSidebar = () =>
-    setSidebarOpen((open) => {
-      writePref('sidebarOpen', !open)
-      return !open
-    })
+  const toggleSidebar = useCallback(() => setSidebarOpen((open) => !open), [])
+  // Remembered between launches.
+  useEffect(() => writePref('sidebarOpen', sidebarOpen), [sidebarOpen])
 
-  // ⌘N opens Quick capture from anywhere.
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'n') {
-        e.preventDefault()
-        setDialog('capture')
-      }
-      // ⌘K opens search (or closes it).
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
-        e.preventDefault()
-        setDialog((d) => {
-          if (d !== 'search') play('open')
-          return d === 'search' ? null : 'search'
-        })
-      }
-      // ⌘\ hides or shows the sidebar.
-      if ((e.metaKey || e.ctrlKey) && e.key === '\\') {
-        e.preventDefault()
-        setSidebarOpen((open) => {
-          writePref('sidebarOpen', !open)
-          return !open
-        })
-      }
+  useGlobalShortcuts({
+    onCapture: () => setDialog('capture'),
+    onSearch: () => {
+      if (dialog !== 'search') play('open')
+      setDialog(dialog === 'search' ? null : 'search')
+    },
+    onSidebar: () => (compact ? setDrawerOpen((open) => !open) : toggleSidebar()),
+  })
+  // The Android back button: close what is on top, then go back to Tasks.
+  useBackButton(() => {
+    if (openDialogs() > 0) {
+      // Dialogs (the drawer, the sheet, Settings, search) close on Escape.
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }))
+      return true
     }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [])
+    if (selectedId) {
+      setSelectedId(null)
+      return true
+    }
+    if (!('overview' in view && view.overview === 'tasks')) {
+      setView({ overview: 'tasks' })
+      return true
+    }
+    return false
+  })
+  // Back on a wide window the drawer is not needed.
+  useEffect(() => {
+    if (!compact) closeDrawer()
+  }, [compact, closeDrawer])
 
   const items = snapshot?.items ?? []
 
@@ -311,10 +333,10 @@ export default function App() {
         ]
       case 'project': {
         const hasMilestones = children.some((c) => c.kind === 'milestone')
-        const hasTasks = children.some((c) => c.kind === 'task')
         return [
           ...(hasMilestones ? [] : [{ label: `New ${words.noun('task')}`, Icon: Plus, onSelect: add('task') }]),
-          ...(hasTasks ? [] : [{ label: `New ${words.noun('milestone')}`, Icon: Flag, onSelect: add('milestone') }]),
+          // With loose tasks, the first milestone takes them in (ProjectList).
+          { label: `New ${words.noun('milestone')}`, Icon: Flag, onSelect: add('milestone') },
           { label: 'New page', Icon: FilePlus, onSelect: add('page') },
         ]
       }
@@ -380,8 +402,23 @@ export default function App() {
         />
         {/* The details panel grows in from the right; the project panel
             resizes smoothly instead of jumping. */}
+        {compact && selected && (selected.kind === 'task' || selected.kind === 'milestone') && (
+          <Sheet label={selected.kind === 'task' ? 'Task details' : 'Milestone details'} onClose={() => setSelectedId(null)}>
+            {/* The sheet is not a screen of its own: its header has no menu button. */}
+            <CompactNavContext.Provider value={null}>
+              <DetailsPanel
+                items={items}
+                item={selected}
+                parent={selected.parent ? byId.get(selected.parent) : undefined}
+                onSelect={setSelectedId}
+                actions={actions}
+                fluid
+              />
+            </CompactNavContext.Provider>
+          </Sheet>
+        )}
         <AnimatePresence initial={false}>
-          {selected && (selected.kind === 'task' || selected.kind === 'milestone') && (
+          {!compact && selected && (selected.kind === 'task' || selected.kind === 'milestone') && (
             <motion.div
               key="details"
               initial={{ width: 0, opacity: 0, marginLeft: -8 }}
@@ -404,6 +441,76 @@ export default function App() {
     )
   }
 
+  // Choosing something in the drawer closes it first.
+  const goto =
+    <A extends unknown[]>(go: (...args: A) => void) =>
+    (...args: A) => {
+      closeDrawer()
+      go(...args)
+    }
+
+  const sidebar = (
+    <Sidebar
+          items={items}
+          unsortedCount={snapshot?.unsorted.length ?? 0}
+          dueCount={dueNowCount(items)}
+          trashCount={trash.length}
+          issueCount={snapshot?.issues.length ?? 0}
+          overview={overview}
+          compact={compact}
+          onOverview={compact ? goto(openOverview) : openOverview}
+          openId={sidebarOpenId}
+          onOpen={compact ? goto(openId) : openId}
+          expanded={expanded}
+          onToggle={toggleIn(setExpanded)}
+          collapsedPages={collapsedPages}
+          onTogglePage={toggleIn(setCollapsedPages)}
+          onToggleSidebar={compact ? closeDrawer : toggleSidebar}
+          onQuickCapture={() => {
+            closeDrawer()
+            setDialog('capture')
+          }}
+          onSettings={() => {
+            closeDrawer()
+            setDialog('settings')
+          }}
+          onAdd={async (kind, parent, title) => {
+            const id = await actions.create(kind, parent, title)
+            if (id && kind !== 'area') {
+              closeDrawer()
+              openId(id)
+            }
+            return id !== undefined
+          }}
+          actions={actions}
+        />
+  )
+
+  // Dialogs and menus, the same in both layouts.
+  const overlays = (
+    <>
+      <AnimatePresence>
+        {dialog === 'search' && (
+          <CommandPalette
+            key="search"
+            items={items}
+            actions={paletteActions}
+            makeActions={typedActions}
+            onOpenItem={openItem}
+            onClose={() => setDialog(null)}
+          />
+        )}
+      </AnimatePresence>
+      <ContextMenu menuFor={menuFor} />
+      <ConfirmHost />
+      {dialog === 'history' && <HistoryDialog onClose={() => setDialog(null)} />}
+      {dialog === 'capture' && <QuickCapture onCapture={actions.capture} onClose={() => setDialog(null)} />}
+      {dialog === 'settings' && (
+        <Settings dataFolder={snapshot?.dataFolder ?? null} onClose={() => setDialog(null)} onFolderChanged={reload} />
+      )}
+    </>
+  )
+
   // First launch: no folder yet, so the welcome screens fill the window.
   if (needsFolder) {
     return (
@@ -411,6 +518,50 @@ export default function App() {
         <Onboarding onDone={reload} />
         <ContextMenu menuFor={() => null} />
       </>
+    )
+  }
+
+  // A narrow window: the content fills it, the main places sit in a bar along
+  // the bottom, and the sidebar is a drawer.
+  if (compact) {
+    return (
+      <CompactNavContext.Provider value={compactNav}>
+        <div className="flex h-full flex-col bg-window-solid pt-[env(safe-area-inset-top)]">
+          <button
+            onClick={() => mainRef.current?.focus()}
+            className="sr-only z-50 rounded-control border border-border-menu bg-menu px-3 py-1.5 text-fg shadow-menu focus:not-sr-only focus:fixed focus:top-2 focus:left-1/2 focus:-translate-x-1/2"
+          >
+            Skip to content
+          </button>
+          <div role="status" className="sr-only">
+            {viewTitle}
+          </div>
+          <main ref={mainRef} tabIndex={-1} className="flex min-h-0 min-w-0 flex-1 p-1.5 pb-[calc(3.5rem+env(safe-area-inset-bottom)+0.375rem)] outline-none">
+            <motion.div
+              key={overview ?? (open?.kind === 'page' ? 'page' : 'scope')}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={spring.snappy}
+              className="flex min-h-0 min-w-0 flex-1 gap-2"
+            >
+              {content()}
+            </motion.div>
+          </main>
+          <BottomNav
+            overview={overview}
+            unsortedCount={snapshot?.unsorted.length ?? 0}
+            dueCount={dueNowCount(items)}
+            onOverview={openOverview}
+            onQuickCapture={() => setDialog('capture')}
+          />
+          {drawerOpen && (
+            <Drawer label="Menu" onClose={closeDrawer}>
+              {sidebar}
+            </Drawer>
+          )}
+          {overlays}
+        </div>
+      </CompactNavContext.Provider>
     )
   }
 
@@ -437,30 +588,7 @@ export default function App() {
         className="flex shrink-0 overflow-hidden"
         inert={!sidebarOpen}
       >
-        <Sidebar
-          items={items}
-          unsortedCount={snapshot?.unsorted.length ?? 0}
-          dueCount={dueNowCount(items)}
-          trashCount={trash.length}
-          issueCount={snapshot?.issues.length ?? 0}
-          overview={overview}
-          onOverview={openOverview}
-          openId={sidebarOpenId}
-          onOpen={openId}
-          expanded={expanded}
-          onToggle={toggleIn(setExpanded)}
-          collapsedPages={collapsedPages}
-          onTogglePage={toggleIn(setCollapsedPages)}
-          onToggleSidebar={toggleSidebar}
-          onQuickCapture={() => setDialog('capture')}
-          onSettings={() => setDialog('settings')}
-          onAdd={async (kind, parent, title) => {
-            const id = await actions.create(kind, parent, title)
-            if (id && kind !== 'area') openId(id)
-          }}
-          actions={actions}
-        />
-
+          {sidebar}
       </motion.div>
 
       {/* With the sidebar hidden, a button to bring it back sits in the
@@ -512,25 +640,7 @@ export default function App() {
         </motion.div>
       </main>
 
-      <AnimatePresence>
-        {dialog === 'search' && (
-          <CommandPalette
-            key="search"
-            items={items}
-            actions={paletteActions}
-            makeActions={typedActions}
-            onOpenItem={openItem}
-            onClose={() => setDialog(null)}
-          />
-        )}
-      </AnimatePresence>
-      <ContextMenu menuFor={menuFor} />
-      <ConfirmHost />
-      {dialog === 'history' && <HistoryDialog onClose={() => setDialog(null)} />}
-      {dialog === 'capture' && <QuickCapture onCapture={actions.capture} onClose={() => setDialog(null)} />}
-      {dialog === 'settings' && (
-        <Settings dataFolder={snapshot?.dataFolder ?? null} onClose={() => setDialog(null)} onFolderChanged={reload} />
-      )}
+      {overlays}
     </div>
   )
 }

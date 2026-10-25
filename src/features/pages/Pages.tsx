@@ -95,7 +95,7 @@ export function PageView({
             placeholder="Start writing, or type / for blocks"
             onStats={showCount ? setStats : undefined}
             tone="normal"
-            className="min-h-[200px] text-[14px]"
+            className="min-h-[200px] text-lead"
             // "/page": a subpage of this page, linked by its file name and id
             // (a relative link, so it also works in other markdown apps).
             onCreatePage={async (title) => {
@@ -113,8 +113,10 @@ export function PageView({
               label="Subpage name"
               onAdd={async (title) => {
                 const id = await actions.create('page', page.id, title)
+                if (id === undefined) return false
                 setAddingSub(false)
-                if (id) onOpen(id)
+                onOpen(id)
+                return true
               }}
               onDone={() => setAddingSub(false)}
             />
@@ -163,7 +165,7 @@ export function PagesOverview({
       <PanelHeader>
         <span className="flex-1 truncate text-fg">Pages</span>
       </PanelHeader>
-      <div className="flex flex-1 flex-col gap-[22px] overflow-y-auto px-7 py-6">
+      <div className="flex flex-1 flex-col gap-[22px] overflow-y-auto px-7 py-6 max-md:px-4">
         <div className="flex flex-col gap-2">
           <h1 className="text-title">Pages</h1>
           <span className="text-meta font-normal text-fg-3">
@@ -216,7 +218,7 @@ export function OwnerHeading({ owner, onOpen }: { owner: Item; onOpen: (id: stri
       <ArrowUpRight
         size={14}
         strokeWidth={2}
-        className="text-fg-3 opacity-0 transition-opacity duration-100 group-hover:opacity-100"
+        className="text-fg-3 opacity-0 transition-opacity duration-100 group-hover:opacity-100 pointer-coarse:opacity-100"
         aria-hidden="true"
       />
     </button>
@@ -266,7 +268,9 @@ function PageList({
         label={`Add a page to ${owner.title}`}
         onAdd={async (title) => {
           const id = await actions.create('page', owner.id, title)
-          if (id) onOpen(id)
+          if (id === undefined) return false
+          onOpen(id)
+          return true
         }}
       />
     </div>

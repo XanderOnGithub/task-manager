@@ -4,7 +4,9 @@ Moss can keep the data folder in a GitHub repository, so the same files are on e
 
 ## For people
 
-Settings → Sync: **Sign in with GitHub**, then **create a repository** (private by default) or **use an existing one**. On a new computer, the first screen has **Get files from GitHub**.
+Settings → Sync: **Sign in with GitHub**, then **use a repository** from the list. On a new computer, the first screen has **Get files from GitHub**.
+
+**What Moss can reach.** Moss is a GitHub App, so it only sees the repositories you choose on GitHub (**Choose repositories on GitHub** opens that page) and only reads and writes their files. It cannot see your other repositories, your account settings or anything else. To remove access, change the choice on that page or uninstall the app in GitHub → Settings → Applications. GitHub does not let an app create repositories, so to start fresh you create an empty one on GitHub (the app links to it), then add it to Moss's list.
 
 - Moss commits a minute after your last change, and pulls when it opens, when its window comes to the front, and every five minutes.
 - If two computers change the same page, **this computer's version stays** and the other is saved next to it as `Title (from other computer).md`. For a folder's own text (`_index.md`) the other computer's text is added at the end, under a divider. Lines added to Unsorted on both computers all survive. Nothing is thrown away.
@@ -13,21 +15,27 @@ Settings → Sync: **Sign in with GitHub**, then **create a repository** (privat
 
 ## Setting up sign-in (for whoever builds Moss)
 
-Sign-in uses GitHub's **device flow**: the app shows a code, you type it at github.com/login/device. It needs only a public id, no secret.
+Sign-in uses GitHub's **device flow**: the app shows a code, you type it at github.com/login/device. It needs only public values, no secret.
 
-1. GitHub → Settings → Developer settings → **OAuth Apps** → New OAuth App. Name: Moss. Homepage and callback URL: the repository URL (the device flow never uses the callback). Tick **Enable Device Flow**. (A *GitHub App* is a different thing: its tokens expire and Moss does not refresh them.)
-2. Copy the **Client ID**. Don't create a client secret.
-3. Releases: add it as a repository **variable** (not a secret) named `MOSS_GITHUB_CLIENT_ID`. `release.yml` passes it to the build.
-4. Local builds: `MOSS_GITHUB_CLIENT_ID=… pnpm tauri dev`. It is read at build time; `cargo clean -p moss` if the button stays disabled.
+1. GitHub → Settings → Developer settings → **GitHub Apps** → New GitHub App (not an OAuth App: a classic OAuth token cannot be limited to chosen repositories).
+   - Name: Moss (any free name; the part after `github.com/apps/` is the *slug*).
+   - Homepage URL: the repository URL. **Callback URL**: leave empty. **Webhook**: untick Active.
+   - Tick **Enable Device Flow**.
+   - **Untick "Expire user authorization tokens".** Refreshing an expiring token needs a client secret, which can't be shipped in a desktop app, and Moss does not refresh. (If a token stops working anyway, Moss says "Sign in again".)
+   - Repository permissions: **Contents: Read and write**. Metadata (Read) is added automatically. Nothing else.
+   - Where can this be installed: **Any account** if other people will use Moss, otherwise **Only on this account**.
+2. Copy the **Client ID** (starts with `Iv`). Don't create a client secret or private key.
+3. Releases: add repository **variables** (not secrets) `MOSS_GITHUB_CLIENT_ID` (the Client ID) and `MOSS_GITHUB_APP_SLUG` (the slug). `release.yml` passes both to the build.
+4. Local builds: `MOSS_GITHUB_CLIENT_ID=… MOSS_GITHUB_APP_SLUG=… pnpm tauri dev`. Both are read at build time; `cargo clean -p moss` if the button stays disabled.
 
-Without it the build works and the sign-in button says it isn't set up.
+Without the Client ID the build works and the sign-in button says it isn't set up. Without the slug, **Choose repositories on GitHub** opens GitHub's list of installed apps instead of Moss's own page.
 
 ## How it works
 
 ```
 core/src/git/      connect  disconnect  status  commit  sync  merge  conflict   (+ command, repo)
-core/src/github.rs sign in, list repositories, create one
-src-tauri/src/sync/ config  runtime  token  info  login  logout  repos  connect  disconnect  pause  run  schedule
+core/src/github.rs sign in, list the repositories the app is installed on
+src-tauri/src/sync/ config  runtime  token  info  login  logout  repos(+install page)  connect  disconnect  pause  run  schedule
 ```
 
 **Credentials.** The token lives in the system keychain (`sync/token.rs`). For each Git command that needs it, it is passed through environment variables (`GIT_CONFIG_*`, an `http.extraheader`), never written to a config file, never put in the remote address, never in the command line. Git messages are scrubbed of credentials before they are shown.

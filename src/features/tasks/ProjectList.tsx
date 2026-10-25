@@ -127,20 +127,21 @@ export function ProjectList({ items, container, collapsed, onToggle, selectedId,
               <InlineAdd
                 id={`add-task-${container.id}`}
                 label={`Add ${words.a('task')}`}
-                onAdd={(title) => actions.create('task', container.id, title)}
+                onAdd={async (title) => (await actions.create('task', container.id, title)) !== undefined}
               />
             </div>
           )}
         </SortableContext>
 
-        {/* A project holds milestones or loose tasks, never both. Milestones
-            hold only tasks. */}
-        {looseTasks.length === 0 && container.kind === 'project' && (
+        {/* A project holds milestones or loose tasks, never both, and milestones
+            hold only tasks. So on a project with loose tasks, the first
+            milestone takes them in. */}
+        {container.kind === 'project' && (
           <InlineAdd
             id={`add-milestone-${container.id}`}
-            label={`Add ${words.a('milestone')}`}
-            onAdd={(title) => actions.create('milestone', container.id, title)}
-            className={milestones.length === 0 ? '' : 'mt-[22px]'}
+            label={looseTasks.length > 0 ? `Put these ${words.nouns('task')} in ${words.a('milestone')}` : `Add ${words.a('milestone')}`}
+            onAdd={async (title) => (await actions.addMilestone(container, title)) !== undefined}
+            className={milestones.length === 0 && looseTasks.length === 0 ? '' : 'mt-[22px]'}
           />
         )}
       </div>
@@ -241,7 +242,7 @@ function SortableMilestone({
           onClick={onOpen}
           aria-label={`Open ${milestone.title}`}
           title={`Open ${words.noun('milestone')}`}
-          className="flex rounded-md p-1 text-fg-3 opacity-0 transition-opacity duration-100 group-hover/ms:opacity-100 hover:bg-hover hover:text-fg-2 focus-visible:opacity-100"
+          className="flex rounded-md p-1 text-fg-3 opacity-0 transition-opacity duration-100 group-hover/ms:opacity-100 pointer-coarse:opacity-100 hover:bg-hover hover:text-fg-2 focus-visible:opacity-100"
         >
           <ArrowUpRight size={14} strokeWidth={2} aria-hidden="true" />
         </button>
@@ -266,7 +267,7 @@ function SortableMilestone({
         <InlineAdd
           id={`add-task-${milestone.id}`}
           label={`Add ${words.a('task')}`}
-          onAdd={(title) => actions.create('task', milestone.id, title)}
+          onAdd={async (title) => (await actions.create('task', milestone.id, title)) !== undefined}
           className="ml-[22px]"
         />
       </Collapse>

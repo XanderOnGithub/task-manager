@@ -4,9 +4,8 @@ use std::time::Duration;
 
 use tauri::{AppHandle, Manager};
 
-use task_core::git;
-
 use super::config::for_open_folder;
+use super::engine;
 use super::run::run_sync;
 use super::runtime::changed;
 use super::token;
@@ -23,6 +22,11 @@ const TICK: Duration = Duration::from_secs(15);
 
 /// Starts the thread that syncs on its own. Called once at startup.
 pub fn start(app: &AppHandle) {
+    // Android keeps the token in a private file of the app.
+    #[cfg(target_os = "android")]
+    if let Ok(dir) = app.path().app_data_dir() {
+        super::token::init(dir.join("github-token"));
+    }
     let app = app.clone();
     std::thread::spawn(move || {
         // A few seconds after launch, so the window comes up first.
@@ -40,7 +44,7 @@ fn tick(app: &AppHandle, first: bool) {
     let Some((config, root)) = for_open_folder(app) else {
         return;
     };
-    if config.paused || token::get().is_none() || !git::available() {
+    if config.paused || token::get().is_none() || !engine::available() {
         return;
     }
     let state = app.state::<AppState>();
@@ -59,7 +63,7 @@ fn tick(app: &AppHandle, first: bool) {
         )
     };
     let changes = if first || activity != seen {
-        let counted = git::pending_changes(&root).unwrap_or(0);
+        let counted = engine::pending(&root);
         let mut inner = state.sync.inner();
         let moved = inner.pending != counted;
         inner.pending = counted;
@@ -103,7 +107,7 @@ pub fn on_exit(app: &AppHandle) {
     let only_one = state.sync.try_lock_exclusive();
     if only_one.is_some() {
         let _folder = state.lock_folder();
-        let _ = git::commit_all(&root);
+        engine::save_before_quit(&root);
     }
 }
 

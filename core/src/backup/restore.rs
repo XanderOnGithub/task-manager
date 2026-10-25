@@ -3,7 +3,9 @@
 //! The safest order, because this deletes what is in the data folder:
 //!
 //! 1. Read the zip and check every name. Nothing is touched if it isn't a Moss
-//!    backup, or if any name would land outside the folder ("zip slip").
+//!    backup, or if any name would land outside the folder ("zip slip") or in
+//!    a `.git` folder (a zip you picked yourself could carry Git hooks, which
+//!    Git would run the next time sync is switched on).
 //! 2. Make a backup of what is there now ("before restore"). It stays.
 //! 3. Unpack the zip next to the data folder, into a temporary folder.
 //! 4. Only then replace the files: everything at the top of the data folder goes
@@ -14,7 +16,7 @@
 //! restore" backup has everything that was there.
 
 use std::fs::{self, File};
-use std::io;
+use std::io::{self, Read};
 use std::path::{Path, PathBuf};
 
 use zip::ZipArchive;
@@ -71,6 +73,9 @@ fn check_archive(archive: &mut ZipArchive<File>) -> Result<()> {
         let file = archive.by_index(i).map_err(zip_error)?;
         let name = file.name().trim_end_matches('/');
         check_inside(name).map_err(|_| not_a_backup())?;
+        if name.split('/').any(|part| part.eq_ignore_ascii_case(".git")) {
+            return Err(not_a_backup());
+        }
         unpacked = unpacked.saturating_add(file.size());
         looks_like_moss |= name == "unsorted.md" || name.starts_with("areas/");
     }
@@ -81,6 +86,9 @@ fn check_archive(archive: &mut ZipArchive<File>) -> Result<()> {
 }
 
 fn unpack(archive: &mut ZipArchive<File>, into: &Path) -> Result<()> {
+    // `check_archive` added up the sizes the zip *claims*. A crafted zip can claim
+    // little and unpack to a lot, so count what is really written too.
+    let mut budget = MAX_UNPACKED_BYTES;
     for i in 0..archive.len() {
         let mut file = archive.by_index(i).map_err(zip_error)?;
         if file.is_dir() {
@@ -90,7 +98,12 @@ fn unpack(archive: &mut ZipArchive<File>, into: &Path) -> Result<()> {
         if let Some(dir) = target.parent() {
             fs::create_dir_all(dir)?;
         }
-        io::copy(&mut file, &mut File::create(target)?)?;
+        // Read one byte past the budget: if that byte exists, the zip lied.
+        let written = io::copy(&mut (&mut file).take(budget + 1), &mut File::create(target)?)?;
+        if written > budget {
+            return Err(Error::NotAllowed("That isn't a Moss backup.".into()));
+        }
+        budget -= written;
     }
     Ok(())
 }

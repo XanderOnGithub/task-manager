@@ -44,6 +44,10 @@ pub enum Issue {
     /// A folder is nested deeper than the hierarchy allows (inside a milestone).
     /// Its contents aren't loaded.
     TooDeep { path: String },
+    /// A folder couldn't be read (no permission, a broken link, a sync tool in
+    /// the middle of writing it). Its contents aren't loaded; the rest of the
+    /// data folder is.
+    Unreadable { path: String },
 }
 
 impl Issue {
@@ -76,7 +80,8 @@ impl Issue {
             | Issue::ConflictCopy { path, .. }
             | Issue::MixedChildren { path }
             | Issue::StrayFile { path }
-            | Issue::TooDeep { path } => path,
+            | Issue::TooDeep { path }
+            | Issue::Unreadable { path } => path,
         }
     }
 
@@ -100,6 +105,7 @@ impl Issue {
             }
             Issue::StrayFile { .. } => "File is in a place where only folders belong".into(),
             Issue::TooDeep { .. } => "Folder is nested too deep. Its contents aren't shown.".into(),
+            Issue::Unreadable { .. } => "Folder can't be read. Its contents aren't shown.".into(),
         }
     }
 }
@@ -160,6 +166,18 @@ mod tests {
             path: "areas/Home/Renovate/_index.md".into(),
         };
         assert_eq!(IssueView::from(&index).name, "Renovate");
+    }
+
+    #[test]
+    fn an_unreadable_folder_is_named_and_not_fixable() {
+        let issue = Issue::Unreadable {
+            path: "areas/Home/Renovate".into(),
+        };
+        let view = IssueView::from(&issue);
+        assert_eq!(view.name, "Renovate");
+        assert!(!view.fixable);
+        assert!(view.message.contains("can't be read"));
+        assert_eq!(serde_json::to_value(&view).unwrap()["type"], "unreadable");
     }
 
     #[test]

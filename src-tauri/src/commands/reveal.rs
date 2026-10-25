@@ -10,7 +10,7 @@ use crate::state::{read, AppState, CmdResult};
 #[tauri::command]
 pub async fn reveal_in_finder(state: State<'_, AppState>, id: String) -> CmdResult<()> {
     let path = item_path(state, id).await?;
-    tauri_plugin_opener::reveal_item_in_dir(path).map_err(|e| e.to_string())
+    show_in_file_manager(path)
 }
 
 /// The item's full path on disk, for "Copy path".
@@ -37,5 +37,16 @@ pub async fn reveal_path(state: State<'_, AppState>, path: String) -> CmdResult<
             Err(task_core::Error::NotFound(path.clone()))
         }
     })?;
-    tauri_plugin_opener::reveal_item_in_dir(full).map_err(|e| e.to_string())
+    show_in_file_manager(full)
+}
+
+/// Shows a file or folder in Finder, Explorer or the file manager. A phone has none.
+#[cfg(desktop)]
+fn show_in_file_manager(path: impl AsRef<std::path::Path>) -> CmdResult<()> {
+    tauri_plugin_opener::reveal_item_in_dir(path).map_err(|e| e.to_string())
+}
+
+#[cfg(mobile)]
+fn show_in_file_manager(_path: impl AsRef<std::path::Path>) -> CmdResult<()> {
+    Err("Files can't be shown in a file manager on this device.".into())
 }

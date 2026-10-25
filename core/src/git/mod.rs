@@ -34,7 +34,7 @@
 
 mod command;
 mod commit;
-mod conflict;
+pub(crate) mod conflict;
 mod connect;
 mod disconnect;
 mod merge;

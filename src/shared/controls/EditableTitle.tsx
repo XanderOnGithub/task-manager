@@ -1,6 +1,6 @@
 // Editable title: looks like text, becomes a field on click.
 
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 
 export function EditableTitle({
   value,
@@ -10,7 +10,8 @@ export function EditableTitle({
   heading = false,
 }: {
   value: string
-  onSave: (title: string) => Promise<unknown>
+  /** Resolves true when it was saved. On false the field stays open with what was typed. */
+  onSave: (title: string) => Promise<boolean>
   className?: string
   editing?: boolean
   /** The page's main heading (an h1), for the title at the top of a view. */
@@ -19,10 +20,14 @@ export function EditableTitle({
   const [draft, setDraft] = useState<string | null>(startEditing ? value : null)
 
   // Reads the field itself, not state, so the last keystrokes are never lost.
+  const field = useRef<HTMLInputElement>(null)
   const commit = async (text: string) => {
     const title = text.trim()
-    setDraft(null)
-    if (title && title !== value) await onSave(title)
+    if (!title || title === value) return setDraft(null)
+    // The field stays until it's saved, so a refused name (one already taken)
+    // doesn't throw away what was typed.
+    if (await onSave(title)) setDraft(null)
+    else field.current?.focus()
   }
 
   const wrap = (node: React.ReactNode) => (heading ? <h1 className="w-fit">{node}</h1> : node)
@@ -40,6 +45,7 @@ export function EditableTitle({
   }
   return wrap(
     <input
+      ref={field}
       autoFocus
       value={draft}
       onChange={(e) => setDraft(e.target.value)}
@@ -49,6 +55,8 @@ export function EditableTitle({
         if (e.key === 'Escape') setDraft(null)
       }}
       aria-label="Title"
+      // A phone's keyboard shows "Done" and saves, instead of "Next" jumping on.
+      enterKeyHint="done"
       className={`-mx-1 rounded-control bg-hover px-1 outline-none ${className}`}
     />,
   )

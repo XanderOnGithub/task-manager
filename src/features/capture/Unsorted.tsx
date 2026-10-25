@@ -10,7 +10,7 @@ import { useMemo, useRef, useState, type ReactNode, useId } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import { spring } from '../../shared/motion/springs'
 import { Collapse } from '../../shared/motion/pieces'
-import { Calendar, Folder, FileText, Search, Target, Trash2 } from 'lucide-react'
+import { Calendar, Flag, Folder, FileText, Search, Target, Trash2 } from 'lucide-react'
 import { type Item, type Kind, type MilestoneColor, type UnsortedEntry } from '../../platform/api'
 import { childrenOf } from '../../domain/items'
 import type { Actions } from '../../app/useActions'
@@ -21,7 +21,7 @@ import { stampLabel, weekdayLabel } from '../../domain/dates'
 import { parseDue } from '../../domain/naturalDate'
 import { useVocab, type Vocab } from '../../domain/vocab'
 
-type FileAs = 'task' | 'page' | 'project'
+type FileAs = 'task' | 'milestone' | 'page' | 'project'
 
 interface Destination {
   id: string
@@ -97,11 +97,11 @@ export function UnsortedView({
       <PanelHeader>
         <span className="flex-1">{words.unsorted}</span>
       </PanelHeader>
-      <div className="flex flex-1 justify-center overflow-y-auto px-7 py-8">
+      <div className="flex flex-1 justify-center overflow-y-auto px-7 py-8 max-md:px-4 max-md:py-5">
         <div className="flex w-full max-w-[680px] flex-col gap-5">
           <div className="flex items-center gap-2.5">
             <h1 className="text-title">{words.unsorted}</h1>
-            <span className="flex h-7 min-w-7 items-center justify-center rounded-full bg-badge px-2 text-[14px] font-semibold text-fg-2">
+            <span className="flex h-7 min-w-7 items-center justify-center rounded-full bg-badge px-2 text-lead font-semibold text-fg-2">
               {entries.length}
             </span>
           </div>
@@ -117,48 +117,22 @@ export function UnsortedView({
               aria-label="Sort the chosen items"
               className="flex flex-col gap-3 rounded-[10px] border border-border-strong bg-field p-3"
             >
-              <div className="flex items-center gap-2.5">
-                <span className="text-[12.5px] text-fg" aria-live="polite">
+              <div className="flex flex-wrap items-center gap-x-2.5 gap-y-2">
+                <span className="text-compact text-fg" aria-live="polite">
                   {chosen.length} chosen
                 </span>
                 <button
                   onClick={() => setPicked(new Set(entries.map((e) => e.raw)))}
-                  className="text-[12.5px] text-fg-3 underline-offset-2 hover:text-fg-2 hover:underline"
+                  className="text-compact text-fg-3 underline-offset-2 hover:text-fg-2 hover:underline"
                 >
                   Choose all {entries.length}
                 </button>
                 <span className="flex-1" />
-                <span className="text-[12.5px] text-fg-3">Create as</span>
-                <Segmented<FileAs>
-                  label="Create the chosen items as"
-                  value={bulkAs}
-                  onChange={(kind) => {
-                    play('select', {
-                      pitch: { task: 0.92, page: 1, project: 1.1 }[kind],
-                    })
-                    setBulkAs(kind)
-                  }}
-                  options={[
-                    {
-                      value: 'task',
-                      label: words.Noun('task'),
-                      icon: <StatusIcon status="todo" size={13} />,
-                    },
-                    {
-                      value: 'page',
-                      label: 'Page',
-                      icon: <FileText size={13} strokeWidth={2} aria-hidden="true" />,
-                    },
-                    {
-                      value: 'project',
-                      label: words.Noun('project'),
-                      icon: <Target size={13} strokeWidth={2} aria-hidden="true" />,
-                    },
-                  ]}
-                />
+                <span className="text-compact text-fg-3">Create as</span>
+                <FileAsChoice label="Create the chosen items as" value={bulkAs} onChange={setBulkAs} />
                 <button
                   onClick={() => {
-                    for (const entry of chosen) void actions.removeEntry(entry)
+                    void actions.removeEntries(chosen)
                     clearPicked()
                   }}
                   aria-label="Delete the chosen items"
@@ -169,7 +143,7 @@ export function UnsortedView({
                 </button>
                 <button
                   onClick={clearPicked}
-                  className="rounded-control px-2 py-1 text-[12.5px] text-fg-2 transition-colors duration-100 hover:bg-hover hover:text-fg"
+                  className="rounded-control px-2 py-1 text-compact text-fg-2 transition-colors duration-100 hover:bg-hover hover:text-fg"
                 >
                   Clear
                 </button>
@@ -215,7 +189,7 @@ export function UnsortedView({
                           readOnly
                           onClick={(e) => toggle(index, e.shiftKey)}
                           aria-label={`Choose ${entry.text}`}
-                          className="ml-3 size-3.5 shrink-0 accent-accent"
+                          className="ml-3 size-3.5 shrink-0 accent-accent pointer-coarse:size-5"
                         />
                         <button
                           onClick={() => open(isOpen ? undefined : entry)}
@@ -224,7 +198,7 @@ export function UnsortedView({
                             isOpen ? '' : 'rounded-[10px] hover:bg-hover'
                           }`}
                         >
-                          <span className="flex-1 truncate text-[14px]">{entry.text}</span>
+                          <span className="flex-1 truncate text-lead">{entry.text}</span>
                           <DueHint text={entry.text} />
                           {entry.added && (
                             <span className="text-meta font-normal text-fg-3">{stampLabel(entry.added)}</span>
@@ -234,36 +208,9 @@ export function UnsortedView({
 
                       <Collapse open={isOpen}>
                         <div className="flex flex-col gap-3 pr-3 pb-3 pl-7">
-                          <div className="flex items-center gap-2.5">
-                            <span className="text-[12.5px] text-fg-3">Create as</span>
-                            <Segmented<FileAs>
-                              label="Create as"
-                              value={fileAs}
-                              onChange={(kind) => {
-                                // Task, Page, Project: each a step higher.
-                                play('select', {
-                                  pitch: { task: 0.92, page: 1, project: 1.1 }[kind],
-                                })
-                                setFileAs(kind)
-                              }}
-                              options={[
-                                {
-                                  value: 'task',
-                                  label: words.Noun('task'),
-                                  icon: <StatusIcon status="todo" size={13} />,
-                                },
-                                {
-                                  value: 'page',
-                                  label: 'Page',
-                                  icon: <FileText size={13} strokeWidth={2} aria-hidden="true" />,
-                                },
-                                {
-                                  value: 'project',
-                                  label: words.Noun('project'),
-                                  icon: <Target size={13} strokeWidth={2} aria-hidden="true" />,
-                                },
-                              ]}
-                            />
+                          <div className="flex flex-wrap items-center gap-x-2.5 gap-y-2">
+                            <span className="text-compact text-fg-3">Create as</span>
+                            <FileAsChoice label="Create as" value={fileAs} onChange={setFileAs} />
                             <span className="flex-1" />
                             <button
                               onClick={() => void actions.removeEntry(entry)}
@@ -297,6 +244,27 @@ export function UnsortedView({
   )
 }
 
+/** Task, Milestone, Page, Project: what an entry becomes. Each a step higher in pitch. */
+function FileAsChoice({ label, value, onChange }: { label: string; value: FileAs | null; onChange: (kind: FileAs) => void }) {
+  const words = useVocab()
+  return (
+    <Segmented<FileAs>
+      label={label}
+      value={value}
+      onChange={(kind) => {
+        play('select', { pitch: { task: 0.92, milestone: 0.96, page: 1, project: 1.1 }[kind] })
+        onChange(kind)
+      }}
+      options={[
+        { value: 'task', label: words.Noun('task'), icon: <StatusIcon status="todo" size={13} /> },
+        { value: 'milestone', label: words.Noun('milestone'), icon: <Flag size={13} strokeWidth={2} aria-hidden="true" /> },
+        { value: 'page', label: 'Page', icon: <FileText size={13} strokeWidth={2} aria-hidden="true" /> },
+        { value: 'project', label: words.Noun('project'), icon: <Target size={13} strokeWidth={2} aria-hidden="true" /> },
+      ]}
+    />
+  )
+}
+
 /** "Due Fri, Oct 23": what filing "call Bob friday" as a task will do with the date. */
 function DueHint({ text }: { text: string }) {
   const { due } = parseDue(text)
@@ -315,6 +283,7 @@ function DueHint({ text }: { text: string }) {
 
 function titleFor(fileAs: FileAs, words: Vocab): string {
   if (fileAs === 'task') return `Choose ${words.a('milestone')} or ${words.noun('project')}`
+  if (fileAs === 'milestone') return `Choose ${words.a('project')}`
   if (fileAs === 'page') return `Choose ${words.a('area')}, ${words.noun('project')} or page`
   return `Choose ${words.a('area')}`
 }
@@ -341,8 +310,8 @@ function DestinationPicker({
   return (
     <div className="flex flex-col gap-1.5">
       <div className="flex items-center gap-2">
-        <span className="flex-1 text-[12.5px] text-fg-3">{titleFor(fileAs, words)}</span>
-        <label className="flex h-[26px] w-[180px] items-center gap-1.5 rounded-control border border-border px-2 text-placeholder focus-within:border-border-strong">
+        <span className="flex-1 text-compact text-fg-3">{titleFor(fileAs, words)}</span>
+        <label className="flex h-[26px] w-[180px] max-md:w-32 items-center gap-1.5 rounded-control border border-border px-2 text-placeholder focus-within:border-border-strong">
           <Search size={12} strokeWidth={2} aria-hidden="true" />
           <input
             autoFocus
@@ -371,6 +340,7 @@ function DestinationPicker({
             }}
             placeholder="Filter"
             aria-label="Filter"
+            enterKeyHint="go"
             className="min-w-0 flex-1 bg-transparent text-meta font-normal text-fg outline-none placeholder:text-placeholder"
           />
         </label>
@@ -383,7 +353,7 @@ function DestinationPicker({
         className="-ml-1.5 flex max-h-[232px] flex-col gap-px overflow-y-auto"
       >
         {shown.length === 0 && (
-          <p className="px-2 py-1.5 text-[12.5px] text-fg-3">
+          <p className="px-2 py-1.5 text-compact text-fg-3">
             {all.length === 0 ? emptyMessage(fileAs, words) : 'No matches'}
           </p>
         )}
@@ -426,7 +396,7 @@ function DestinationLabel({ destination: d }: { destination: Destination }): Rea
       ) : (
         <Icon {...iconProps} />
       )}
-      <span className="truncate text-[12.5px]">{d.name}</span>
+      <span className="truncate text-compact">{d.name}</span>
     </>
   )
 }
@@ -444,6 +414,22 @@ function destinations(items: Item[], fileAs: FileAs, words: Vocab): Destination[
         kind: 'area',
       }
     })
+  }
+  if (fileAs === 'milestone') {
+    // A milestone goes into a project that is still going. A project with loose
+    // tasks can't take one this way (it holds tasks or milestones, never both);
+    // its List view puts its tasks into a first milestone instead.
+    const out: Destination[] = []
+    for (const area of areas) {
+      for (const project of childrenOf(items, area.id)) {
+        if (project.status === 'done' || project.status === 'dropped') continue
+        const inside = childrenOf(items, project.id)
+        if (inside.some((c) => c.kind === 'task')) continue
+        const n = inside.length
+        out.push({ id: project.id, name: project.title, context: `${area.title} · ${words.count(n, 'milestone')}`, kind: 'project' })
+      }
+    }
+    return out
   }
   if (fileAs === 'task') {
     const out: Destination[] = []
@@ -506,5 +492,5 @@ function destinations(items: Item[], fileAs: FileAs, words: Vocab): Destination[
 }
 
 function emptyMessage(fileAs: FileAs, words: Vocab): string {
-  return `Add ${words.a(fileAs === 'task' ? 'project' : 'area')} first`
+  return `Add ${words.a(fileAs === 'task' || fileAs === 'milestone' ? 'project' : 'area')} first`
 }

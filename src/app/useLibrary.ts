@@ -5,7 +5,7 @@
 // Unchanged items keep their objects between reloads (see share.ts), so only
 // the rows that changed redraw.
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { getDataFolder, loadLibrary, onDataChanged, type Item, type Snapshot } from '../platform/api'
 import { notifyBodyChanges } from '../features/editor/bodyChanges'
 import { shareSnapshot } from './share'
@@ -31,19 +31,26 @@ export function useLibrary(): Library {
   const [needsFolder, setNeedsFolder] = useState(false)
   const [loads, setLoads] = useState(0)
 
+  // Reloads can overlap (you change something while a sync lands). Each takes a
+  // number, and only the newest one's answer is used: an older answer arriving
+  // late would otherwise put an out-of-date library on screen.
+  const newest = useRef(0)
+
   const reload = useCallback(async () => {
+    const mine = ++newest.current
     try {
       if ((await getDataFolder()) === null) {
-        setNeedsFolder(true)
+        if (mine === newest.current) setNeedsFolder(true)
         return
       }
-      setNeedsFolder(false)
       const next = await loadLibrary()
+      if (mine !== newest.current) return
+      setNeedsFolder(false)
       setSnapshot((prev) => shareSnapshot(prev, next))
       setLoads((n) => n + 1)
       setError(null)
     } catch (e) {
-      setError(String(e))
+      if (mine === newest.current) setError(String(e))
     }
   }, [])
 

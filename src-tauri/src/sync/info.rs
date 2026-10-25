@@ -1,19 +1,24 @@
 //! The status Settings and the sidebar show.
 
+use std::time::{Duration, Instant};
+
 use serde::Serialize;
 use tauri::{AppHandle, Manager};
 
-use task_core::{git, github};
+use task_core::github;
 
-use super::{config, login::CLIENT_ID, token};
+use super::{config, engine, login::CLIENT_ID, token};
 use crate::state::{AppState, CmdResult};
+
+/// How long to wait before asking GitHub for the username again after a failure.
+const USERNAME_RETRY: Duration = Duration::from_secs(60);
 
 /// What the Settings screen shows.
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Info {
     git_available: bool,
-    /// False in builds made without a GitHub OAuth app (see `CLIENT_ID`).
+    /// False in builds made without a GitHub App (see `CLIENT_ID`).
     login_available: bool,
     /// The signed-in GitHub username.
     username: Option<String>,
@@ -45,8 +50,20 @@ fn info(app: &AppHandle) -> Info {
         (None, _) => None,
         (Some(_), Some(name)) => Some(name),
         (Some(token), None) => {
-            let name = github::username(token).ok();
-            state.sync.inner().username = name.clone();
+            let due = state
+                .sync
+                .inner()
+                .username_tried
+                .is_none_or(|at| at.elapsed() >= USERNAME_RETRY);
+            let name = if due {
+                let name = github::username(token).ok();
+                let mut inner = state.sync.inner();
+                inner.username_tried = Some(Instant::now());
+                inner.username = name.clone();
+                name
+            } else {
+                None
+            };
             // Signed in, but GitHub didn't answer (offline): still signed in.
             name.or_else(|| Some("GitHub".to_string()))
         }
@@ -54,7 +71,7 @@ fn info(app: &AppHandle) -> Info {
 
     let inner = state.sync.inner();
     Info {
-        git_available: git::available(),
+        git_available: engine::available(),
         login_available: !CLIENT_ID.is_empty(),
         username,
         repo: config.as_ref().map(|c| c.repo.clone()),

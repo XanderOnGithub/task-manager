@@ -129,6 +129,11 @@ fn a_zip_that_is_not_a_backup_or_reaches_outside_the_folder_changes_nothing() {
             "absolute path",
             vec![("unsorted.md", "x"), ("/tmp/escaped.md", "bad")],
         ),
+        (
+            "git hook",
+            vec![("unsorted.md", "x"), (".git/hooks/post-checkout", "#!/bin/sh")],
+        ),
+        ("nested git folder", vec![("areas/Home/.git/config", "[core]")]),
         ("empty", vec![]),
     ] {
         let zip = tmp.path().join("odd.zip");

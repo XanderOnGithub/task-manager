@@ -1,0 +1,8 @@
+{
+  "default": "legacy.png",
+  "bg_color": "#1D241F",
+  "android_bg": "background.png",
+  "android_fg": "foreground.png",
+  "android_fg_scale": 100,
+  "android_monochrome": "monochrome.png"
+}

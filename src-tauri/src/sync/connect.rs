@@ -2,10 +2,10 @@
 
 use tauri::{AppHandle, Manager};
 
-use task_core::git;
 use task_core::github::Repo;
 
 use super::config::{self, Config};
+use super::engine;
 use super::run::finished;
 use super::runtime::{blocking, update};
 use super::token;
@@ -20,13 +20,14 @@ pub async fn sync_connect(app: AppHandle, repo: Repo) -> CmdResult<()> {
     // Built here from the name instead of trusting an address from the front end.
     let url = remote_url(&repo.full_name)?;
     let branch = repo.default_branch.clone();
+    let name = repo.full_name.clone();
 
     update(&app, |inner| inner.syncing = true);
     let (work, folder) = (app.clone(), root.clone());
     let result = blocking(move || {
         let state = work.state::<AppState>();
         let _only_one = state.sync.lock_exclusive();
-        git::connect(&folder, &url, &branch, Some(&token), || state.lock_folder())
+        engine::connect(&folder, &name, &url, &branch, &token, || state.lock_folder())
     })
     .await;
     update(&app, |inner| inner.syncing = false);

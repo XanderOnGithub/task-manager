@@ -59,7 +59,7 @@ export function PageIconPicker({ page, onChange }: { page: Item; onChange: (icon
           aria-label="Add icon"
           title="Add icon"
           className={`absolute top-1/2 right-full mr-1.5 flex size-7 -translate-y-1/2 items-center justify-center rounded-control text-fg-3 transition-[opacity,color,background-color] duration-100 hover:bg-hover hover:text-fg-2 focus-visible:opacity-100 ${
-            open ? 'opacity-100' : 'opacity-0 group-hover/title:opacity-100'
+            open ? 'opacity-100' : 'opacity-0 group-hover/title:opacity-100 pointer-coarse:opacity-100'
           }`}
         >
           <SmilePlus size={16} strokeWidth={1.75} aria-hidden="true" />

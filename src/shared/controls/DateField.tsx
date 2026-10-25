@@ -47,7 +47,7 @@ export function DateField({
         }}
         onBlur={() => setEditing(false)}
         aria-label={label}
-        className="-mx-1.5 h-7 rounded-control bg-transparent px-1.5 text-[12.5px] text-fg outline-none transition-colors duration-100 hover:bg-hover focus:bg-hover"
+        className="-mx-1.5 h-7 rounded-control bg-transparent px-1.5 text-compact text-fg outline-none transition-colors duration-100 hover:bg-hover focus:bg-hover"
       />
       {value && (
         <button
