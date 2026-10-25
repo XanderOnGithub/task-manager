@@ -17,6 +17,9 @@ jobs:
   apk:
     name: Android APK
     runs-on: ubuntu-latest
+    # Writing the "Moss for Android (latest build)" pre-release at the end.
+    permissions:
+      contents: write
     timeout-minutes: 60
     env:
       NDK_VERSION: '27.2.12479018'
@@ -122,3 +125,24 @@ jobs:
           name: Moss-android
           path: Moss-android.apk
           if-no-files-found: error
+
+      # The same APK on a release page, so a phone can download it straight from
+      # GitHub (Releases → "Moss for Android (latest build)"). It is a pre-release:
+      # it never becomes the "latest" release that the desktop app's updater reads.
+      # Each build replaces it, so the link always gives the newest APK.
+      - name: Publish to the latest-build pre-release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          MESSAGE: ${{ github.event.head_commit.message }}
+        run: |
+          gh release delete android-latest --cleanup-tag --yes || true
+          {
+            echo "The newest Android build, from \`${GITHUB_REF_NAME}\` at ${GITHUB_SHA::7}."
+            echo
+            echo "Install: download **Moss-android.apk** on the phone, open it, and allow installs from your browser if Android asks. It installs over the previous build."
+            echo
+            echo "Last change: ${MESSAGE%%$'\n'*}"
+          } > notes.md
+          gh release create android-latest Moss-android.apk \
+            --prerelease --latest=false --target "$GITHUB_SHA" \
+            --title "Moss for Android (latest build)" --notes-file notes.md
