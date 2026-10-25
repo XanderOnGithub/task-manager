@@ -30,8 +30,11 @@ runs:
         distribution: temurin
         java-version: 17
 
-    # The SDK, with its licenses accepted.
+    # The SDK, with its licenses accepted. Its default package list still
+    # names "tools", which Google no longer ships, so name what's needed.
     - uses: android-actions/setup-android@v3
+      with:
+        packages: platform-tools
 
     # The NDK compiles the Rust side (and the C inside some of its crates)
     # for phones. Build tools hold zipalign and apksigner, used to sign the APK.
