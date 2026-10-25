@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react'
 import { getVersion } from '@tauri-apps/api/app'
 import { checkForUpdate, installUpdate, useUpdates } from '../../platform/updates'
-import { isAndroid } from '../../platform/os'
 
 /** Which build this is: "Alpha 0.1.0". The version comes from the app itself (tauri.conf.json), the stage from package.json. */
 export function VersionInfo() {
@@ -22,8 +21,7 @@ export function VersionInfo() {
         {stage} <span className="font-mono">{version ?? '…'}</span>
       </span>
       <span className="flex-1" />
-      {/* Android updates by installing the new APK from the release page. */}
-      {!isAndroid && <UpdateStatus />}
+      <UpdateStatus />
     </div>
   )
 }

@@ -9,10 +9,10 @@
 # (and the stage, e.g. "alpha", from package.json). If that version has
 # already been released, it stops. Otherwise it:
 #   1. creates a draft release "Moss alpha 0.1.0" with notes made from the PRs,
-#   2. builds installers for macOS (Apple silicon + Intel), Windows and Linux,
-#      and an APK for Android, and uploads them to it,
-#   3. publishes it once every desktop build has succeeded (so a half-built
-#      release never shows up; a failed Android build doesn't hold it back). With the signing key set, it also carries latest.json,
+#   2. builds installers for macOS (Apple silicon + Intel), Windows and Linux
+#      and uploads them to it,
+#   3. publishes it once every build has succeeded (so a half-built release
+#      never shows up). With the signing key set, it also carries latest.json,
 #      which is how installed copies find the update.
 # So shipping = bump the version on the release branch, merge it into main.
 # It can also be run by hand from the Actions tab.
@@ -69,7 +69,6 @@ jobs:
             - **macOS:** open the `.dmg` (Apple silicon: `aarch64`, Intel: `x64`) and drag Moss to Applications. If macOS says it can't be opened, go to System Settings → Privacy & Security and click **Open Anyway**.
             - **Windows:** run the `-setup.exe` (or `.msi`). If SmartScreen appears, click **More info → Run anyway**. The `_portable.exe` runs without installing, but doesn't update itself.
             - **Linux:** the `.AppImage` updates itself; `.deb` and `.rpm` don't.
-            - **Android (early):** download the `.apk` on your phone or tablet and open it; allow installing from your browser if asked. To update, install the newer `.apk` over it. Sync with GitHub needs Git, so it isn't available on Android yet, and the layout is made for larger screens.
 
             Already on 0.1.2 or later? Moss updates itself: **Update to …** appears in the sidebar.
         run: |
@@ -207,76 +206,9 @@ jobs:
             --data-binary @"$name" \
             "https://uploads.github.com/repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID/assets?name=$name"
 
-  android:
-    name: Build (Android)
-    needs: prepare
-    if: needs.prepare.outputs.release == 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v5
-
-      # Java, the Android SDK and NDK, and the generated Android project.
-      - uses: ./.github/actions/android-project
-
-      # One APK for 64-bit and 32-bit ARM phones and tablets.
-      - name: Build the APK
-        env:
-          MOSS_GITHUB_CLIENT_ID: ${{ vars.MOSS_GITHUB_CLIENT_ID }}
-        run: pnpm tauri android build --apk --target aarch64 armv7
-
-      # Android only installs signed APKs, and only lets a new version
-      # replace an installed one when both are signed with the same key. So
-      # the key is kept in the repo's secrets:
-      #   ANDROID_KEYSTORE           the .jks file, base64-encoded
-      #   ANDROID_KEYSTORE_PASSWORD  its password (also used for the key)
-      #   ANDROID_KEY_ALIAS          the key's name inside it
-      # Without them, the APK is signed with a key made just for this build:
-      # it installs, but the next version can't update it in place, and the
-      # release notes say so.
-      - name: Sign the APK and add it to the release
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          RELEASE_ID: ${{ needs.prepare.outputs.release_id }}
-          KEYSTORE: ${{ secrets.ANDROID_KEYSTORE }}
-          KS_PASS: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-        run: |
-          version=$(node -p "require('./src-tauri/tauri.conf.json').version")
-          unsigned=$(find src-tauri/gen/android -name '*-release-unsigned.apk' | head -1)
-          if [ -z "$unsigned" ]; then echo "No release APK found"; find src-tauri/gen/android -name '*.apk'; exit 1; fi
-
-          if [ -n "$KEYSTORE" ]; then
-            echo "$KEYSTORE" | base64 -d > "$RUNNER_TEMP/moss.jks"
-          else
-            echo "::warning::No ANDROID_KEYSTORE secret: signing with a one-off key. The next version won't install over this one."
-            KS_PASS=$(openssl rand -hex 16)
-            KEY_ALIAS=moss
-            keytool -genkeypair -noprompt -keystore "$RUNNER_TEMP/moss.jks" -storepass "$KS_PASS" -keypass "$KS_PASS" \
-              -alias "$KEY_ALIAS" -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Moss"
-            note=$'\n\n**Android:** this APK is signed with a key made just for this release, so the next version can\'t install over it. Before installing a later version, export or copy anything you want to keep, then uninstall this one.'
-            body=$(gh api "repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID" --jq .body)
-            gh api -X PATCH "repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID" -f body="$body$note" > /dev/null
-          fi
-          export KS_PASS
-
-          name="Moss_${version}_android.apk"
-          "$ANDROID_BUILD_TOOLS/zipalign" -p -f 4 "$unsigned" "$RUNNER_TEMP/aligned.apk"
-          "$ANDROID_BUILD_TOOLS/apksigner" sign --ks "$RUNNER_TEMP/moss.jks" --ks-pass env:KS_PASS \
-            --ks-key-alias "$KEY_ALIAS" --key-pass env:KS_PASS --out "$name" "$RUNNER_TEMP/aligned.apk"
-          "$ANDROID_BUILD_TOOLS/apksigner" verify "$name"
-
-          curl --fail -sS -X POST \
-            -H "Authorization: Bearer $GH_TOKEN" \
-            -H "Content-Type: application/vnd.android.package-archive" \
-            --data-binary @"$name" \
-            "https://uploads.github.com/repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID/assets?name=$name" > /dev/null
-
   publish:
     name: Publish the release
-    needs: [prepare, build, android]
-    # Waits for Android too, but only the desktop builds have to succeed:
-    # Android is newer, and shouldn't keep Mac, Windows and Linux from shipping.
-    if: always() && needs.build.result == 'success'
+    needs: [prepare, build]
     runs-on: ubuntu-latest
     steps:
       - name: Publish
