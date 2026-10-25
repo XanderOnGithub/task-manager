@@ -37,6 +37,7 @@ import { Lifted } from '../../shared/drag/Lifted'
 import { Collapse } from '../../shared/motion/pieces'
 import { INDENT, pageCollision, PageDropContext, TOGGLE, usePageDrag } from '../pages/pageDrag'
 import { FoldButton, PageIcon, PageRows, SidebarHighlight } from '../pages/PageTree'
+import { useVocab, vocab } from '../../domain/vocab'
 
 const ROOT = 'areas'
 /** Left padding of a page row directly in an area / in a project, so the icons line up with the project icons above them. */
@@ -61,7 +62,7 @@ interface Props {
   adding: Adding
   setAdding: (adding: Adding) => void
   /** Creates an area, project or page and opens it. */
-  onAdd: (kind: 'area' | 'project' | 'page', parent: string | null, title: string) => Promise<unknown>
+  onAdd: (kind: 'area' | 'project' | 'page', parent: string | null, title: string) => Promise<boolean>
   actions: Actions
 }
 
@@ -69,6 +70,7 @@ export function AreaTree(props: Props) {
   const { items, actions } = props
   const byId = useMemo(() => new Map(items.map((i) => [i.id, i])), [items])
   const sensors = useDragSensors()
+  const words = useVocab()
 
   const base = useMemo<Order>(() => {
     const areas = childrenOf(items, null)
@@ -83,7 +85,7 @@ export function AreaTree(props: Props) {
       if (!item) return Promise.resolve()
       // Keep a folded area open after a project is dropped into it.
       if (parent && item.kind === 'project' && !props.expanded.has(parent)) props.onToggle(parent)
-      return actions.move(item, { id: parent, title: parent ? (byId.get(parent)?.title ?? '') : 'Areas' }, before, from)
+      return actions.move(item, { id: parent, title: parent ? (byId.get(parent)?.title ?? '') : vocab().Nouns('area') }, before, from)
     },
     [byId, actions, props],
   )
@@ -157,18 +159,19 @@ export function AreaTree(props: Props) {
       {props.adding?.kind === 'area' && (
         <InlineAdd
           autoFocus
-          label="Area name"
-          className="h-7"
+          label={`${words.Noun('area')} name`}
+          className="h-7 pointer-coarse:h-10"
           onAdd={async (title) => {
-            await props.onAdd('area', null, title)
-            props.setAdding(null)
+            const added = await props.onAdd('area', null, title)
+            if (added) props.setAdding(null)
+            return added
           }}
           onDone={() => props.setAdding(null)}
         />
       )}
       {areas.length === 0 && props.adding?.kind !== 'area' && (
         <button onClick={() => props.setAdding({ kind: 'area' })} className="px-2.5 py-1 text-left text-fg-3 hover:text-fg-2">
-          Add an area
+          {`Add ${words.a('area')}`}
         </button>
       )}
 
@@ -177,7 +180,7 @@ export function AreaTree(props: Props) {
         {dragged && drag.active && (
           <Lifted grab={drag.active.grab} width={drag.active.width} className="rounded-control">
             {dragged.kind === 'area' ? (
-              <div className="flex h-7 items-center gap-1 rounded-control border border-border-menu bg-menu px-2 text-fg">
+              <div className="flex h-7 pointer-coarse:h-10 items-center gap-1 rounded-control border border-border-menu bg-menu px-2 text-fg">
                 <ChevronDown size={14} strokeWidth={2} className="-rotate-90 text-fg-3" aria-hidden="true" />
                 <span className="flex min-w-0 items-center gap-1.5">
                   <Folder size={15} strokeWidth={1.75} className="text-fg-2" aria-hidden="true" />
@@ -185,7 +188,7 @@ export function AreaTree(props: Props) {
                 </span>
               </div>
             ) : (
-              <div className="flex h-7 items-center gap-2 rounded-control border border-border-menu bg-menu pr-2 pl-[34px] text-fg">
+              <div className="flex h-7 pointer-coarse:h-10 items-center gap-2 rounded-control border border-border-menu bg-menu pr-2 pl-[34px] text-fg">
                 <Target size={15} strokeWidth={1.75} className="text-fg-2" aria-hidden="true" />
                 <span className="truncate">{dragged.title}</span>
               </div>
@@ -195,7 +198,7 @@ export function AreaTree(props: Props) {
         {pageDrag.dragged && pageDrag.active && (
           <Lifted grab={pageDrag.active.grab} width={pageDrag.active.width} className="rounded-control">
             <div
-              className="flex h-7 items-center gap-2 rounded-control border border-border-menu bg-menu pr-2 text-fg"
+              className="flex h-7 pointer-coarse:h-10 items-center gap-2 rounded-control border border-border-menu bg-menu pr-2 text-fg"
               style={{ paddingLeft: pageIndent(pageDrag.dragged, byId) + TOGGLE }}
             >
               <PageIcon page={pageDrag.dragged} />
@@ -243,12 +246,13 @@ function SortableArea({
   const pageTarget = usePageTarget(area.id)
   const active = area.id === openId
   const addingHere = adding && adding.kind !== 'area' && adding.parent === area.id ? adding.kind : null
+  const words = useVocab()
 
   return (
     <div ref={sortable.setNodeRef} style={style} className="flex flex-col gap-0.5">
       <div
         data-item={area.id}
-        className={`group relative flex h-7 items-center rounded-control transition-colors duration-100 ${
+        className={`group relative flex h-7 pointer-coarse:h-10 items-center rounded-control transition-colors duration-100 ${
           sortable.isDragging ? 'bg-hover [&>*]:invisible' : pageTarget ? 'bg-selected' : active ? '' : 'hover:bg-hover'
         }`}
       >
@@ -280,7 +284,7 @@ function SortableArea({
             label={`Add to ${area.title}`}
             trigger={<AddIcon />}
             items={[
-              { label: 'Add a project', Icon: Target, onSelect: () => setAdding({ kind: 'project', parent: area.id }) },
+              { label: `Add ${words.a('project')}`, Icon: Target, onSelect: () => setAdding({ kind: 'project', parent: area.id }) },
               { label: 'Add a page', Icon: FilePlus, onSelect: () => setAdding({ kind: 'page', parent: area.id }) },
             ]}
           />
@@ -309,7 +313,7 @@ function SortableArea({
           ))}
         </SortableContext>
         {addingHere === 'project' && (
-          <AddRow label="Project name" indent={26} onAdd={(title) => onAdd('project', area.id, title)} onDone={() => setAdding(null)} />
+          <AddRow label={`${words.Noun('project')} name`} indent={26} onAdd={(title) => onAdd('project', area.id, title)} onDone={() => setAdding(null)} />
         )}
         <PageRows
           items={items}
@@ -362,7 +366,7 @@ function SortableProject({
     <div ref={sortable.setNodeRef} style={style} className="flex flex-col gap-0.5">
       <div
         data-item={project.id}
-        className={`group relative flex h-7 shrink-0 items-center rounded-control transition-colors duration-100 ${
+        className={`group relative flex h-7 pointer-coarse:h-10 shrink-0 items-center rounded-control transition-colors duration-100 ${
           sortable.isDragging
             ? 'bg-hover [&>*]:invisible'
             : pageTarget
@@ -392,10 +396,10 @@ function SortableProject({
           />
           <span className="flex-1 truncate">{project.title}</span>
           {total > 0 && (
-            <span className="text-label font-normal text-fg-3 transition-opacity duration-100 group-hover:opacity-0">{`${done}/${total}`}</span>
+            <span className="text-label font-normal text-fg-3 transition-opacity duration-100 group-hover:opacity-0 pointer-coarse:hidden">{`${done}/${total}`}</span>
           )}
         </button>
-        <span className="absolute top-1 right-1 opacity-0 transition-opacity duration-100 group-hover:opacity-100 focus-within:opacity-100">
+        <span className="absolute top-1 right-1 opacity-0 transition-opacity duration-100 group-hover:opacity-100 pointer-coarse:opacity-100 focus-within:opacity-100">
           <button
             onClick={() => setAdding({ kind: 'page', parent: project.id })}
             aria-label={`Add a page to ${project.title}`}
@@ -440,7 +444,7 @@ function AddRow({
 }: {
   label: string
   indent: number
-  onAdd: (title: string) => Promise<unknown>
+  onAdd: (title: string) => Promise<boolean>
   onDone: () => void
 }) {
   return (
@@ -448,10 +452,11 @@ function AddRow({
       <InlineAdd
         autoFocus
         label={label}
-        className="h-7"
+        className="h-7 pointer-coarse:h-10"
         onAdd={async (title) => {
-          await onAdd(title)
-          onDone()
+          const added = await onAdd(title)
+          if (added) onDone()
+          return added
         }}
         onDone={onDone}
       />
@@ -462,7 +467,7 @@ function AddRow({
 /** The "+" on a row, shown on hover. */
 function AddIcon() {
   return (
-    <span className="flex rounded-md p-0.5 text-fg-3 opacity-0 transition-opacity duration-100 group-hover:opacity-100 in-focus-visible:opacity-100 in-aria-expanded:opacity-100 hover:bg-hover hover:text-fg-2">
+    <span className="flex rounded-md p-0.5 text-fg-3 opacity-0 transition-opacity duration-100 group-hover:opacity-100 pointer-coarse:opacity-100 in-focus-visible:opacity-100 in-aria-expanded:opacity-100 hover:bg-hover hover:text-fg-2">
       <Plus size={14} strokeWidth={2} aria-hidden="true" />
     </span>
   )

@@ -6,7 +6,7 @@ import { createContext, useContext } from 'react'
 export interface ToastInput {
   message: string
   /** Shows an Undo button that runs this. */
-  undo?: () => Promise<void> | void
+  undo?: () => Promise<unknown> | void
   tone?: 'default' | 'error'
 }
 

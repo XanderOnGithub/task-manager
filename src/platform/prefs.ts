@@ -44,3 +44,12 @@ export function usePref<T>(key: string, fallback: T): [T, (value: T) => void] {
   }, [key])
   return [value, (next: T) => setPref(key, next)]
 }
+
+/** Calls `listener` whenever `setPref` changes `key`. Returns a function that stops listening. */
+export function onPrefChange(key: string, listener: () => void): () => void {
+  const onChange = (e: Event) => {
+    if ((e as CustomEvent<string>).detail === key) listener()
+  }
+  window.addEventListener(CHANGED, onChange)
+  return () => window.removeEventListener(CHANGED, onChange)
+}

@@ -29,7 +29,6 @@ pub async fn backups_get(app: AppHandle, state: State<'_, AppState>) -> CmdResul
 
 #[tauri::command]
 pub async fn backups_set_automatic(state: State<'_, AppState>, automatic: bool) -> CmdResult<()> {
-    let mut saved = settings::load(&state.settings_file);
-    saved.auto_backup = Some(automatic);
-    settings::save(&state.settings_file, &saved).map_err(|e| e.to_string())
+    settings::update(&state.settings_file, |saved| saved.auto_backup = Some(automatic))
+        .map_err(|e| e.to_string())
 }

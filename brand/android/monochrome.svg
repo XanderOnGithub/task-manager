@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <!-- One colour, for Android's themed icons (the phone tints it). -->
+<g transform="translate(512 512) scale(0.72) translate(-540 -511)">
+  <g transform="translate(0 24)">
+  <!-- the m: two moss mounds -->
+  <path d="M 294 682 V 494 A 109 109 0 0 1 512 494 V 682 M 512 494 A 109 109 0 0 1 730 494 V 682"
+        fill="none" stroke="#fff" stroke-width="92" stroke-linejoin="round"/>
+  <!-- a leaf sprouting from the right mound -->
+  <g transform="translate(722 392) rotate(-42)">
+    <path d="M -6 0 C 30 -46 92 -62 148 -50 C 122 4 58 28 -6 0 Z" fill="#fff"/>
+  </g>
+  </g>
+</g>
+</svg>

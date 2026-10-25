@@ -8,9 +8,10 @@
 // - Milestone: its tasks (ProjectList.tsx with the milestone as container).
 
 import { useState } from 'react'
-import { Calendar, List, Plus, SquareKanban } from 'lucide-react'
+import { Calendar, Flag, List, Plus, SquareKanban } from 'lucide-react'
 import { type Item, type ProjectStatus } from '../../platform/api'
 import { childrenOf, statusLabel, taskCounts, trailOf, itemById } from '../../domain/items'
+import { useVocab } from '../../domain/vocab'
 import { AreaList } from './AreaList'
 import { dueLabel } from '../../domain/dates'
 import type { Actions } from '../../app/useActions'
@@ -21,9 +22,11 @@ import { BodyEditor } from '../editor/BodyEditor'
 import { itemMenu } from '../../shared/itemMenu'
 import { OwnerHeading, PageSection } from '../pages/Pages'
 import { ProjectList } from './ProjectList'
+import { MilestoneTable } from './MilestoneTable'
 import { Panel, PanelHeader } from '../../shared/ui'
 
-export type Layout = 'list' | 'board'
+/** List, Board, or Milestones (a table of the milestones inside, for project-level planning). */
+export type Layout = 'list' | 'board' | 'milestones'
 
 interface Props {
   items: Item[]
@@ -52,11 +55,14 @@ function OneScopeView(props: Props & { scope: Item }) {
   const milestones = scope.kind === 'project' ? childrenOf(items, scope.id).filter((c) => c.kind === 'milestone') : []
   const { done, total } = taskCounts(items, scope.id)
   const [renaming, setRenaming] = useState(0)
+  const words = useVocab()
   useRenameRequest(scope.id, () => {
     onLayout('list') // the title is edited in the List view
     setRenaming((n) => n + 1)
   })
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
+  // A milestone has no milestones inside: its List view stands in.
+  const shown: Layout = scope.kind === 'milestone' && layout === 'milestones' ? 'list' : layout
 
   // "+ Task" adds to the selected milestone (or the selected task's), else the first open one.
   const selected = selectedId ? itemById(items, selectedId) : undefined
@@ -99,7 +105,7 @@ function OneScopeView(props: Props & { scope: Item }) {
     })
 
   return (
-    <Panel label={scope.kind[0].toUpperCase() + scope.kind.slice(1)} className="flex-1">
+    <Panel label={words.Noun(scope.kind)} className="flex-1">
       <PanelHeader>
         <nav aria-label="Breadcrumb" className="flex min-w-0 flex-1 items-center gap-1.5 text-fg-3">
           {trail.map((parent) => (
@@ -112,10 +118,10 @@ function OneScopeView(props: Props & { scope: Item }) {
           ))}
           <span className="truncate text-fg">{scope.title}</span>
         </nav>
-        <LayoutSwitch layout={layout} onLayout={onLayout} />
+        <LayoutSwitch layout={shown} onLayout={onLayout} milestones={scope.kind !== 'milestone'} />
         {scope.kind === 'project' && (
           <Menu
-            label={`Project status: ${statusLabel(scope.status)}`}
+            label={`${words.Noun('project')} status: ${statusLabel(scope.status)}`}
             trigger={
               <span className="flex h-6 shrink-0 items-center gap-1.5 rounded-full bg-raised px-2.5 text-meta whitespace-nowrap text-fg-2 transition-colors duration-100 hover:text-fg">
                 <span className={`size-[7px] rounded-full ${scope.status === 'active' ? 'bg-accent' : 'bg-fg-3'}`} />
@@ -130,17 +136,19 @@ function OneScopeView(props: Props & { scope: Item }) {
         )}
         <button
           onClick={addTask}
-          title={scope.kind === 'area' ? 'Add a project' : 'Add a task'}
+          title={`Add ${words.a(scope.kind === 'area' ? 'project' : 'task')}`}
           className="flex h-7 shrink-0 items-center gap-1.5 rounded-row bg-accent px-3 font-medium text-on-accent transition-[filter,transform] duration-100 hover:brightness-110 active:scale-[0.97] @max-[34rem]/header:px-2"
         >
           <Plus size={14} strokeWidth={2} aria-hidden="true" />
-          <span className="@max-[34rem]/header:sr-only">{scope.kind === 'area' ? 'Project' : 'Task'}</span>
+          <span className="@max-[34rem]/header:sr-only">{words.Noun(scope.kind === 'area' ? 'project' : 'task')}</span>
         </button>
         <Menu items={itemMenu(scope, actions, () => setRenaming((n) => n + 1))} />
       </PanelHeader>
 
-      {layout === 'list' ? (
-        <div className="flex flex-1 flex-col gap-[22px] overflow-y-auto px-7 py-6">
+      {shown === 'milestones' ? (
+        <MilestoneTable items={items} scope={scope} title={scope.title} selectedId={selectedId} onSelect={onSelect} onOpen={onOpen} />
+      ) : shown === 'list' ? (
+        <div className="flex flex-1 flex-col gap-[22px] overflow-y-auto px-7 py-6 max-md:px-4">
           <div className="flex flex-col gap-2">
             <EditableTitle
               key={`${scope.id}:${renaming}`}
@@ -208,8 +216,9 @@ function OneScopeView(props: Props & { scope: Item }) {
   )
 }
 
-/** List / Board, the same switch on every task view. */
-function LayoutSwitch({ layout, onLayout }: { layout: Layout; onLayout: (layout: Layout) => void }) {
+/** List / Board / Milestones, the same switch on every task view. */
+function LayoutSwitch({ layout, onLayout, milestones }: { layout: Layout; onLayout: (layout: Layout) => void; milestones: boolean }) {
+  const words = useVocab()
   return (
     <Segmented<Layout>
       label="View"
@@ -219,6 +228,9 @@ function LayoutSwitch({ layout, onLayout }: { layout: Layout; onLayout: (layout:
       options={[
         { value: 'list', label: 'List', icon: <List size={13} strokeWidth={2} aria-hidden="true" /> },
         { value: 'board', label: 'Board', icon: <SquareKanban size={13} strokeWidth={2} aria-hidden="true" /> },
+        ...(milestones
+          ? [{ value: 'milestones' as const, label: words.Nouns('milestone'), icon: <Flag size={13} strokeWidth={2} aria-hidden="true" /> }]
+          : []),
       ]}
     />
   )
@@ -232,20 +244,23 @@ function EverythingView({ items, layout, onLayout, selectedId, onSelect, onCycle
   const areas = childrenOf(items, null)
   const projects = areas.flatMap((a) => childrenOf(items, a.id))
   const { done, total } = taskCounts(items, null)
+  const words = useVocab()
 
   return (
-    <Panel label="Tasks" className="flex-1">
+    <Panel label={words.Nouns('task')} className="flex-1">
       <PanelHeader>
-        <span className="flex-1 truncate text-fg">Tasks</span>
-        <LayoutSwitch layout={layout} onLayout={onLayout} />
+        <span className="flex-1 truncate text-fg">{words.Nouns('task')}</span>
+        <LayoutSwitch layout={layout} onLayout={onLayout} milestones />
       </PanelHeader>
 
-      {layout === 'list' ? (
-        <div className="flex flex-1 flex-col gap-[22px] overflow-y-auto px-7 py-6">
+      {layout === 'milestones' ? (
+        <MilestoneTable items={items} scope={null} title={words.Nouns('task')} selectedId={selectedId} onSelect={onSelect} onOpen={onOpen} />
+      ) : layout === 'list' ? (
+        <div className="flex flex-1 flex-col gap-[22px] overflow-y-auto px-7 py-6 max-md:px-4">
           <div className="flex flex-col gap-2">
-            <h1 className="text-title">Tasks</h1>
+            <h1 className="text-title">{words.Nouns('task')}</h1>
             <div className="flex items-center gap-3.5 text-meta font-normal text-fg-3">
-              <span>{projects.length === 1 ? '1 project' : `${projects.length} projects`}</span>
+              <span>{words.count(projects.length, 'project')}</span>
               {total > 0 && <span>{`${done} of ${total} done`}</span>}
             </div>
           </div>
@@ -264,11 +279,11 @@ function EverythingView({ items, layout, onLayout, selectedId, onSelect, onCycle
               />
             </section>
           ))}
-          {areas.length === 0 && <p className="text-fg-3">Add an area to start, like Home or School.</p>}
+          {areas.length === 0 && <p className="text-fg-3">{`Add ${words.a('area')} to start, like Home or School.`}</p>}
         </div>
       ) : (
         <>
-          <h1 className="sr-only">Tasks</h1>
+          <h1 className="sr-only">{words.Nouns('task')}</h1>
           <Board
             items={items}
             scope={null}

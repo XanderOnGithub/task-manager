@@ -1,13 +1,14 @@
 // Small helpers for working with items, shared by several components.
 
 import type { Item, MilestoneColor, Status } from '../platform/api'
+import { vocab } from './vocab'
 
 /** Default props for Lucide icons: 16px, 1.75 stroke. */
 export const icon = { size: 16, strokeWidth: 1.75, 'aria-hidden': true } as const
 
-/** Capitalizes a status for display ("doing" → "Doing"). */
+/** A status as shown ("doing" → "Doing", or "In progress" in Formal mode, see vocab.ts). */
 export function statusLabel(status: Status | null): string {
-  return status ? status[0].toUpperCase() + status.slice(1) : ''
+  return vocab().status(status)
 }
 
 // ---------------------------------------------------------------------------

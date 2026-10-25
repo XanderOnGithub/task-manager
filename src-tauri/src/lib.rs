@@ -32,15 +32,20 @@ use state::AppState;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tauri::Builder::default()
+    let builder = tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
-        .plugin(tauri_plugin_dialog::init())
-        // In-app updates: checks the latest GitHub release (see "updater" in
-        // tauri.conf.json), and restarts into the new version.
+        .plugin(tauri_plugin_dialog::init());
+    // Computers only. In-app updates check the latest GitHub release (see
+    // "updater" in tauri.conf.json) and restart into the new version; the 120fps
+    // plugin stays available for manual control through Settings. A phone is
+    // updated by installing a new APK.
+    #[cfg(desktop)]
+    let builder = builder
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
-        // Keep the plugin available for manual control through Settings.
-        .plugin(tauri_plugin_macos_fps::init())
+        .plugin(tauri_plugin_macos_fps::init());
+
+    builder
         .setup(|app| {
             let settings_file = app.path().app_config_dir()?.join("settings.json");
             settings::bring_over_old(&settings_file);
@@ -82,6 +87,7 @@ pub fn run() {
             commands::folder::start_data_folder,
             commands::library::load_library,
             commands::items::create_item,
+            commands::items::group_into_milestone,
             commands::items::rename_item,
             commands::items::move_item,
             commands::items::set_field,
@@ -113,7 +119,7 @@ pub fn run() {
             sync::login::github_login_poll,
             sync::logout::github_logout,
             sync::repos::github_repos,
-            sync::repos::github_create_repo,
+            sync::repos::github_install_url,
             sync::connect::sync_connect,
             sync::run::sync_now,
             sync::run::sync_nudge,

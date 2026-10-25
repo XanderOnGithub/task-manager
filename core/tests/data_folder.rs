@@ -144,6 +144,93 @@ fn missing_ids_and_index_files_are_fixed() {
 }
 
 #[test]
+fn fixing_never_replaces_an_id_or_an_index_that_arrived_after_loading() {
+    let (_dir, root) = sample();
+    let sink = root.join(TASKS).join("Replace the sink");
+    fs::write(sink.join("Buy caulk.md"), "Just text.\n").unwrap();
+    fs::create_dir(root.join(TASKS).join("Clean up")).unwrap();
+    fs::write(root.join(TASKS).join("Clean up/Haul debris.md"), "").unwrap();
+    let lib = load(&root);
+
+    // Before the fixes run, a sync brings in the real id and the real _index.md.
+    fs::write(
+        sink.join("Buy caulk.md"),
+        "---\nid: FROMSYNC01\n---\nJust text.\n",
+    )
+    .unwrap();
+    let index = "---\nid: FROMSYNC02\nstatus: open\n---\nFrom the other computer.\n";
+    fs::write(root.join(TASKS).join("Clean up/_index.md"), index).unwrap();
+
+    fix::apply(&lib).unwrap();
+
+    let caulk = fs::read_to_string(sink.join("Buy caulk.md")).unwrap();
+    assert!(
+        caulk.contains("id: FROMSYNC01") && !caulk.contains("id: FROMSYNC01\nid:"),
+        "{caulk}"
+    );
+    assert_eq!(
+        fs::read_to_string(root.join(TASKS).join("Clean up/_index.md")).unwrap(),
+        index
+    );
+}
+
+/// A folder link that points back at its own parent used to be followed until
+/// the path was too long to open, which failed the whole load.
+#[cfg(unix)]
+#[test]
+fn a_folder_link_that_loops_does_not_stop_the_load() {
+    let (_dir, root) = sample();
+    let pages = root.join("areas/Home/Pages");
+    fs::create_dir_all(&pages).unwrap();
+    std::os::unix::fs::symlink(&pages, pages.join("Loop")).unwrap();
+
+    let lib = Library::load(&root).expect("one odd folder must not fail the load");
+    assert!(lib.issues.iter().any(|i| matches!(i, Issue::TooDeep { .. })));
+    // Everything else still loads.
+    assert_eq!(by_title(&lib, "Replace the sink").kind, Kind::Milestone);
+}
+
+#[test]
+fn a_project_with_loose_tasks_can_get_its_first_milestone() {
+    let (_dir, root) = sample();
+    let lib = load(&root);
+    // A project with tasks straight inside it (no milestones).
+    let area = by_title(&lib, "Home").id.clone();
+    let project = ops::create(&lib, Kind::Project, Some(&area), "Fix the fence", "").unwrap();
+    let lib = load(&root);
+    let paint = ops::create(&lib, Kind::Task, Some(&project), "Paint it", "").unwrap();
+    let posts = ops::create(&lib, Kind::Task, Some(&project), "Set the posts", "").unwrap();
+    let lib = load(&root);
+
+    // A plain create is refused: a project can't mix tasks and milestones.
+    assert!(ops::create(&lib, Kind::Milestone, Some(&project), "Week 1", "").is_err());
+
+    let milestone = ops::group_into_milestone(&lib, &project, "Week 1").unwrap();
+    let lib = load(&root);
+    assert!(lib.issues.is_empty(), "{:#?}", lib.issues);
+    let week = lib.get(&milestone).unwrap();
+    assert_eq!(week.kind, Kind::Milestone);
+    assert_eq!(week.parent.as_deref(), Some(project.as_str()));
+    // The tasks moved in and kept their ids.
+    for task in [&paint, &posts] {
+        assert_eq!(lib.get(task).unwrap().parent.as_deref(), Some(milestone.as_str()));
+    }
+    // Now the project uses milestones: more can be added the usual way.
+    assert!(ops::create(&lib, Kind::Milestone, Some(&project), "Week 2", "").is_ok());
+    // A name already used in the project is refused, and nothing moves.
+    let lib = load(&root);
+    assert!(
+        ops::group_into_milestone(&lib, &project, "Week 3").is_ok(),
+        "no loose tasks left: a plain milestone"
+    );
+    let lib = load(&root);
+    assert!(matches!(
+        ops::group_into_milestone(&lib, &project, "week 1"),
+        Err(Error::NameTaken(_))
+    ));
+}
+
+#[test]
 fn a_copied_file_gets_a_new_id() {
     let (_dir, root) = sample();
     let dir = root.join(TASKS).join("Replace the sink");
@@ -573,6 +660,23 @@ fn restoring_refuses_paths_outside_the_data_folder() {
 // ---------------------------------------------------------------------------
 
 #[test]
+fn a_restore_note_cannot_point_outside_areas() {
+    // The note that says where a trashed item came from can arrive through a
+    // sync. It must not be able to put a file in `.git/hooks`, say.
+    let (_dir, root) = sample();
+    let lib = load(&root);
+    let trashed = ops::trash(&lib, "TSKTILE001").unwrap();
+    let lib = load(&root);
+    for target in [".git/hooks/post-merge", "unsorted.md", "Moss notes.md"] {
+        assert!(
+            matches!(ops::restore(&lib, &trashed, target), Err(Error::NotAllowed(_))),
+            "{target}"
+        );
+    }
+    assert!(root.join(&trashed).exists(), "still in the trash");
+}
+
+#[test]
 fn unsorted_add_stamp_and_file() {
     let (_dir, root) = sample();
     let lib = load(&root);
@@ -727,6 +831,11 @@ fn old_trash_is_emptied_and_recent_trash_kept() {
     )
     .unwrap();
     fs::write(trash.join("20260910-120000-Old task.md"), "old").unwrap();
+    fs::write(
+        trash.join("20260910-120000-Old task.md.from"),
+        "areas/Home/Old task.md\n",
+    )
+    .unwrap();
     fs::write(trash.join("20261010-090000-Recent task.md"), "recent").unwrap();
     fs::write(trash.join("put here by hand.md"), "mine").unwrap();
 
@@ -736,6 +845,8 @@ fn old_trash_is_emptied_and_recent_trash_kept() {
     assert_eq!(removed, 2);
     assert!(!trash.join("20260901-100000-Old project").exists());
     assert!(!trash.join("20260910-120000-Old task.md").exists());
+    // The note goes with its item, and isn't counted as a second one.
+    assert!(!trash.join("20260910-120000-Old task.md.from").exists());
     assert!(trash.join("20261010-090000-Recent task.md").exists());
     // No date stamp: not ours to delete.
     assert!(trash.join("put here by hand.md").exists());

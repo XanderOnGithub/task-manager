@@ -1,6 +1,6 @@
 [package]
 name = "moss"
-version = "0.2.4"
+version = "0.3.0"
 description = "Moss: tasks and notes, sorted into a strict hierarchy"
 edition = "2021"
 publish = false
@@ -21,9 +21,18 @@ tauri-plugin-dialog = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 task-core = { path = "../core" }
-tauri-plugin-macos-fps = "0.1.0"
 include_dir = "0.7"
+
+# Computers only: the 120fps switch, in-app updates and restarting. A phone gets
+# updates by installing a new APK.
+[target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
+tauri-plugin-macos-fps = "0.1.0"
 tauri-plugin-updater = "2"
 tauri-plugin-process = "2"
-# The GitHub sign-in token lives in the system keychain, not in a file.
+# On computers the GitHub sign-in token lives in the system keychain, not in a
+# file. (Android keeps it in the app's private folder, see sync/token.rs.)
 keyring = { version = "3", features = ["apple-native", "windows-native", "linux-native"] }
+
+[dev-dependencies]
+# Throwaway folders for tests.
+tempfile = "3"

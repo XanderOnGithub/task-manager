@@ -10,6 +10,7 @@ import { useToast } from '../../shared/toast/toast'
 import { HighRefreshSetting } from './HighRefreshSetting'
 import { KeyboardHelp } from './KeyboardHelp'
 import { LanesSetting } from './LanesSetting'
+import { FormalModeSetting } from './FormalModeSetting'
 import { WordCountSetting } from './WordCountSetting'
 
 export function GeneralTab({
@@ -56,6 +57,8 @@ export function GeneralTab({
         </p>
       </div>
 
+      <FormalModeSetting />
+
       <WordCountSetting />
 
       <LanesSetting />
@@ -79,7 +82,10 @@ export function GeneralTab({
         />
       </div>
 
-      <KeyboardHelp />
+      {/* Keys mean nothing on a touch screen. */}
+      <div className="pointer-coarse:hidden">
+        <KeyboardHelp />
+      </div>
     </>
   )
 }

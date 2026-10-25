@@ -2276,7 +2276,7 @@ dependencies = [
 
 [[package]]
 name = "moss"
-version = "0.2.4"
+version = "0.3.0"
 dependencies = [
  "include_dir",
  "keyring",
@@ -2290,6 +2290,7 @@ dependencies = [
  "tauri-plugin-opener",
  "tauri-plugin-process",
  "tauri-plugin-updater",
+ "tempfile",
 ]
 
 [[package]]
@@ -3551,6 +3552,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "sha1"
+version = "0.10.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a978451301f4db1d02937a4ab3ccce137717b81826e79b7d49ffe3244a13c3b8"
+dependencies = [
+ "cfg-if",
+ "cpufeatures",
+ "digest",
+]
+
+[[package]]
 name = "sha2"
 version = "0.10.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3890,13 +3902,15 @@ checksum = "61c41af27dd6d1e27b1b16b489db798443478cef1f06a660c96db617ba5de3b1"
 
 [[package]]
 name = "task-core"
-version = "0.2.4"
+version = "0.3.0"
 dependencies = [
+ "base64 0.22.1",
  "chrono",
  "getrandom 0.3.4",
  "notify",
  "serde",
  "serde_json",
+ "sha1",
  "tempfile",
  "ureq",
  "zip 2.6.1",

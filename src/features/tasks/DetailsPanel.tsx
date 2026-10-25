@@ -1,7 +1,7 @@
 // The right panel: details of the selected task or milestone, all editable.
 
 import { useState, type CSSProperties, type ReactNode } from 'react'
-import { X } from 'lucide-react'
+import { ArrowUpRight, Flag, X } from 'lucide-react'
 import { type Item, type MilestoneColor, type Status } from '../../platform/api'
 import { childrenOf, MILESTONE_COLORS, statusLabel } from '../../domain/items'
 import { shortDate } from '../../domain/dates'
@@ -11,6 +11,8 @@ import type { Actions } from '../../app/useActions'
 import { DateField, EditableTitle, InlineAdd, Menu, Segmented } from '../../shared/controls'
 import { BodyEditor } from '../editor/BodyEditor'
 import { BlockersField } from './BlockersField'
+import { PriorityField } from './Priority'
+import { useVocab } from '../../domain/vocab'
 import { RepeatField } from './RepeatField'
 import { useRovingRadios } from '../../shared/a11y/roving'
 import { itemMenu } from '../../shared/itemMenu'
@@ -22,10 +24,13 @@ interface Props {
   parent: Item | undefined
   onSelect: (id: string | null) => void
   actions: Actions
+  /** Fills its container instead of being a fixed-width column (the sheet on a narrow window). */
+  fluid?: boolean
 }
 
-export function DetailsPanel({ items, item, parent, onSelect, actions }: Props) {
+export function DetailsPanel({ items, item, parent, onSelect, actions, fluid = false }: Props) {
   const [renaming, setRenaming] = useState(0)
+  const words = useVocab()
   useRenameRequest(item.id, () => setRenaming((n) => n + 1))
   const isMilestone = item.kind === 'milestone'
   const tasks = isMilestone ? childrenOf(items, item.id) : []
@@ -35,10 +40,10 @@ export function DetailsPanel({ items, item, parent, onSelect, actions }: Props) 
   const statuses: Status[] = isMilestone ? ['open', 'done'] : lanes.map((lane) => lane.status)
 
   return (
-    <Panel label={isMilestone ? 'Milestone details' : 'Task details'} className="h-full w-details shrink-0">
+    <Panel label={`${words.Noun(isMilestone ? 'milestone' : 'task')} details`} className={`h-full ${fluid ? 'w-full rounded-none border-0 bg-transparent' : 'w-details shrink-0'}`}>
       <PanelHeader>
         {isMilestone ? (
-          <SectionLabel>Milestone</SectionLabel>
+          <SectionLabel>{words.Noun('milestone')}</SectionLabel>
         ) : (
           <span
             className={`flex h-6 items-center gap-1.5 rounded-full px-2.5 text-meta text-fg ${
@@ -70,7 +75,7 @@ export function DetailsPanel({ items, item, parent, onSelect, actions }: Props) 
           className="text-[18px] leading-6 font-semibold tracking-tight"
         />
 
-        <dl className="grid grid-cols-[76px_minmax(0,1fr)] items-center gap-y-2.5 text-[12.5px]">
+        <dl className="grid grid-cols-[76px_minmax(0,1fr)] items-center gap-y-2.5 text-compact">
           <Field label="Status">
             <Segmented<Status>
               label="Status"
@@ -89,10 +94,14 @@ export function DetailsPanel({ items, item, parent, onSelect, actions }: Props) 
           </Field>
 
           {!isMilestone && parent?.kind === 'milestone' && (
-            <Field label="Milestone">
-              <button onClick={() => onSelect(parent.id)} className="flex" title="Open milestone">
-                <MilestoneChip title={parent.title} color={parent.color} />
-              </button>
+            <Field label={words.Noun('milestone')}>
+              <MilestoneField items={items} task={item} milestone={parent} onSelect={onSelect} actions={actions} />
+            </Field>
+          )}
+
+          {!isMilestone && (
+            <Field label="Priority">
+              <PriorityField taskId={item.id} onChange={(priority) => actions.setPriority(item, priority)} />
             </Field>
           )}
 
@@ -107,7 +116,7 @@ export function DetailsPanel({ items, item, parent, onSelect, actions }: Props) 
           )}
 
           {!isMilestone && (
-            <Field label="Waiting on">
+            <Field label={words.waitingOn}>
               <BlockersField items={items} task={item} onChange={(ids) => void actions.setBlockers(item, ids)} onOpen={onSelect} />
             </Field>
           )}
@@ -135,7 +144,7 @@ export function DetailsPanel({ items, item, parent, onSelect, actions }: Props) 
 
         {isMilestone && (
           <div className="flex flex-col gap-1">
-            <SectionLabel className="pb-1">Tasks</SectionLabel>
+            <SectionLabel className="pb-1">{words.Nouns('task')}</SectionLabel>
             {tasks.map((task) => (
               <button
                 key={task.id}
@@ -143,14 +152,54 @@ export function DetailsPanel({ items, item, parent, onSelect, actions }: Props) 
                 className="flex h-[30px] items-center gap-2.5 rounded-control px-1.5 text-left transition-colors duration-100 hover:bg-hover"
               >
                 <StatusIcon status={task.status} size={15} />
-                <TaskTitle title={task.title} done={task.status === 'done'} className="text-[12.5px]" />
+                <TaskTitle title={task.title} done={task.status === 'done'} className="text-compact" />
               </button>
             ))}
-            <InlineAdd label="Add a task" onAdd={(title) => actions.create('task', item.id, title)} />
+            <InlineAdd label={`Add ${words.a('task')}`} onAdd={async (title) => (await actions.create('task', item.id, title)) !== undefined} />
           </div>
         )}
       </div>
     </Panel>
+  )
+}
+
+/**
+ * The task's milestone, and the others of its project to move it to. Moving
+ * goes through `actions.move`, so it has a toast with Undo like a drag does.
+ */
+function MilestoneField({
+  items,
+  task,
+  milestone,
+  onSelect,
+  actions,
+}: {
+  items: Item[]
+  task: Item
+  milestone: Item
+  onSelect: (id: string | null) => void
+  actions: Actions
+}) {
+  const others = milestone.parent ? childrenOf(items, milestone.parent).filter((m) => m.kind === 'milestone' && m.id !== milestone.id) : []
+  // Where it is now, so Undo puts it back in the same spot.
+  const siblings = childrenOf(items, milestone.id)
+  const next = siblings[siblings.findIndex((t) => t.id === task.id) + 1]
+  const words = useVocab()
+  return (
+    <Menu
+      label={`${words.Noun('milestone')}: ${milestone.title}`}
+      align="left"
+      trigger={<MilestoneChip title={milestone.title} color={milestone.color} />}
+      items={[
+        ...others.map((m) => ({
+          label: `Move to ${m.title}`,
+          Icon: Flag,
+          onSelect: () => void actions.move(task, { id: m.id, title: m.title }, null, { parent: milestone.id, before: next?.id ?? null }),
+        })),
+        ...(others.length ? (['divider'] as const) : []),
+        { label: `Open ${milestone.title}`, Icon: ArrowUpRight, onSelect: () => onSelect(milestone.id) },
+      ]}
+    />
   )
 }
 
@@ -169,7 +218,7 @@ function ColorPicker({ value, onChange }: { value: MilestoneColor | null; onChan
     onChange(MILESTONE_COLORS[i]),
   )
   return (
-    <span role="radiogroup" aria-label="Milestone color" {...roving.groupProps} className="flex gap-[7px]">
+    <span role="radiogroup" aria-label="Color" {...roving.groupProps} className="flex gap-[7px]">
       {MILESTONE_COLORS.map((color, i) => {
         const on = color === value
         const name = color.replace('-', ' ')

@@ -30,7 +30,5 @@ pub(super) fn for_open_folder(app: &AppHandle) -> Option<(Config, PathBuf)> {
 /// Saves `config` (or removes sync with `None`) without touching other settings.
 pub(super) fn save(app: &AppHandle, config: Option<Config>) -> Result<(), String> {
     let state = app.state::<AppState>();
-    let mut saved = settings::load(&state.settings_file);
-    saved.sync = config;
-    settings::save(&state.settings_file, &saved).map_err(|e| e.to_string())
+    settings::update(&state.settings_file, |saved| saved.sync = config).map_err(|e| e.to_string())
 }

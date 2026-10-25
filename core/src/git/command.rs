@@ -40,7 +40,12 @@ pub(super) fn run(dir: &Path, token: Option<&str>, args: &[&str]) -> Result<Stri
         // Never stop to ask for a password on a terminal that isn't there.
         .env("GIT_TERMINAL_PROMPT", "0")
         // Keep Git's messages in English so we can show them.
-        .env("LC_ALL", "C");
+        .env("LC_ALL", "C")
+        // Give up on a connection that has gone quiet (below 1 KB/s for 30
+        // seconds). Without this a dropped network can leave `fetch` or `push`
+        // waiting forever, and every later sync waits behind it.
+        .env("GIT_HTTP_LOW_SPEED_LIMIT", "1000")
+        .env("GIT_HTTP_LOW_SPEED_TIME", "30");
     if let Some(token) = token {
         // `GIT_CONFIG_*` adds one config entry for this command only.
         let credentials = base64(format!("x-access-token:{token}").as_bytes());

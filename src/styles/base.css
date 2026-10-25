@@ -64,6 +64,26 @@
     outline: none;
   }
 
+  /* Touch screens: no delay or double-tap zoom on controls, no grey flash on
+     tap, and the list can't be pulled past its end into a page reload. */
+  button,
+  a[href],
+  summary,
+  select,
+  [role='button'],
+  [role='menuitem'],
+  [role='option'],
+  [role='radio'],
+  [role='switch'],
+  [role='tab'] {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+  html,
+  body {
+    overscroll-behavior: none;
+  }
+
   /* WebKit starts its own native drag on images, links and selected text, which
      cancels the pointer events our drag and drop (dnd-kit) listens to. */
   img,
@@ -94,4 +114,21 @@
 }
 [data-tree-dragging] .sidebar-scroll::-webkit-scrollbar {
   display: none;
+}
+
+/* On a touch screen small controls get a larger area to tap (at least 44px)
+   without looking any different: an invisible layer centered on the control. */
+@media (pointer: coarse) {
+  :is(button, a[href], [role='button'], [role='menuitem'], [role='radio'], [role='switch'], [role='tab']):not(.sr-only) {
+    position: relative;
+  }
+  :is(button, a[href], [role='button'], [role='radio'], [role='switch'], [role='tab']):not(.sr-only)::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: max(100%, 44px);
+    height: max(100%, 44px);
+    transform: translate(-50%, -50%);
+  }
 }

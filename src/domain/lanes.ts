@@ -5,6 +5,7 @@
 
 import type { Item, TaskStatus } from '../platform/api'
 import { usePref } from '../platform/prefs'
+import { useVocab } from './vocab'
 
 export interface Lane {
   status: TaskStatus
@@ -37,9 +38,10 @@ export function useOptionalLanes() {
  */
 export function useLanes(tasks: Item[] = []): Lane[] {
   const [on] = useOptionalLanes()
+  const words = useVocab()
   return LANES.filter(
     (lane) => !OPTIONAL.includes(lane.status) || on.includes(lane.status) || tasks.some((t) => t.status === lane.status),
-  )
+  ).map((lane) => ({ ...lane, label: words.status(lane.status) }))
 }
 
 /** Clicking a task's circle: Todo → Doing → Done → Todo. Later moves up to Todo; Waiting goes back to Doing. */

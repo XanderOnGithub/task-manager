@@ -3,6 +3,7 @@
 
 import type { Item } from '../platform/api'
 import { itemById, tasksUnder, trailOf } from './items'
+import { vocab } from './vocab'
 
 /** The tasks this one still waits on: its blockers that exist and aren't done. */
 export function openBlockers(items: readonly Item[], task: Item): Item[] {
@@ -28,7 +29,8 @@ export function blockerChoices(items: readonly Item[], task: Item): Item[] {
     .filter((t) => t.id !== task.id && t.status !== 'done' && !task.blockedBy.includes(t.id))
 }
 
-/** The wording on a row: "Waiting on Pick tile" or "Waiting on 3 tasks". */
+/** The wording on a row: "Waiting on Pick tile" or "Waiting on 3 tasks" (Formal mode: "Blocked by …"). */
 export function waitingText(titles: readonly string[]): string {
-  return titles.length === 1 ? `Waiting on ${titles[0]}` : `Waiting on ${titles.length} tasks`
+  const words = vocab()
+  return titles.length === 1 ? `${words.waitingOn} ${titles[0]}` : `${words.waitingOn} ${words.count(titles.length, 'task')}`
 }

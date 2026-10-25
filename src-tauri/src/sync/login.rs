@@ -8,7 +8,7 @@ use super::runtime::{blocking, changed};
 use super::token;
 use crate::state::{AppState, CmdResult};
 
-/// The public id of Moss's OAuth app on GitHub (device flow turned on). It is
+/// The public id of Moss's GitHub App (device flow turned on). It is
 /// not a secret. Set `MOSS_GITHUB_CLIENT_ID` when building; without it the UI
 /// says sign-in isn't set up.
 pub(super) const CLIENT_ID: &str = match option_env!("MOSS_GITHUB_CLIENT_ID") {

@@ -30,9 +30,8 @@ pub async fn set_high_refresh(
     state: State<'_, AppState>,
     enabled: bool,
 ) -> CmdResult<()> {
-    let mut saved = settings::load(&state.settings_file);
-    saved.high_refresh = enabled;
-    settings::save(&state.settings_file, &saved).map_err(|e| e.to_string())?;
+    settings::update(&state.settings_file, |saved| saved.high_refresh = enabled)
+        .map_err(|e| e.to_string())?;
 
     // Commands run off the main thread, so it's fine to wait for the result here.
     let (tx, rx) = std::sync::mpsc::channel();

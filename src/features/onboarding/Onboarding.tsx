@@ -64,7 +64,7 @@ function Welcome({ onNext }: { onNext: () => void }) {
     <>
       <div className="flex flex-col gap-3">
         <MossWordmark className="h-10 w-[141px] shrink-0 self-start" />
-        <p className="text-[14px] text-fg-2">Tasks and pages, kept as plain files on this computer.</p>
+        <p className="text-lead text-fg-2">Tasks and pages, kept as plain files on this computer.</p>
       </div>
       <ul className="flex flex-col gap-3.5">
         <Idea Icon={Layers} title="Capture first">
@@ -242,7 +242,7 @@ function GithubStep({ onBack, onDone }: { onBack: () => void; onDone: () => Prom
     <>
       <div className="flex flex-col gap-1.5">
         <h1 className="text-heading">Get your files from GitHub</h1>
-        <p className="text-fg-3">Choose the repository that holds your Moss files. They are copied into Documents.</p>
+        <p className="text-fg-3">Choose the repository that holds your Moss files. They are copied into Documents. Moss can only see the repositories you choose on GitHub.</p>
       </div>
       {!info ? null : !info.gitAvailable ? (
         <p className="text-fg-3">Install Git to use sync. Moss uses the Git on this computer.</p>

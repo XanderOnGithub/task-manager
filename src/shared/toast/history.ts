@@ -22,7 +22,7 @@ export interface HistoryEntry {
   undone: boolean
   /** Made while something was being undone (see above). */
   fromUndo: boolean
-  run: () => Promise<void> | void
+  run: () => Promise<unknown> | void
 }
 
 const MAX_ENTRIES = 50

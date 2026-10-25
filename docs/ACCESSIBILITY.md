@@ -6,7 +6,7 @@ Moss should work with a keyboard alone, with a screen reader, with Reduce motion
 
 - **`pnpm lint`** runs `eslint-plugin-jsx-a11y` over every component: buttons need names, labels need fields, clickable `div`s need a role.
 - **`pnpm test`** runs the behavior tests in `shared/controls/*.test.tsx`, `shared/toast/Toasts.test.tsx` and `features/navigation/rowKeys.test.tsx`, which drive the real components with a keyboard.
-- **`pnpm a11y`** (after `pnpm build`) opens every screen in a real browser, in both themes, and runs axe-core over it (`scripts/a11y-audit.mjs`). It runs in CI as its own job. Add a screen to the list in the script when you add a screen.
+- **`pnpm a11y`** (after `pnpm build`) opens every screen in a real browser, in both themes, at desktop and phone size (412 wide, touch), and runs axe-core over it (`scripts/a11y-audit.mjs`). It runs in CI as its own job. Add a screen to the list in the script when you add a screen.
 - **`src/styles/contrast.test.ts`** reads `tokens.css` and checks that every text color is at least 4.5:1 against every surface it sits on (including the see-through hover, selected and field tints laid over them), in the dark theme, the light theme and the explicit light override. Change a color and it tells you if the new one is too faint.
 
 What no test can check: how a screen reader actually sounds, and how it feels. Try VoiceOver (macOS, ⌘F5) or Narrator (Windows, Ctrl+Win+Enter) after changing a control.
@@ -33,6 +33,8 @@ Dialogs are drawn in a portal on `<body>`, outside `#root`, because making `#roo
 **Messages are announced.** Toasts use two always-present live regions (`status` and `alert`); a region that appears together with its text is often missed. Moving between sections updates the window title and a polite live region (`App.tsx`). The search box is a combobox with `aria-activedescendant` and a spoken result count.
 
 **Checklists have a keyboard path.** The boxes are drawn in CSS; Ctrl/⌘+Enter ticks the item the cursor is in.
+
+**A narrow window works too.** Under 768px the sidebar is a drawer, the details a sheet, and the main places a bar at the bottom (`shared/Drawer.tsx`, `shared/Sheet.tsx`, `features/navigation/BottomNav.tsx`). Drawer and sheet are dialogs like any other. On touch screens every control has a 44px tap area (`base.css`), and nothing is only revealed by hover (`pointer-coarse:opacity-100`). A button's name must start with the words on it (voice control says those words): `Unsorted 3`, not `3, Unsorted`.
 
 **Text is readable.** 4.5:1 for text, always. Muted text and placeholders use `text-fg-3`, which passes. Don't lower an opacity on text.
 

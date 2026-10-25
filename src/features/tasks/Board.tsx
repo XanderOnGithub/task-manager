@@ -1,9 +1,13 @@
 // The board: the tasks inside an area, project or milestone (or every task,
-// in the Tasks overview), in Todo / Doing / Done columns.
+// in the Tasks overview), in Todo / Doing / Done columns. Within a column,
+// higher priority comes first (Priority.tsx); otherwise list order.
 // Drag a card into another column to change its status. Clicking a card's
 // circle also changes status, and the card flies to its new column.
 
 import { BlockedMark } from './BlockedMark'
+import { PriorityMark } from './Priority'
+import { byPriority, usePriorities } from '../../app/priorityStore'
+import { useVocab } from '../../domain/vocab'
 import { memo, useEffect, useState } from 'react'
 import {
   closestCenter,
@@ -18,7 +22,7 @@ import {
 import { LayoutGroup, motion } from 'motion/react'
 import type { Item, TaskStatus } from '../../platform/api'
 import { useDragSensors, useDragState, DRAG_ATTRIBUTES } from '../../shared/drag/drag'
-import { statusLabel, tasksUnder } from '../../domain/items'
+import { tasksUnder } from '../../domain/items'
 import { useLanes } from '../../domain/lanes'
 import { spring } from '../../shared/motion/springs'
 import type { Actions } from '../../app/useActions'
@@ -57,6 +61,8 @@ export function Board({ items, scope, selectedId, onSelect, onCycleStatus, actio
 
   // Every task inside, in list order, with its milestone and project.
   const tasks = tasksUnder(items, scope?.id ?? null)
+  // Redraws the board (and re-sorts its columns) when a priority changes.
+  usePriorities()
   // Todo, Doing, Done, plus Later and Waiting when they're on (or in use here).
   const lanes = useLanes(tasks.map(({ task }) => task))
   // Inside a milestone the chip would say the same thing on every card.
@@ -82,6 +88,9 @@ export function Board({ items, scope, selectedId, onSelect, onCycleStatus, actio
     <DndContext
       sensors={sensors}
       collisionDetection={columnCollision}
+      // Near the edge the board scrolls on its own, gently, so a card can stop
+      // over the column in between instead of shooting past it.
+      autoScroll={{ threshold: { x: 0.12, y: 0.12 }, acceleration: 4 }}
       onDragStart={drag.start}
       onDragOver={drag.over}
       onDragEnd={(e) => void onDragEnd(e)}
@@ -92,13 +101,21 @@ export function Board({ items, scope, selectedId, onSelect, onCycleStatus, actio
           between a readable minimum (the board scrolls sideways below it)
           and a maximum (on a wide screen they stop growing and sit left). */}
       <LayoutGroup>
-        <div className="flex min-h-0 flex-1 overflow-x-auto">
+        {/* On a phone the board snaps from column to column, except while a card
+            is held: snapping would catch the drag's own scrolling and jump it
+            past the middle columns. */}
+        <div
+          className={`flex min-h-0 flex-1 overflow-x-auto max-md:scroll-px-4 md:snap-none ${
+            drag.active ? 'snap-none' : 'snap-x snap-mandatory'
+          }`}
+        >
           <div className="flex min-h-0 flex-1 gap-3 p-4">
             {lanes.map((column) => (
               <Column key={column.status} status={column.status} label={column.label} dot={column.dot} count={tasks.filter(({ task }) => statusOf(task) === column.status).length}>
-                {tasks
-                  .filter(({ task }) => statusOf(task) === column.status)
-                  .map(({ task, milestone, project }) => (
+                {byPriority(
+                  tasks.filter(({ task }) => statusOf(task) === column.status),
+                  ({ task }) => task.id,
+                ).map(({ task, milestone, project }) => (
                     <Card
                       key={task.id}
                       // Same object when nothing's remapped, so the card's memo holds.
@@ -151,7 +168,7 @@ function Column({
   return (
     <div
       ref={droppable.setNodeRef}
-      className={`flex min-h-0 max-w-[22rem] min-w-[12.5rem] flex-1 basis-0 flex-col gap-2 rounded-[10px] py-2.5 transition-colors duration-150 ${
+      className={`flex min-h-0 max-w-[22rem] min-w-[12.5rem] flex-1 basis-0 snap-start flex-col max-md:min-w-[80%] gap-2 rounded-[10px] py-2.5 transition-colors duration-150 ${
         droppable.isOver ? 'bg-hover' : 'bg-column'
       }`}
     >
@@ -188,12 +205,13 @@ const Card = memo(function Card({
   onCycleStatus: (task: Item) => void
 }) {
   const draggable = useDraggable({ id: task.id, data: { type: 'card' }, attributes: DRAG_ATTRIBUTES })
+  const words = useVocab()
   return (
     <motion.div
       ref={draggable.setNodeRef}
       {...draggable.attributes}
       {...draggable.listeners}
-      aria-label={`${task.title}, ${statusLabel(task.status)}. Press space to move.`}
+      aria-label={`${task.title}, ${words.status(task.status)}. Press space to move.`}
       // A card that just landed from a drag skips the fly-in and settles in place.
       layoutId={landed ? undefined : task.id}
       initial={landed ? { scale: 1.02 } : false}
@@ -232,6 +250,7 @@ const CardFace = memo(function CardFace({
   onSelect?: (id: string) => void
   onCycleStatus?: (task: Item) => void
 }) {
+  const words = useVocab()
   return (
     <div
       className={`flex flex-col gap-2.5 rounded-card border bg-card p-3 shadow-card transition-colors duration-100 ${
@@ -241,7 +260,7 @@ const CardFace = memo(function CardFace({
       <div className="flex items-start gap-2.5">
         <button
           onClick={() => onCycleStatus?.(task)}
-          aria-label={`Status: ${statusLabel(task.status)}. Change status`}
+          aria-label={`Status: ${words.status(task.status)}. Change status`}
           className="mt-px rounded-full transition-transform duration-100 ease-pop active:scale-90"
         >
           <StatusIcon status={task.status} />
@@ -252,6 +271,7 @@ const CardFace = memo(function CardFace({
         >
           {task.title}
         </button>
+        <PriorityMark taskId={task.id} className="mt-[3px]" />
       </div>
       <BlockedMark task={task} />
       {(milestone || project || task.due) && (
