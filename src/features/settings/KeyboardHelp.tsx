@@ -1,11 +1,13 @@
 // Settings → Keyboard: the shortcuts, for reference.
 
 import { keys } from '../../platform/os'
+import { useVocab } from '../../domain/vocab'
 
 /** The keyboard shortcuts, for reference. Rows: features/navigation/rowKeys.ts; the rest: App.tsx. */
 export function KeyboardHelp() {
+  const words = useVocab()
   const shortcuts: [string, string][] = [
-    [keys('N'), 'Quick capture'],
+    [keys('N'), words.quickCapture],
     [keys('K'), 'Search and commands'],
     [keys('\\'), 'Hide or show the sidebar'],
     [keys('Z'), 'Undo the last change (also after its message is gone)'],
@@ -13,6 +15,8 @@ export function KeyboardHelp() {
     ['← →', 'Move between board columns'],
     ['Enter', 'Open the row'],
     ['S', 'Next status'],
+    ['1–4', `Set priority (${[1, 2, 3, 4].map(words.priority).join(', ')})`],
+    ['0', 'Clear priority'],
     ['Delete', 'Delete the row'],
     ['Space', 'Pick up the row, then arrows and Space to move it'],
     ['Esc', 'Close details'],

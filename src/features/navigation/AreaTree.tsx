@@ -37,6 +37,7 @@ import { Lifted } from '../../shared/drag/Lifted'
 import { Collapse } from '../../shared/motion/pieces'
 import { INDENT, pageCollision, PageDropContext, TOGGLE, usePageDrag } from '../pages/pageDrag'
 import { FoldButton, PageIcon, PageRows, SidebarHighlight } from '../pages/PageTree'
+import { useVocab, vocab } from '../../domain/vocab'
 
 const ROOT = 'areas'
 /** Left padding of a page row directly in an area / in a project, so the icons line up with the project icons above them. */
@@ -69,6 +70,7 @@ export function AreaTree(props: Props) {
   const { items, actions } = props
   const byId = useMemo(() => new Map(items.map((i) => [i.id, i])), [items])
   const sensors = useDragSensors()
+  const words = useVocab()
 
   const base = useMemo<Order>(() => {
     const areas = childrenOf(items, null)
@@ -83,7 +85,7 @@ export function AreaTree(props: Props) {
       if (!item) return Promise.resolve()
       // Keep a folded area open after a project is dropped into it.
       if (parent && item.kind === 'project' && !props.expanded.has(parent)) props.onToggle(parent)
-      return actions.move(item, { id: parent, title: parent ? (byId.get(parent)?.title ?? '') : 'Areas' }, before, from)
+      return actions.move(item, { id: parent, title: parent ? (byId.get(parent)?.title ?? '') : vocab().Nouns('area') }, before, from)
     },
     [byId, actions, props],
   )
@@ -157,7 +159,7 @@ export function AreaTree(props: Props) {
       {props.adding?.kind === 'area' && (
         <InlineAdd
           autoFocus
-          label="Area name"
+          label={`${words.Noun('area')} name`}
           className="h-7"
           onAdd={async (title) => {
             await props.onAdd('area', null, title)
@@ -168,7 +170,7 @@ export function AreaTree(props: Props) {
       )}
       {areas.length === 0 && props.adding?.kind !== 'area' && (
         <button onClick={() => props.setAdding({ kind: 'area' })} className="px-2.5 py-1 text-left text-fg-3 hover:text-fg-2">
-          Add an area
+          {`Add ${words.a('area')}`}
         </button>
       )}
 
@@ -243,6 +245,7 @@ function SortableArea({
   const pageTarget = usePageTarget(area.id)
   const active = area.id === openId
   const addingHere = adding && adding.kind !== 'area' && adding.parent === area.id ? adding.kind : null
+  const words = useVocab()
 
   return (
     <div ref={sortable.setNodeRef} style={style} className="flex flex-col gap-0.5">
@@ -280,7 +283,7 @@ function SortableArea({
             label={`Add to ${area.title}`}
             trigger={<AddIcon />}
             items={[
-              { label: 'Add a project', Icon: Target, onSelect: () => setAdding({ kind: 'project', parent: area.id }) },
+              { label: `Add ${words.a('project')}`, Icon: Target, onSelect: () => setAdding({ kind: 'project', parent: area.id }) },
               { label: 'Add a page', Icon: FilePlus, onSelect: () => setAdding({ kind: 'page', parent: area.id }) },
             ]}
           />
@@ -309,7 +312,7 @@ function SortableArea({
           ))}
         </SortableContext>
         {addingHere === 'project' && (
-          <AddRow label="Project name" indent={26} onAdd={(title) => onAdd('project', area.id, title)} onDone={() => setAdding(null)} />
+          <AddRow label={`${words.Noun('project')} name`} indent={26} onAdd={(title) => onAdd('project', area.id, title)} onDone={() => setAdding(null)} />
         )}
         <PageRows
           items={items}

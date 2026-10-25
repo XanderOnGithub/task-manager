@@ -13,6 +13,8 @@ import { play } from '../sound/sounds'
 import { confirm } from '../shared/confirm/confirm'
 import { weekdayLabel } from '../domain/dates'
 import { parseDue } from '../domain/naturalDate'
+import { vocab } from '../domain/vocab'
+import { setPriority, type Priority } from './priorityStore'
 
 export type Actions = ReturnType<typeof useActions>
 
@@ -45,7 +47,7 @@ export function useActions(reload: () => Promise<void>, items: Item[] = []) {
         run(async () => {
           play('capture')
           await api.addUnsorted(text)
-          toast({ message: 'Added to Unsorted' })
+          toast({ message: `Added to ${vocab().unsorted}` })
         }),
 
       /** Files an Unsorted entry into `destination` (null = top level, for notes). */
@@ -110,7 +112,7 @@ export function useActions(reload: () => Promise<void>, items: Item[] = []) {
         run(async () => {
           play('delete')
           await api.removeUnsorted(entry)
-          toast({ message: 'Deleted from Unsorted', undo: () => run(() => api.restoreUnsorted(entry)) })
+          toast({ message: `Deleted from ${vocab().unsorted}`, undo: () => run(() => api.restoreUnsorted(entry)) })
         }),
 
       // Items ----------------------------------------------------------------
@@ -169,6 +171,18 @@ export function useActions(reload: () => Promise<void>, items: Item[] = []) {
 
       /** Tasks this one waits on (ids). The data layer refuses circles and non-tasks. */
       setBlockers: (item: Item, ids: string[]) => run(() => api.setField(item.id, 'blocked_by', ids.length ? ids.join(', ') : null)),
+
+      /**
+       * A task's priority (1 Urgent … 4 Low), null for none. Kept by the app,
+       * not in the file (app/priorityStore.ts), so there is nothing to reload.
+       */
+      setPriority: (item: Item, priority: Priority | null) => {
+        if (priority === null) setPriority(item.id, null)
+        else {
+          play('select', { pitch: 1.15 - priority * 0.05 })
+          setPriority(item.id, priority)
+        }
+      },
 
       setDue: (item: Item, due: string | null) => run(() => api.setField(item.id, 'due', due)),
 
@@ -272,18 +286,9 @@ function describeInside(items: Item[], id: string): string | null {
     }
   }
   walk(id)
-  const order: [Kind, string][] = [
-    ['project', 'project'],
-    ['milestone', 'milestone'],
-    ['task', 'task'],
-    ['page', 'page'],
-  ]
-  const parts = order
-    .filter(([kind]) => counts.get(kind))
-    .map(([kind, word]) => {
-      const n = counts.get(kind) ?? 0
-      return `${n} ${word}${n === 1 ? '' : 's'}`
-    })
+  const order: Kind[] = ['project', 'milestone', 'task', 'page']
+  const words = vocab()
+  const parts = order.filter((kind) => counts.get(kind)).map((kind) => words.count(counts.get(kind) ?? 0, kind))
   if (parts.length === 0) return null
   const list = parts.length === 1 ? parts[0] : `${parts.slice(0, -1).join(', ')} and ${parts[parts.length - 1]}`
   return `Its ${list}`

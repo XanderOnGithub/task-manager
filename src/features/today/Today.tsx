@@ -1,12 +1,15 @@
 // Today: what is due, across every area and project. Overdue first, then today,
-// then each of the next six days that has something due.
+// then each of the next six days that has something due. Within a day, higher
+// priority comes first.
 //
 // Dates come from the tasks themselves. Type one when you add a task ("call Bob
 // friday") or pick it in the task's details.
 
 import { BlockedMark } from '../tasks/BlockedMark'
+import { PriorityMark } from '../tasks/Priority'
 import { memo } from 'react'
-import { statusLabel } from '../../domain/items'
+import { byPriority, usePriorities } from '../../app/priorityStore'
+import { useVocab } from '../../domain/vocab'
 import type { Item } from '../../platform/api'
 import { DueDate, Panel, PanelHeader, SectionLabel, StatusIcon, TaskTitle } from '../../shared/ui'
 import { planFor } from './plan'
@@ -23,6 +26,9 @@ export function TodayView({
 }) {
   const now = new Date()
   const groups = planFor(items, now)
+  const words = useVocab()
+  // Redraws (and re-sorts) when a priority changes.
+  usePriorities()
 
   return (
     <Panel label="Today" className="flex-1">
@@ -40,7 +46,7 @@ export function TodayView({
         {groups.length === 0 ? (
           <div className="flex flex-col gap-1 text-fg-3">
             <p>Nothing due this week</p>
-            <p className="text-meta font-normal">Add a date to a task, or type one when you add it: "call Bob friday".</p>
+            <p className="text-meta font-normal">{`Add a date to ${words.a('task')}, or type one when you add it: "call Bob friday".`}</p>
           </div>
         ) : (
           groups.map((group) => (
@@ -48,7 +54,7 @@ export function TodayView({
               <SectionLabel className={`pb-1 pl-2.5 ${group.key === 'overdue' ? 'text-overdue' : ''}`}>
                 <h2 id={`today-${group.key}`}>{group.label}</h2>
               </SectionLabel>
-              {group.tasks.map(({ task, milestone, project }) => (
+              {byPriority(group.tasks, ({ task }) => task.id).map(({ task, milestone, project }) => (
                 <TodayRow
                   key={task.id}
                   task={task}
@@ -77,6 +83,7 @@ const TodayRow = memo(function TodayRow({
   onOpen: (id: string) => void
   onCycleStatus: (task: Item) => void
 }) {
+  const words = useVocab()
   return (
     <div
       data-item={task.id}
@@ -85,7 +92,7 @@ const TodayRow = memo(function TodayRow({
     >
       <button
         onClick={() => onCycleStatus(task)}
-        aria-label={`Status: ${statusLabel(task.status)}. Change status`}
+        aria-label={`Status: ${words.status(task.status)}. Change status`}
         title="Change status"
         className="-m-1 rounded-full p-1 transition-transform duration-100 ease-pop active:scale-90"
       >
@@ -96,6 +103,7 @@ const TodayRow = memo(function TodayRow({
         {where && <span className="min-w-0 truncate text-meta font-normal text-fg-3 @max-[16rem]:hidden">{where}</span>}
         <span className="ml-auto" />
         <BlockedMark task={task} />
+        <PriorityMark taskId={task.id} />
         <DueDate item={task} />
       </button>
     </div>

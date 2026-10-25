@@ -4,9 +4,11 @@ import { Lock } from 'lucide-react'
 import type { Item } from '../../platform/api'
 import { useOpenBlockers } from '../../app/blockedStore'
 import { waitingText } from '../../domain/blocked'
+import { useVocab } from '../../domain/vocab'
 
 export function BlockedMark({ task, className = '' }: { task: Item; className?: string }) {
   const titles = useOpenBlockers(task)
+  useVocab() // redraw when Formal mode changes the wording
   if (titles.length === 0 || task.status === 'done') return null
   const text = waitingText(titles)
   return (

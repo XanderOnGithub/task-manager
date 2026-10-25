@@ -143,7 +143,7 @@ export const SOUND_INFO: { name: Exclude<SoundName, TypingSound | 'impactDone' |
   { name: 'drop', label: 'Drop', when: 'Letting go, or filing from Unsorted' },
   { name: 'complete', label: 'Complete', when: 'A task or milestone becomes Done' },
   { name: 'status', label: 'Status', when: 'Other status changes, formatting, blocks' },
-  { name: 'select', label: 'Select', when: 'Choosing Task, Page or Project; page icons' },
+  { name: 'select', label: 'Select', when: 'Choosing Task, Page or Project; page icons; priority' },
   { name: 'capture', label: 'Capture', when: 'Quick capture saving to Unsorted' },
   { name: 'check', label: 'Checkbox', when: 'Ticking a checkbox in a page' },
   { name: 'delete', label: 'Delete', when: 'Deleting something' },

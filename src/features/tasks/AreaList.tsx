@@ -4,13 +4,15 @@
 // the project and milestone pages, where there's one place to drop into.
 
 import { BlockedMark } from './BlockedMark'
+import { PriorityMark } from './Priority'
+import { useVocab } from '../../domain/vocab'
 import { useProgressive } from '../../app/useProgressive'
 import { memo, useState } from 'react'
 import { AnimatePresence } from 'motion/react'
 import * as m from 'motion/react-m'
 import { ArrowUpRight, ChevronDown, Target } from 'lucide-react'
 import { type Item } from '../../platform/api'
-import { childrenOf, statusLabel, tasksUnder } from '../../domain/items'
+import { childrenOf, tasksUnder } from '../../domain/items'
 import { spring } from '../../shared/motion/springs'
 import type { Actions } from '../../app/useActions'
 import { InlineAdd } from '../../shared/controls'
@@ -34,6 +36,7 @@ const FIRST_PROJECTS = 3
 
 export function AreaList({ items, area, selectedId, onSelect, onCycleStatus, onOpen, actions, showAdd = true }: Props) {
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
+  const words = useVocab()
   const allProjects = childrenOf(items, area.id)
   // The first few projects are what you see; the rest are drawn a moment later.
   const projects = allProjects.slice(0, useProgressive(allProjects.length, FIRST_PROJECTS))
@@ -77,7 +80,7 @@ export function AreaList({ items, area, selectedId, onSelect, onCycleStatus, onO
                 <Target size={15} strokeWidth={1.75} className="shrink-0 text-fg-2" aria-hidden="true" />
                 <span className={`min-w-0 truncate font-semibold ${finished ? 'text-fg-3' : 'text-fg'}`}>{project.title}</span>
                 {project.status !== 'active' && (
-                  <span className="shrink-0 rounded-full bg-raised px-2 text-meta text-fg-3">{statusLabel(project.status)}</span>
+                  <span className="shrink-0 rounded-full bg-raised px-2 text-meta text-fg-3">{words.status(project.status)}</span>
                 )}
                 <span className="shrink-0 text-meta font-normal text-fg-3">{`${done} / ${all.length}`}</span>
                 <DueDate item={project} className="@max-[20rem]:hidden" />
@@ -86,7 +89,7 @@ export function AreaList({ items, area, selectedId, onSelect, onCycleStatus, onO
               <button
                 onClick={() => onOpen(project.id)}
                 aria-label={`Open ${project.title}`}
-                title="Open project"
+                title={`Open ${words.noun('project')}`}
                 className="flex rounded-md p-1 text-fg-3 opacity-0 transition-opacity duration-100 group-hover:opacity-100 hover:bg-hover hover:text-fg-2 focus-visible:opacity-100"
               >
                 <ArrowUpRight size={14} strokeWidth={2} aria-hidden="true" />
@@ -109,7 +112,7 @@ export function AreaList({ items, area, selectedId, onSelect, onCycleStatus, onO
               </AnimatePresence>
               {open.length === 0 && (
                 <p className="flex h-row items-center pl-7 text-fg-3">
-                  {all.length === 0 ? 'No tasks yet' : 'All tasks done'}
+                  {all.length === 0 ? `No ${words.nouns('task')} yet` : `All ${words.nouns('task')} done`}
                 </p>
               )}
             </Collapse>
@@ -120,11 +123,11 @@ export function AreaList({ items, area, selectedId, onSelect, onCycleStatus, onO
       {showAdd && (
         <InlineAdd
           id={`add-project-${area.id}`}
-          label="Add a project"
+          label={`Add ${words.a('project')}`}
           onAdd={(title) => actions.create('project', area.id, title)}
         />
       )}
-      {!showAdd && projects.length === 0 && <p className="flex h-row items-center pl-1 text-fg-3">No projects yet</p>}
+      {!showAdd && projects.length === 0 && <p className="flex h-row items-center pl-1 text-fg-3">{`No ${words.nouns('project')} yet`}</p>}
     </div>
   )
 }
@@ -143,6 +146,7 @@ const AreaTaskRow = memo(function AreaTaskRow({
   onSelect: (id: string) => void
   onCycleStatus: (task: Item) => void
 }) {
+  const words = useVocab()
   return (
     <div
       data-item={task.id}
@@ -153,7 +157,7 @@ const AreaTaskRow = memo(function AreaTaskRow({
     >
       <button
         onClick={() => onCycleStatus(task)}
-        aria-label={`Status: ${statusLabel(task.status)}. Change status`}
+        aria-label={`Status: ${words.status(task.status)}. Change status`}
         title="Change status"
         className="-m-1 rounded-full p-1 transition-transform duration-100 ease-pop active:scale-90"
       >
@@ -165,6 +169,7 @@ const AreaTaskRow = memo(function AreaTaskRow({
           <MilestoneChip title={milestone.title} color={milestone.color} className="max-w-[45%] @max-[14rem]:hidden" />
         )}
         <BlockedMark task={task} />
+        <PriorityMark taskId={task.id} />
         <DueDate item={task} />
       </button>
     </div>

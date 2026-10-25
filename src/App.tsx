@@ -10,6 +10,7 @@ import { setBlockedItems } from './app/blockedStore'
 import { useToast } from './shared/toast/toast'
 import { childrenOf, trailOf } from './domain/items'
 import { NEXT_STATUS } from './domain/lanes'
+import { useVocab, type Vocab } from './domain/vocab'
 import { requestAdd, requestRename, type AddWhat } from './app/requests'
 import { itemMenu } from './shared/itemMenu'
 import { ContextMenu, type MenuItem } from './shared/controls'
@@ -61,14 +62,15 @@ import { Onboarding } from './features/onboarding/Onboarding'
 import { Panel } from './shared/ui'
 
 /** What each overview is called in the window title. */
-const OVERVIEW_TITLES: Record<Overview, string> = {
-  unsorted: 'Unsorted',
-  today: 'Today',
-  tasks: 'Tasks',
-  pages: 'Pages',
-  trash: 'Trash',
-  issues: 'Issues',
-}
+const overviewTitle = (overview: Overview, words: Vocab): string =>
+  ({
+    unsorted: words.unsorted,
+    today: 'Today',
+    tasks: words.Nouns('task'),
+    pages: 'Pages',
+    trash: 'Trash',
+    issues: 'Issues',
+  })[overview]
 
 /** Matches --spacing-sidebar in tokens.css. */
 const SIDEBAR_WIDTH = 244
@@ -79,6 +81,7 @@ export default function App() {
   useSyncOnFocus()
   const actions = useActions(reload, snapshot?.items ?? [])
   const toast = useToast()
+  const words = useVocab()
   // Rows ask this store what their task waits on (app/blockedStore.ts).
   const libraryItems = snapshot?.items
   useLayoutEffect(() => setBlockedItems(libraryItems ?? []), [libraryItems])
@@ -207,11 +210,11 @@ export default function App() {
     : undefined
 
   const paletteActions: PaletteAction[] = [
-    { id: 'capture', label: 'Quick capture', Icon: Plus, keywords: 'add new unsorted', shortcut: keys('N'), run: () => setDialog('capture') },
+    { id: 'capture', label: words.quickCapture, Icon: Plus, keywords: 'add new unsorted backlog capture', shortcut: keys('N'), run: () => setDialog('capture') },
     { id: 'history', label: 'Recent changes', Icon: Undo2, keywords: 'undo history', run: () => setDialog('history') },
-    { id: 'unsorted', label: 'Go to Unsorted', Icon: Layers, keywords: 'inbox', run: () => openOverview('unsorted') },
+    { id: 'unsorted', label: `Go to ${words.unsorted}`, Icon: Layers, keywords: 'inbox unsorted backlog', run: () => openOverview('unsorted') },
     { id: 'today', label: 'Go to Today', Icon: CalendarCheck, keywords: 'due overdue upcoming', run: () => openOverview('today') },
-    { id: 'tasks', label: 'Go to Tasks', Icon: ListChecks, keywords: 'projects all board', run: () => openOverview('tasks') },
+    { id: 'tasks', label: `Go to ${words.Nouns('task')}`, Icon: ListChecks, keywords: 'tasks stories projects epics all board', run: () => openOverview('tasks') },
     { id: 'pages', label: 'Go to Pages', Icon: FileText, keywords: 'docs notes all', run: () => openOverview('pages') },
     ...(snapshot?.issues.length
       ? [{ id: 'issues', label: 'Go to Issues', Icon: CircleAlert, keywords: 'problems errors files', run: () => openOverview('issues') }]
@@ -246,7 +249,7 @@ export default function App() {
   const typedActions = (text: string): PaletteAction[] => {
     if (!text) return []
     const out: PaletteAction[] = [
-      { id: 'capture-text', label: `Add “${text}” to Unsorted`, Icon: Layers, run: () => void actions.capture(text) },
+      { id: 'capture-text', label: `Add “${text}” to ${words.unsorted}`, Icon: Layers, run: () => void actions.capture(text) },
     ]
     // A new task goes where "+ Task" would put it: the open milestone, or the
     // open project's first open milestone, or the project itself.
@@ -260,7 +263,7 @@ export default function App() {
     if (home) {
       out.push({
         id: 'task-text',
-        label: `New task “${text}” in ${home.title}`,
+        label: `New ${words.noun('task')} “${text}” in ${home.title}`,
         Icon: Plus,
         run: () => void actions.create('task', home.id, text).then(() => openId(home.id)),
       })
@@ -303,20 +306,20 @@ export default function App() {
     switch (item.kind) {
       case 'area':
         return [
-          { label: 'New project', Icon: Target, onSelect: add('project') },
+          { label: `New ${words.noun('project')}`, Icon: Target, onSelect: add('project') },
           { label: 'New page', Icon: FilePlus, onSelect: add('page') },
         ]
       case 'project': {
         const hasMilestones = children.some((c) => c.kind === 'milestone')
         const hasTasks = children.some((c) => c.kind === 'task')
         return [
-          ...(hasMilestones ? [] : [{ label: 'New task', Icon: Plus, onSelect: add('task') }]),
-          ...(hasTasks ? [] : [{ label: 'New milestone', Icon: Flag, onSelect: add('milestone') }]),
+          ...(hasMilestones ? [] : [{ label: `New ${words.noun('task')}`, Icon: Plus, onSelect: add('task') }]),
+          ...(hasTasks ? [] : [{ label: `New ${words.noun('milestone')}`, Icon: Flag, onSelect: add('milestone') }]),
           { label: 'New page', Icon: FilePlus, onSelect: add('page') },
         ]
       }
       case 'milestone':
-        return [{ label: 'New task', Icon: Plus, onSelect: add('task') }]
+        return [{ label: `New ${words.noun('task')}`, Icon: Plus, onSelect: add('task') }]
       case 'page':
         return [{ label: 'New subpage', Icon: FilePlus, onSelect: add('page') }]
       default:
@@ -337,12 +340,13 @@ export default function App() {
     select: setSelectedId,
     selectedId,
     cycleStatus,
+    setPriority: actions.setPriority,
     trash: actions.trash,
   })
 
   // What the window is called, and what a screen reader hears when you move
   // between sections (the page itself doesn't reload, so nothing else says so).
-  const viewTitle = open ? open.title : overview ? OVERVIEW_TITLES[overview] : 'Tasks'
+  const viewTitle = open ? open.title : overview ? overviewTitle(overview, words) : words.Nouns('task')
   useEffect(() => {
     document.title = `${viewTitle} · Moss`
   }, [viewTitle])

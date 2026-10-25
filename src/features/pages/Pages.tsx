@@ -27,6 +27,7 @@ import { itemMenu } from '../../shared/itemMenu'
 import { Collapse, ListRow } from '../../shared/motion/pieces'
 import { FoldButton, PageIcon } from './PageTree'
 import { Panel, PanelHeader, SectionLabel } from '../../shared/ui'
+import { useVocab } from '../../domain/vocab'
 
 // ---------------------------------------------------------------------------
 // One page
@@ -155,6 +156,7 @@ export function PagesOverview({
 }) {
   const areas = childrenOf(items, null)
   const count = items.filter((i) => i.kind === 'page').length
+  const words = useVocab()
 
   return (
     <Panel label="Pages" className="flex-1">
@@ -165,7 +167,7 @@ export function PagesOverview({
         <div className="flex flex-col gap-2">
           <h1 className="text-title">Pages</h1>
           <span className="text-meta font-normal text-fg-3">
-            {count === 1 ? '1 page' : `${count} pages`} in {areas.length === 1 ? '1 area' : `${areas.length} areas`}
+            {count === 1 ? '1 page' : `${count} pages`} in {words.count(areas.length, 'area')}
           </span>
         </div>
         {areas.map((area) => (
@@ -174,7 +176,7 @@ export function PagesOverview({
             <PageList items={items} owner={area} withProjects onOpen={onOpen} actions={actions} />
           </section>
         ))}
-        {areas.length === 0 && <p className="text-fg-3">Add an area to start, like Home or School.</p>}
+        {areas.length === 0 && <p className="text-fg-3">{`Add ${words.a('area')} to start, like Home or School.`}</p>}
       </div>
     </Panel>
   )

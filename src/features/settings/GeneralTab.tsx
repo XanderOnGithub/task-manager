@@ -10,6 +10,7 @@ import { useToast } from '../../shared/toast/toast'
 import { HighRefreshSetting } from './HighRefreshSetting'
 import { KeyboardHelp } from './KeyboardHelp'
 import { LanesSetting } from './LanesSetting'
+import { FormalModeSetting } from './FormalModeSetting'
 import { WordCountSetting } from './WordCountSetting'
 
 export function GeneralTab({
@@ -55,6 +56,8 @@ export function GeneralTab({
           Plain markdown files. Use the Sync tab to keep them in a GitHub repository, or point any folder sync at them.
         </p>
       </div>
+
+      <FormalModeSetting />
 
       <WordCountSetting />
 

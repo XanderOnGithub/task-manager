@@ -7,6 +7,8 @@
 //   milestone folds shut so they're easy to move around, then reopens.
 
 import { BlockedMark } from './BlockedMark'
+import { PriorityMark } from './Priority'
+import { useVocab } from '../../domain/vocab'
 import { memo, useCallback, useMemo, type CSSProperties } from 'react'
 import { DndContext, DragOverlay } from '@dnd-kit/core'
 import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
@@ -15,7 +17,7 @@ import { AnimatePresence } from 'motion/react'
 import * as m from 'motion/react-m'
 import { ArrowUpRight, ChevronDown } from 'lucide-react'
 import { type Item } from '../../platform/api'
-import { childrenOf, statusLabel } from '../../domain/items'
+import { childrenOf } from '../../domain/items'
 import { collisionFor, dropSettle, SLIDE, useDragSensors, DRAG_ATTRIBUTES } from '../../shared/drag/drag'
 import { spring } from '../../shared/motion/springs'
 import type { Actions } from '../../app/useActions'
@@ -43,6 +45,7 @@ interface Props {
 export function ProjectList({ items, container, collapsed, onToggle, selectedId, onSelect, onCycleStatus, onOpen, actions }: Props) {
   const byId = useMemo(() => new Map(items.map((i) => [i.id, i])), [items])
   const sensors = useDragSensors()
+  const words = useVocab()
 
   // The real order: the container holds milestones or tasks; each milestone holds tasks.
   const base = useMemo<Order>(() => {
@@ -123,7 +126,7 @@ export function ProjectList({ items, container, collapsed, onToggle, selectedId,
               </AnimatePresence>
               <InlineAdd
                 id={`add-task-${container.id}`}
-                label="Add a task"
+                label={`Add ${words.a('task')}`}
                 onAdd={(title) => actions.create('task', container.id, title)}
               />
             </div>
@@ -135,7 +138,7 @@ export function ProjectList({ items, container, collapsed, onToggle, selectedId,
         {looseTasks.length === 0 && container.kind === 'project' && (
           <InlineAdd
             id={`add-milestone-${container.id}`}
-            label="Add a milestone"
+            label={`Add ${words.a('milestone')}`}
             onAdd={(title) => actions.create('milestone', container.id, title)}
             className={milestones.length === 0 ? '' : 'mt-[22px]'}
           />
@@ -150,7 +153,7 @@ export function ProjectList({ items, container, collapsed, onToggle, selectedId,
                 <ChevronDown size={14} strokeWidth={2} className="-rotate-90 text-fg-3" aria-hidden="true" />
                 <MilestoneChip title={dragged.title} color={dragged.color} header />
                 <span className="text-meta font-normal text-fg-3">
-                  {`${childrenOf(items, dragged.id).length} tasks`}
+                  {words.count(childrenOf(items, dragged.id).length, 'task')}
                 </span>
               </div>
             ) : (
@@ -161,6 +164,7 @@ export function ProjectList({ items, container, collapsed, onToggle, selectedId,
               >
                 <StatusIcon status={dragged.status} />
                 <TaskTitle title={dragged.title} done={dragged.status === 'done'} />
+                <PriorityMark taskId={dragged.id} />
                 <DueDate item={dragged} />
               </div>
             )}
@@ -195,6 +199,7 @@ function SortableMilestone({
   const sortable = useSortable({ id: milestone.id, data: { type: 'milestone' }, transition: SLIDE, attributes: DRAG_ATTRIBUTES })
   const done = tasks.filter((t) => t.status === 'done').length
   const selected = milestone.id === selectedId
+  const words = useVocab()
   const style: CSSProperties = {
     transform: CSS.Translate.toString(sortable.transform),
     transition: sortable.transition,
@@ -206,7 +211,7 @@ function SortableMilestone({
         ref={sortable.setActivatorNodeRef}
         {...sortable.attributes}
         {...sortable.listeners}
-        aria-label={`${milestone.title}, milestone. Press space to move.`}
+        aria-label={`${milestone.title}, ${words.noun('milestone')}. Press space to move.`}
         data-item={milestone.id}
         className={`group/ms flex h-row items-center gap-1 rounded-row pr-1 pl-0.5 transition-colors duration-100 ${
           sortable.isDragging ? 'bg-hover [&>*]:invisible' : selected ? 'bg-selected' : 'hover:bg-hover'
@@ -235,7 +240,7 @@ function SortableMilestone({
         <button
           onClick={onOpen}
           aria-label={`Open ${milestone.title}`}
-          title="Open milestone"
+          title={`Open ${words.noun('milestone')}`}
           className="flex rounded-md p-1 text-fg-3 opacity-0 transition-opacity duration-100 group-hover/ms:opacity-100 hover:bg-hover hover:text-fg-2 focus-visible:opacity-100"
         >
           <ArrowUpRight size={14} strokeWidth={2} aria-hidden="true" />
@@ -260,7 +265,7 @@ function SortableMilestone({
         </SortableContext>
         <InlineAdd
           id={`add-task-${milestone.id}`}
-          label="Add a task"
+          label={`Add ${words.a('task')}`}
           onAdd={(title) => actions.create('task', milestone.id, title)}
           className="ml-[22px]"
         />
@@ -284,6 +289,7 @@ const SortableTask = memo(function SortableTask({
   indent: boolean
 }) {
   const sortable = useSortable({ id: task.id, data: { type: 'task' }, transition: SLIDE, attributes: DRAG_ATTRIBUTES })
+  const words = useVocab()
   const style: CSSProperties = {
     transform: CSS.Translate.toString(sortable.transform),
     transition: sortable.transition,
@@ -294,7 +300,7 @@ const SortableTask = memo(function SortableTask({
       style={style}
       {...sortable.attributes}
       {...sortable.listeners}
-      aria-label={`${task.title}, task. Press space to move.`}
+      aria-label={`${task.title}, ${words.noun('task')}. Press space to move.`}
       // While it's being dragged, its slot stays as a soft empty space.
       data-item={task.id}
       className={`group flex h-row items-center gap-2.5 rounded-row pr-2.5 transition-colors duration-100 ${
@@ -320,11 +326,12 @@ const TaskRowContent = memo(function TaskRowContent({
   onSelect: (id: string) => void
   onCycleStatus: (task: Item) => void
 }) {
+  const words = useVocab()
   return (
     <>
       <button
         onClick={() => onCycleStatus(task)}
-        aria-label={`Status: ${statusLabel(task.status)}. Change status`}
+        aria-label={`Status: ${words.status(task.status)}. Change status`}
         title="Change status"
         className="-m-1 rounded-full p-1 transition-transform duration-100 ease-pop active:scale-90"
       >
@@ -333,6 +340,7 @@ const TaskRowContent = memo(function TaskRowContent({
       <button onClick={() => onSelect(task.id)} className="flex h-full min-w-0 flex-1 items-center gap-2.5 text-left">
         <TaskTitle title={task.title} done={task.status === 'done'} />
         <BlockedMark task={task} />
+        <PriorityMark taskId={task.id} />
         <DueDate item={task} />
       </button>
     </>

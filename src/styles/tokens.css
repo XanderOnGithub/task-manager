@@ -102,6 +102,13 @@
   --color-overdue: #BE807D;                    /* red blended 40% toward gray */
   --color-danger: #BE807D;
 
+  /* Priority marks on tasks: borrow the date tones so nothing new competes
+     with status colors. Urgent reads like overdue, High like due soon. */
+  --color-priority-urgent: var(--color-overdue);
+  --color-priority-high: var(--color-due-soon);
+  --color-priority-medium: var(--color-fg-2);
+  --color-priority-low: var(--color-fg-3);
+
   /* Milestone palette: muted, and never amber or green so it can't be read as a status */
   --color-ms-dusty-blue: #93AECF;
   --color-ms-mauve: #C3A0C0;

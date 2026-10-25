@@ -21,6 +21,7 @@ function setup() {
     select: vi.fn(),
     selectedId: null,
     cycleStatus: vi.fn(),
+    setPriority: vi.fn(),
     trash: vi.fn().mockResolvedValue(undefined),
   }
   renderHook(() => useRowKeys(handlers))
@@ -55,14 +56,24 @@ describe('row keys', () => {
     expect(h.trash).toHaveBeenCalledWith(task)
   })
 
+  it('1–4 set a task priority and 0 clears it', async () => {
+    const h = setup()
+    document.getElementById('row')!.focus()
+    await userEvent.keyboard('2')
+    expect(h.setPriority).toHaveBeenCalledWith(task, 2)
+    await userEvent.keyboard('0')
+    expect(h.setPriority).toHaveBeenLastCalledWith(task, null)
+  })
+
   it('leaves keys alone in a text field or the editor', async () => {
     const h = setup()
     const editor = document.createElement('div')
     editor.contentEditable = 'true'
     document.getElementById('row')!.append(editor)
     editor.focus()
-    await userEvent.keyboard('s{Delete}{Enter}')
+    await userEvent.keyboard('s1{Delete}{Enter}')
     expect(h.cycleStatus).not.toHaveBeenCalled()
+    expect(h.setPriority).not.toHaveBeenCalled()
     expect(h.trash).not.toHaveBeenCalled()
     expect(h.select).not.toHaveBeenCalled()
   })

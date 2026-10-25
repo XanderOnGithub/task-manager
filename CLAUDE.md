@@ -116,6 +116,11 @@ The app should feel smooth and considered, never gamified. Library: Motion (`mot
 - 120fps: WebKit caps pages at 60fps on macOS (the plugin notes that macOS 26 may no longer apply the cap). `src-tauri/src/high_refresh.rs` uses `tauri-plugin-macos-fps` to flip WebKit's private "prefer 60fps" flag behind an experimental Settings switch, shown only on macOS (Windows and Linux already draw at the display's refresh rate). Animations must look right at both 60 and 120.
 - Sidebar tree drags re-measure every frame (`MeasuringStrategy.Always` in `AreaTree.tsx`) because picking up an area folds the others mid-drag, and the tree's scrollbar is hidden while anything is held (`data-tree-dragging` + `.sidebar-scroll` in base.css).
 
+## Formal mode and priority (front end only)
+
+- Formal mode (Settings → General) swaps the UI words for agile ones: Unsorted → Backlog, Area → Initiative, Project → Epic, Milestone → Sprint, Task → Story, statuses To do / In progress / Icebox / Blocked, "Waiting on" → "Blocked by". All UI wording for these comes from `domain/vocab.ts`: components call `useVocab()` (redraws on change), plain code calls `vocab()`. Never hard-code these nouns in UI copy; code, kinds and files keep the fixed vocabulary below.
+- Priority: Urgent / High / Medium / Low (Critical / Major / Minor / Trivial in Formal mode). Stored by the app in preferences by task id (`app/priorityStore.ts`), not in the files, so it doesn't sync. Set in the details panel or with 1–4 (0 clears) on a focused row; marks on rows and cards (`features/tasks/Priority.tsx`, colors `--color-priority-*`). Board columns and Today days sort by priority; lists keep their manual order.
+
 ## Vocabulary (fixed, never use synonyms in UI or code)
 
 - **Unsorted**: raw capture, emptied regularly. Icon: Lucide `layers`. Sidebar button: "Quick capture" (⌘N).

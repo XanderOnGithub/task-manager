@@ -19,6 +19,7 @@ import { MilestoneChip, Panel, PanelHeader, StatusIcon } from '../../shared/ui'
 import { play } from '../../sound/sounds'
 import { stampLabel, weekdayLabel } from '../../domain/dates'
 import { parseDue } from '../../domain/naturalDate'
+import { useVocab, type Vocab } from '../../domain/vocab'
 
 type FileAs = 'task' | 'page' | 'project'
 
@@ -42,6 +43,7 @@ export function UnsortedView({
 }) {
   // Which entry is open, by its text in the file (stable across reloads).
   const [openRaw, setOpenRaw] = useState<string | null>(null)
+  const words = useVocab()
   const [fileAs, setFileAs] = useState<FileAs | null>(null)
   // Several items at once: chosen by their text in the file, like `openRaw`.
   const [picked, setPicked] = useState<Set<string>>(new Set())
@@ -91,14 +93,14 @@ export function UnsortedView({
   }
 
   return (
-    <Panel label="Unsorted" className="flex-1">
+    <Panel label={words.unsorted} className="flex-1">
       <PanelHeader>
-        <span className="flex-1">Unsorted</span>
+        <span className="flex-1">{words.unsorted}</span>
       </PanelHeader>
       <div className="flex flex-1 justify-center overflow-y-auto px-7 py-8">
         <div className="flex w-full max-w-[680px] flex-col gap-5">
           <div className="flex items-center gap-2.5">
-            <h1 className="text-title">Unsorted</h1>
+            <h1 className="text-title">{words.unsorted}</h1>
             <span className="flex h-7 min-w-7 items-center justify-center rounded-full bg-badge px-2 text-[14px] font-semibold text-fg-2">
               {entries.length}
             </span>
@@ -139,7 +141,7 @@ export function UnsortedView({
                   options={[
                     {
                       value: 'task',
-                      label: 'Task',
+                      label: words.Noun('task'),
                       icon: <StatusIcon status="todo" size={13} />,
                     },
                     {
@@ -149,7 +151,7 @@ export function UnsortedView({
                     },
                     {
                       value: 'project',
-                      label: 'Project',
+                      label: words.Noun('project'),
                       icon: <Target size={13} strokeWidth={2} aria-hidden="true" />,
                     },
                   ]}
@@ -187,7 +189,7 @@ export function UnsortedView({
           )}
 
           {entries.length === 0 ? (
-            <p className="px-3 text-fg-3">Nothing unsorted</p>
+            <p className="px-3 text-fg-3">{words.nothingUnsorted}</p>
           ) : (
             <ul className="flex flex-col gap-1">
               {/* A filed item slides off to the right while its height closes,
@@ -247,7 +249,7 @@ export function UnsortedView({
                               options={[
                                 {
                                   value: 'task',
-                                  label: 'Task',
+                                  label: words.Noun('task'),
                                   icon: <StatusIcon status="todo" size={13} />,
                                 },
                                 {
@@ -257,7 +259,7 @@ export function UnsortedView({
                                 },
                                 {
                                   value: 'project',
-                                  label: 'Project',
+                                  label: words.Noun('project'),
                                   icon: <Target size={13} strokeWidth={2} aria-hidden="true" />,
                                 },
                               ]}
@@ -298,11 +300,12 @@ export function UnsortedView({
 /** "Due Fri, Oct 23": what filing "call Bob friday" as a task will do with the date. */
 function DueHint({ text }: { text: string }) {
   const { due } = parseDue(text)
+  const words = useVocab()
   if (!due) return null
   return (
     <span
       className="flex shrink-0 items-center gap-1 text-meta font-normal text-fg-3"
-      title="Becomes the due date when this is filed as a task"
+      title={`Becomes the due date when this is filed as ${words.a('task')}`}
     >
       <Calendar size={12} strokeWidth={2} aria-hidden="true" />
       {weekdayLabel(due)}
@@ -310,10 +313,10 @@ function DueHint({ text }: { text: string }) {
   )
 }
 
-const TITLES: Record<FileAs, string> = {
-  task: 'Choose a milestone or project',
-  page: 'Choose an area, project or page',
-  project: 'Choose an area',
+function titleFor(fileAs: FileAs, words: Vocab): string {
+  if (fileAs === 'task') return `Choose ${words.a('milestone')} or ${words.noun('project')}`
+  if (fileAs === 'page') return `Choose ${words.a('area')}, ${words.noun('project')} or page`
+  return `Choose ${words.a('area')}`
 }
 
 function DestinationPicker({
@@ -329,7 +332,8 @@ function DestinationPicker({
 }) {
   const [filter, setFilter] = useState('')
   const [highlight, setHighlight] = useState(0)
-  const all = useMemo(() => destinations(items, fileAs), [items, fileAs])
+  const words = useVocab()
+  const all = useMemo(() => destinations(items, fileAs, words), [items, fileAs, words])
   const shown = all.filter((d) => `${d.name} ${d.context}`.toLowerCase().includes(filter.trim().toLowerCase()))
   const active = Math.min(highlight, shown.length - 1)
   const listId = useId()
@@ -337,7 +341,7 @@ function DestinationPicker({
   return (
     <div className="flex flex-col gap-1.5">
       <div className="flex items-center gap-2">
-        <span className="flex-1 text-[12.5px] text-fg-3">{TITLES[fileAs]}</span>
+        <span className="flex-1 text-[12.5px] text-fg-3">{titleFor(fileAs, words)}</span>
         <label className="flex h-[26px] w-[180px] items-center gap-1.5 rounded-control border border-border px-2 text-placeholder focus-within:border-border-strong">
           <Search size={12} strokeWidth={2} aria-hidden="true" />
           <input
@@ -375,12 +379,12 @@ function DestinationPicker({
       <div
         id={listId}
         role="listbox"
-        aria-label={TITLES[fileAs]}
+        aria-label={titleFor(fileAs, words)}
         className="-ml-1.5 flex max-h-[232px] flex-col gap-px overflow-y-auto"
       >
         {shown.length === 0 && (
           <p className="px-2 py-1.5 text-[12.5px] text-fg-3">
-            {all.length === 0 ? emptyMessage(fileAs) : 'No matches'}
+            {all.length === 0 ? emptyMessage(fileAs, words) : 'No matches'}
           </p>
         )}
         {shown.map((d, i) => (
@@ -428,7 +432,7 @@ function DestinationLabel({ destination: d }: { destination: Destination }): Rea
 }
 
 /** Everything an entry can be filed into, in sidebar order. */
-function destinations(items: Item[], fileAs: FileAs): Destination[] {
+function destinations(items: Item[], fileAs: FileAs, words: Vocab): Destination[] {
   const areas = childrenOf(items, null)
   if (fileAs === 'project') {
     return areas.map((a) => {
@@ -436,7 +440,7 @@ function destinations(items: Item[], fileAs: FileAs): Destination[] {
       return {
         id: a.id,
         name: a.title,
-        context: n === 1 ? '1 project' : `${n} projects`,
+        context: words.count(n, 'project'),
         kind: 'area',
       }
     })
@@ -486,7 +490,7 @@ function destinations(items: Item[], fileAs: FileAs): Destination[] {
     }
   }
   for (const area of areas) {
-    out.push({ id: area.id, name: area.title, context: 'Area', kind: 'area' })
+    out.push({ id: area.id, name: area.title, context: words.Noun('area'), kind: 'area' })
     pagesOf(area)
     for (const project of childrenOf(items, area.id)) {
       out.push({
@@ -501,6 +505,6 @@ function destinations(items: Item[], fileAs: FileAs): Destination[] {
   return out
 }
 
-function emptyMessage(fileAs: FileAs): string {
-  return fileAs === 'task' ? 'Add a project first' : 'Add an area first'
+function emptyMessage(fileAs: FileAs, words: Vocab): string {
+  return `Add ${words.a(fileAs === 'task' ? 'project' : 'area')} first`
 }

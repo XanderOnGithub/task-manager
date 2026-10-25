@@ -7,6 +7,7 @@
 //   ← →      the board's next column (the card nearest in height)
 //   Enter    open it (a task or milestone opens in the details panel)
 //   S        a task's next status, same as clicking its circle
+//   1–4      a task's priority (1 Urgent … 4 Low); 0 clears it
 //   Delete   delete it (Undo in the toast; things with items inside ask first)
 //   Space    pick it up to move it with the arrows (dnd-kit, see drag.ts)
 //   Esc      close the details panel and let go of the row
@@ -16,6 +17,7 @@
 
 import { useEffect, useRef } from 'react'
 import type { Item } from '../../platform/api'
+import type { Priority } from '../../app/priorityStore'
 import { isTextEntry } from '../../shared/a11y/focus'
 
 export interface RowKeyHandlers {
@@ -26,6 +28,8 @@ export interface RowKeyHandlers {
   select: (id: string | null) => void
   selectedId: string | null
   cycleStatus: (task: Item) => void
+  /** 1–4 and 0 on a task. Optional so lists without priorities can leave it out. */
+  setPriority?: (task: Item, priority: Priority | null) => void
   trash: (item: Item) => Promise<unknown>
 }
 
@@ -56,7 +60,7 @@ export function useRowKeys(handlers: RowKeyHandlers) {
       // While a row is picked up, the arrows belong to the drag.
       if (document.querySelector(`${ROW}[aria-pressed="true"]`)) return
 
-      const { byId, open, select, selectedId, cycleStatus, trash } = latest.current
+      const { byId, open, select, selectedId, cycleStatus, setPriority, trash } = latest.current
       const item = byId.get(row.dataset.item ?? '')
 
       const go = (next: HTMLElement | null) => {
@@ -91,6 +95,15 @@ export function useRowKeys(handlers: RowKeyHandlers) {
           if (item?.kind !== 'task') return
           e.preventDefault()
           keepFocusNearby(row, () => cycleStatus(item))
+          return
+        case '0':
+        case '1':
+        case '2':
+        case '3':
+        case '4':
+          if (item?.kind !== 'task' || !setPriority) return
+          e.preventDefault()
+          setPriority(item, e.key === '0' ? null : (Number(e.key) as Priority))
           return
         case 'Delete':
         case 'Backspace':

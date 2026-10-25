@@ -19,6 +19,7 @@ import type { Actions } from '../../app/useActions'
 import { AreaTree, type Adding } from './AreaTree'
 import { MossWordmark } from '../../shared/Brand'
 import { SectionLabel } from '../../shared/ui'
+import { useVocab } from '../../domain/vocab'
 
 /** The overviews at the top of the sidebar. */
 export type Overview = 'unsorted' | 'today' | 'tasks' | 'pages' | 'trash' | 'issues'
@@ -54,6 +55,7 @@ interface Props {
 export function Sidebar(props: Props) {
   const { items, unsortedCount, overview, onOverview } = props
   const [adding, setAdding] = useState<Adding>(null)
+  const words = useVocab()
 
   return (
     <nav aria-label="Sidebar" className="flex w-sidebar shrink-0 flex-col gap-3.5 pt-2.5 pr-2.5 pb-2.5 pl-3">
@@ -82,13 +84,13 @@ export function Sidebar(props: Props) {
         className="flex h-8 items-center gap-2 rounded-row border border-border bg-field px-2.5 text-left text-fg-2 transition-colors duration-100 hover:text-fg"
       >
         <Plus size={15} strokeWidth={1.75} aria-hidden="true" />
-        <span className="flex-1">Quick capture</span>
+        <span className="flex-1">{words.quickCapture}</span>
         <kbd className="font-mono text-label font-normal text-fg-3">{keys('N')}</kbd>
       </button>
 
       <div className="flex flex-col gap-0.5">
         <NavItem Icon={Layers} active={overview === 'unsorted'} onClick={() => onOverview('unsorted')}>
-          Unsorted
+          {words.unsorted}
           {unsortedCount > 0 && (
             <span className="ml-auto flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-badge px-1.5 text-label text-fg">
               {unsortedCount}
@@ -104,7 +106,7 @@ export function Sidebar(props: Props) {
           )}
         </NavItem>
         <NavItem Icon={ListChecks} active={overview === 'tasks'} onClick={() => onOverview('tasks')}>
-          Tasks
+          {words.Nouns('task')}
         </NavItem>
         <NavItem Icon={FileText} active={overview === 'pages'} onClick={() => onOverview('pages')}>
           Pages
@@ -113,8 +115,8 @@ export function Sidebar(props: Props) {
 
       <div className="sidebar-scroll flex min-h-0 flex-col gap-0.5 overflow-y-auto">
         <div className="group flex items-center pr-1 pb-1.5 pl-2.5">
-          <SectionLabel className="flex-1">Areas</SectionLabel>
-          <AddButton label="Add an area" onClick={() => setAdding({ kind: 'area' })} />
+          <SectionLabel className="flex-1">{words.Nouns('area')}</SectionLabel>
+          <AddButton label={`Add ${words.a('area')}`} onClick={() => setAdding({ kind: 'area' })} />
         </div>
         <AreaTree
           items={items}

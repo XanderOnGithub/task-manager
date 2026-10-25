@@ -11,6 +11,8 @@ import type { Actions } from '../../app/useActions'
 import { DateField, EditableTitle, InlineAdd, Menu, Segmented } from '../../shared/controls'
 import { BodyEditor } from '../editor/BodyEditor'
 import { BlockersField } from './BlockersField'
+import { PriorityField } from './Priority'
+import { useVocab } from '../../domain/vocab'
 import { RepeatField } from './RepeatField'
 import { useRovingRadios } from '../../shared/a11y/roving'
 import { itemMenu } from '../../shared/itemMenu'
@@ -26,6 +28,7 @@ interface Props {
 
 export function DetailsPanel({ items, item, parent, onSelect, actions }: Props) {
   const [renaming, setRenaming] = useState(0)
+  const words = useVocab()
   useRenameRequest(item.id, () => setRenaming((n) => n + 1))
   const isMilestone = item.kind === 'milestone'
   const tasks = isMilestone ? childrenOf(items, item.id) : []
@@ -35,10 +38,10 @@ export function DetailsPanel({ items, item, parent, onSelect, actions }: Props) 
   const statuses: Status[] = isMilestone ? ['open', 'done'] : lanes.map((lane) => lane.status)
 
   return (
-    <Panel label={isMilestone ? 'Milestone details' : 'Task details'} className="h-full w-details shrink-0">
+    <Panel label={`${words.Noun(isMilestone ? 'milestone' : 'task')} details`} className="h-full w-details shrink-0">
       <PanelHeader>
         {isMilestone ? (
-          <SectionLabel>Milestone</SectionLabel>
+          <SectionLabel>{words.Noun('milestone')}</SectionLabel>
         ) : (
           <span
             className={`flex h-6 items-center gap-1.5 rounded-full px-2.5 text-meta text-fg ${
@@ -89,10 +92,16 @@ export function DetailsPanel({ items, item, parent, onSelect, actions }: Props) 
           </Field>
 
           {!isMilestone && parent?.kind === 'milestone' && (
-            <Field label="Milestone">
-              <button onClick={() => onSelect(parent.id)} className="flex" title="Open milestone">
+            <Field label={words.Noun('milestone')}>
+              <button onClick={() => onSelect(parent.id)} className="flex" title={`Open ${words.noun('milestone')}`}>
                 <MilestoneChip title={parent.title} color={parent.color} />
               </button>
+            </Field>
+          )}
+
+          {!isMilestone && (
+            <Field label="Priority">
+              <PriorityField taskId={item.id} onChange={(priority) => actions.setPriority(item, priority)} />
             </Field>
           )}
 
@@ -107,7 +116,7 @@ export function DetailsPanel({ items, item, parent, onSelect, actions }: Props) 
           )}
 
           {!isMilestone && (
-            <Field label="Waiting on">
+            <Field label={words.waitingOn}>
               <BlockersField items={items} task={item} onChange={(ids) => void actions.setBlockers(item, ids)} onOpen={onSelect} />
             </Field>
           )}
@@ -135,7 +144,7 @@ export function DetailsPanel({ items, item, parent, onSelect, actions }: Props) 
 
         {isMilestone && (
           <div className="flex flex-col gap-1">
-            <SectionLabel className="pb-1">Tasks</SectionLabel>
+            <SectionLabel className="pb-1">{words.Nouns('task')}</SectionLabel>
             {tasks.map((task) => (
               <button
                 key={task.id}
@@ -146,7 +155,7 @@ export function DetailsPanel({ items, item, parent, onSelect, actions }: Props) 
                 <TaskTitle title={task.title} done={task.status === 'done'} className="text-[12.5px]" />
               </button>
             ))}
-            <InlineAdd label="Add a task" onAdd={(title) => actions.create('task', item.id, title)} />
+            <InlineAdd label={`Add ${words.a('task')}`} onAdd={(title) => actions.create('task', item.id, title)} />
           </div>
         )}
       </div>
@@ -169,7 +178,7 @@ function ColorPicker({ value, onChange }: { value: MilestoneColor | null; onChan
     onChange(MILESTONE_COLORS[i]),
   )
   return (
-    <span role="radiogroup" aria-label="Milestone color" {...roving.groupProps} className="flex gap-[7px]">
+    <span role="radiogroup" aria-label="Color" {...roving.groupProps} className="flex gap-[7px]">
       {MILESTONE_COLORS.map((color, i) => {
         const on = color === value
         const name = color.replace('-', ' ')

@@ -3,9 +3,11 @@
 import { useState } from 'react'
 import { Layers } from 'lucide-react'
 import { Modal } from '../../shared/controls'
+import { useVocab } from '../../domain/vocab'
 
 export function QuickCapture({ onCapture, onClose }: { onCapture: (text: string) => Promise<unknown>; onClose: () => void }) {
   const [text, setText] = useState('')
+  const words = useVocab()
 
   const submit = async () => {
     if (!text.trim()) return
@@ -14,7 +16,7 @@ export function QuickCapture({ onCapture, onClose }: { onCapture: (text: string)
   }
 
   return (
-    <Modal label="Quick capture" onClose={onClose} width="w-[560px]">
+    <Modal label={words.quickCapture} onClose={onClose} width="w-[560px]">
       <label className="flex h-[52px] items-center gap-3 px-4 text-fg-3">
         <Layers size={18} strokeWidth={1.75} aria-hidden="true" />
         <input
@@ -22,8 +24,8 @@ export function QuickCapture({ onCapture, onClose }: { onCapture: (text: string)
           value={text}
           onChange={(e) => setText(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && void submit()}
-          placeholder="Add to Unsorted"
-          aria-label="Add to Unsorted"
+          placeholder={`Add to ${words.unsorted}`}
+          aria-label={`Add to ${words.unsorted}`}
           className="min-w-0 flex-1 bg-transparent text-[15px] text-fg outline-none placeholder:text-placeholder"
         />
         <kbd className="font-mono text-label font-normal">↵</kbd>
