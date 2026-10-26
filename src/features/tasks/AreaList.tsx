@@ -165,10 +165,11 @@ const AreaTaskRow = memo(function AreaTaskRow({
       </button>
       <button onClick={() => onSelect(task.id)} className="@container flex h-full min-w-0 flex-1 items-center gap-2.5 text-left">
         <TaskTitle title={task.title} done={false} />
+        {/* The lock reads with the task (before its milestone), not as one more icon at the end. */}
+        <BlockedMark task={task} iconOnly />
         {milestone && (
           <MilestoneChip title={milestone.title} color={milestone.color} className="max-w-[45%] @max-[14rem]:hidden" />
         )}
-        <BlockedMark task={task} iconOnly />
         <PriorityMark taskId={task.id} />
         <DueDate item={task} />
       </button>
