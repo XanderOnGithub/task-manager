@@ -20,3 +20,26 @@ function subscribe(onChange: () => void) {
 export function useCompact(): boolean {
   return useSyncExternalStore(subscribe, () => query()?.matches ?? false, () => false)
 }
+
+/** A finger rather than a mouse: phones and tablets. */
+export const COARSE_QUERY = '(pointer: coarse)'
+
+const coarse = () => (typeof window !== 'undefined' && typeof window.matchMedia === 'function' ? window.matchMedia(COARSE_QUERY) : null)
+
+/** True on a touch screen right now. For code outside React. */
+export function isCoarsePointer(): boolean {
+  return coarse()?.matches ?? false
+}
+
+/** True on a touch screen: menus open as bottom sheets there. */
+export function useCoarsePointer(): boolean {
+  return useSyncExternalStore(
+    (onChange) => {
+      const list = coarse()
+      list?.addEventListener('change', onChange)
+      return () => list?.removeEventListener('change', onChange)
+    },
+    isCoarsePointer,
+    () => false,
+  )
+}

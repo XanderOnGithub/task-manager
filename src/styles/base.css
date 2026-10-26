@@ -119,6 +119,20 @@
 /* On a touch screen small controls get a larger area to tap (at least 44px)
    without looking any different: an invisible layer centered on the control. */
 @media (pointer: coarse) {
+  /* Holding a row lifts it or opens its actions (shared/drag/drag.ts), so the
+     phone's own long-press callout and text selection stay out of the way. */
+  [data-item] {
+    -webkit-touch-callout: none;
+  }
+  /* Key hints (esc, ⌘N, ↵) mean nothing without a keyboard. */
+  kbd,
+  .key-hint {
+    display: none !important;
+  }
+  /* Rows answer the finger the moment it lands (hover colors don't exist on touch). */
+  [data-item]:active {
+    background-color: var(--color-hover);
+  }
   :is(button, a[href], [role='button'], [role='menuitem'], [role='radio'], [role='switch'], [role='tab']):not(.sr-only) {
     position: relative;
   }

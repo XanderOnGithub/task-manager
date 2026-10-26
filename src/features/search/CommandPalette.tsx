@@ -313,7 +313,7 @@ function Enter({ show }: { show: boolean }) {
       size={13}
       strokeWidth={2}
       aria-hidden="true"
-      className={`relative shrink-0 text-fg-3 transition-opacity duration-100 ${show ? 'opacity-100' : 'opacity-0'}`}
+      className={`key-hint relative shrink-0 text-fg-3 transition-opacity duration-100 ${show ? 'opacity-100' : 'opacity-0'}`}
     />
   )
 }

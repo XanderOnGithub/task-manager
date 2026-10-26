@@ -25,6 +25,8 @@ import { isMac, keys } from './platform/os'
 import { readPref, writePref } from './platform/prefs'
 import {
   ArrowUpRight,
+  CircleCheck,
+  Circle,
   FilePlus,
   Flag,
   Target,
@@ -310,8 +312,22 @@ export default function App() {
       openId(item.id)
       requestAdd(item.id, what)
     }
+    // A task can be finished (or reopened) straight from here: on a phone the
+    // long-press sheet is the quickest way to tick something off.
+    const done = item.status === 'done'
+    const finish: MenuItem[] =
+      item.kind === 'task'
+        ? [
+            {
+              label: `Mark as ${words.status(done ? 'todo' : 'done').toLowerCase()}`,
+              Icon: done ? Circle : CircleCheck,
+              onSelect: () => void actions.setStatus(item, done ? 'todo' : 'done'),
+            },
+          ]
+        : []
     return [
       { label: 'Open', Icon: ArrowUpRight, onSelect: () => openId(item.id) },
+      ...finish,
       ...newItems(item, add),
       'divider',
       ...itemMenu(item, actions, () => {
@@ -501,7 +517,7 @@ export default function App() {
           />
         )}
       </AnimatePresence>
-      <ContextMenu menuFor={menuFor} />
+      <ContextMenu menuFor={menuFor} titleFor={(target) => byId.get(target.closest<HTMLElement>('[data-item]')?.dataset.item ?? '')?.title} />
       <ConfirmHost />
       {dialog === 'history' && <HistoryDialog onClose={() => setDialog(null)} />}
       {dialog === 'capture' && <QuickCapture onCapture={actions.capture} onClose={() => setDialog(null)} />}

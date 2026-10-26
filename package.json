@@ -1,7 +1,7 @@
 {
   "name": "moss",
   "private": true,
-  "version": "0.3.0",
+  "version": "0.3.1",
   "stage": "alpha",
   "type": "module",
   "scripts": {

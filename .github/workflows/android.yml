@@ -74,13 +74,16 @@ jobs:
         run: |
           pnpm tauri icon brand/android/icon.json
           ls src-tauri/gen/android/app/src/main/res/mipmap-xxxhdpi/
-      - name: Internet access, and resize the page when the keyboard opens
+      - name: Internet access, vibration, and resize the page when the keyboard opens
         run: |
           manifest=src-tauri/gen/android/app/src/main/AndroidManifest.xml
           # Sync and sign-in talk to GitHub. Without this permission every
           # address lookup fails ("No address associated with hostname").
           grep -q 'android.permission.INTERNET' "$manifest" || \
             sed -i 's|<application|<uses-permission android:name="android.permission.INTERNET" />\n    <application|' "$manifest"
+          # The short buzz when a held row lifts (shared/drag/hold.ts).
+          grep -q 'android.permission.VIBRATE' "$manifest" || \
+            sed -i 's|<application|<uses-permission android:name="android.permission.VIBRATE" />\n    <application|' "$manifest"
           grep -q windowSoftInputMode "$manifest" || sed -i 's|<activity|<activity android:windowSoftInputMode="adjustResize"|' "$manifest"
           cat "$manifest"
           grep -q 'android.permission.INTERNET' "$manifest"

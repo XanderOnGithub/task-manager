@@ -55,7 +55,7 @@ export function DetailsPanel({ items, item, parent, onSelect, actions, fluid = f
           </span>
         )}
         <span className="flex-1" />
-        <Menu items={itemMenu(item, actions, () => setRenaming((n) => n + 1))} />
+        <Menu title={item.title} items={itemMenu(item, actions, () => setRenaming((n) => n + 1))} />
         <button
           onClick={() => onSelect(null)}
           aria-label="Close details"
